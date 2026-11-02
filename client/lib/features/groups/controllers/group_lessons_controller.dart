@@ -28,7 +28,11 @@ class GroupLessonsMonthController extends Notifier<DateTime> {
   @override
   DateTime build() => latestMonth;
 
-  void show(DateTime day) => state = DateTime(day.year, day.month);
+  void show(DateTime day) {
+    final month = DateTime(day.year, day.month);
+    if (month.isAfter(latestMonth)) return;
+    state = month;
+  }
 
   void showLatest() => state = latestMonth;
 }

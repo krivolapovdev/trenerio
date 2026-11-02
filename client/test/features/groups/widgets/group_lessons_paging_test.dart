@@ -126,4 +126,38 @@ void main() {
 
     expect(client.lessonCalls, hasLength(2));
   });
+
+  testWidgets('the next month button is disabled on the current month', (
+    tester,
+  ) async {
+    final client = _FakeGroupClient();
+
+    await tester.pumpWidget(_wrap(client));
+    await tester.pumpAndSettle();
+
+    final nextButton = tester.widget<IconButton>(
+      find.widgetWithIcon(IconButton, FluentIcons.chevron_right_24_regular),
+    );
+
+    expect(nextButton.onPressed, isNull);
+  });
+
+  testWidgets(
+    'stepping back enables the next month button to return to the current month',
+    (tester) async {
+      final client = _FakeGroupClient();
+
+      await tester.pumpWidget(_wrap(client));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(FluentIcons.chevron_left_24_regular));
+      await tester.pumpAndSettle();
+
+      final nextButton = tester.widget<IconButton>(
+        find.widgetWithIcon(IconButton, FluentIcons.chevron_right_24_regular),
+      );
+
+      expect(nextButton.onPressed, isNotNull);
+    },
+  );
 }

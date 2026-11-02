@@ -44,6 +44,7 @@ class LessonsCalendar extends StatefulWidget {
 }
 
 class _LessonsCalendarState extends State<LessonsCalendar> {
+  static final DateTime _firstMonth = DateTime(2000);
   late DateTime _focusedDay;
 
   DateTime get _shownDay => widget.focusedDay ?? _focusedDay;
@@ -60,6 +61,28 @@ class _LessonsCalendarState extends State<LessonsCalendar> {
     ).isAfter(DateTime(today.year, today.month, today.day));
   }
 
+  bool _canShow(DateTime month) {
+    final now = DateTime.now();
+    final currentMonth = DateTime(now.year, now.month);
+
+    return !month.isBefore(_firstMonth) && !month.isAfter(currentMonth);
+  }
+
+  bool _canGoForward(DateTime focusedDay) =>
+      _canShow(DateTime(focusedDay.year, focusedDay.month + 1));
+
+  bool _canGoBackwards(DateTime focusedDay) =>
+      _canShow(DateTime(focusedDay.year, focusedDay.month - 1));
+
+  DateTime get _firstDay =>
+      _shownDay.isBefore(_firstMonth) ? _shownDay : _firstMonth;
+
+  DateTime get _lastDay {
+    final now = DateTime.now();
+    final endOfCurrentMonth = DateTime(now.year, now.month + 1, 0);
+    return _shownDay.isAfter(endOfCurrentMonth) ? _shownDay : endOfCurrentMonth;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -70,6 +93,8 @@ class _LessonsCalendarState extends State<LessonsCalendar> {
       widget.lessons.where((lesson) => isSameDay(lesson.date, day)).toList();
 
   void _onPageChanged(DateTime focusedDay) {
+    if (!_canShow(focusedDay)) return;
+
     if (widget.focusedDay == null) {
       setState(() {
         _focusedDay = focusedDay;
@@ -81,6 +106,7 @@ class _LessonsCalendarState extends State<LessonsCalendar> {
 
   void _shiftMonth(int months) {
     final next = DateTime(_shownDay.year, _shownDay.month + months);
+    if (!_canShow(next)) return;
 
     if (widget.focusedDay == null) {
       setState(() {
@@ -140,8 +166,8 @@ class _LessonsCalendarState extends State<LessonsCalendar> {
 
     final calendar = TableCalendar<LessonResponse>(
       locale: widget.locale,
-      firstDay: DateTime(2000),
-      lastDay: DateTime.now().add(const Duration(days: 365)),
+      firstDay: _firstDay,
+      lastDay: _lastDay,
       focusedDay: _shownDay,
       enabledDayPredicate: _isEnabledDay,
       headerVisible: false,
@@ -201,8 +227,10 @@ class _LessonsCalendarState extends State<LessonsCalendar> {
           child: CalendarMonthHeader(
             focusedDay: _shownDay,
             locale: widget.locale,
-            onPreviousMonth: () => _shiftMonth(-1),
-            onNextMonth: () => _shiftMonth(1),
+            onPreviousMonth: _canGoBackwards(_shownDay)
+                ? () => _shiftMonth(-1)
+                : null,
+            onNextMonth: _canGoForward(_shownDay) ? () => _shiftMonth(1) : null,
           ),
         ),
         calendar,

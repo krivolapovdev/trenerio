@@ -190,20 +190,47 @@ void main() {
     );
   });
 
+  testWidgets('the next month button is disabled on the current month', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_wrap(const LessonsCalendar(lessons: [])));
+    await tester.pumpAndSettle();
+
+    final nextButton = tester.widget<IconButton>(
+      find.widgetWithIcon(IconButton, FluentIcons.chevron_right_24_regular),
+    );
+
+    expect(nextButton.onPressed, isNull);
+  });
+
+  testWidgets('the next month button is enabled on a past month', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(LessonsCalendar(lessons: const [], focusedDay: DateTime(2026, 5))),
+    );
+    await tester.pumpAndSettle();
+
+    final nextButton = tester.widget<IconButton>(
+      find.widgetWithIcon(IconButton, FluentIcons.chevron_right_24_regular),
+    );
+
+    expect(nextButton.onPressed, isNotNull);
+  });
+
   testWidgets('the days of a future month cannot be tapped', (tester) async {
+    final today = DateTime.now();
     var taps = 0;
 
     await tester.pumpWidget(
       _wrap(
         LessonsCalendar(
           lessons: const [],
+          focusedDay: DateTime(today.year, today.month + 1),
           onDayTapped: (day, lessons) => taps++,
         ),
       ),
     );
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byIcon(FluentIcons.chevron_right_24_regular));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('15'), warnIfMissed: false);
