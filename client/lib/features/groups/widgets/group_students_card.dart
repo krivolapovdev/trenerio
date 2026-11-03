@@ -70,7 +70,10 @@ class GroupStudentsCard extends StatelessWidget {
               final listedStudent = listedStudents
                   .where((candidate) => candidate.id == groupStudent.id)
                   .firstOrNull;
-              final student = listedStudent ?? _summaryOf(groupStudent);
+              final student = _summaryOf(
+                groupStudent,
+                listedStudent: listedStudent,
+              );
 
               return StudentCard(
                 key: ValueKey(groupStudent.id),
@@ -83,7 +86,8 @@ class GroupStudentsCard extends StatelessWidget {
                     : () {
                         Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (context) => StudentPage(student: student),
+                            builder: (context) =>
+                                StudentPage(student: listedStudent ?? student),
                           ),
                         );
                       },
@@ -95,15 +99,17 @@ class GroupStudentsCard extends StatelessWidget {
   );
 
   static StudentSummaryResponse _summaryOf(
-    GroupStudentSummaryResponse student,
-  ) => StudentSummaryResponse(
+    GroupStudentSummaryResponse student, {
+    StudentSummaryResponse? listedStudent,
+  }) => StudentSummaryResponse(
     id: student.id,
-    fullName: student.fullName,
+    fullName: listedStudent?.fullName ?? student.fullName,
     createdAt: student.createdAt,
-    free: student.free,
+    free: listedStudent?.free ?? student.free,
     statuses: student.statuses,
-    birthdate: student.birthdate,
-    phone: student.phone,
-    note: student.note,
+    birthdate: listedStudent?.birthdate ?? student.birthdate,
+    phone: listedStudent?.phone ?? student.phone,
+    note: listedStudent?.note ?? student.note,
+    studentGroups: listedStudent?.studentGroups,
   );
 }

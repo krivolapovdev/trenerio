@@ -259,6 +259,26 @@ void main() {
   );
 
   testWidgets(
+    'displays badges for current group instead of listed students statuses',
+    (tester) async {
+      final otherGroupStudent = StudentSummaryResponse(
+        id: _studentId,
+        fullName: 'Anna Smirnova',
+        createdAt: DateTime(2025, 8, 22),
+        free: false,
+        statuses: const [StudentStatus.missing],
+        studentGroups: [_group],
+      );
+
+      await _pumpSection(tester, _container(students: [otherGroupStudent]));
+
+      // Group students badge is Paid (from group student), not Missing (from other group / listed)
+      expect(find.text(t.students.status.paid), findsOneWidget);
+      expect(find.text(t.students.status.missing), findsNothing);
+    },
+  );
+
+  testWidgets(
     'shows empty card with title, edit button, and no students text when empty',
     (tester) async {
       var updated = false;
