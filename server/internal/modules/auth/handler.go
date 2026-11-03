@@ -1,0 +1,92 @@
+package auth
+
+import (
+	"context"
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+	pkgerrors "github.com/krivolapovdev/trenerio/internal/shared/errors"
+	"github.com/krivolapovdev/trenerio/internal/shared/request"
+	"github.com/krivolapovdev/trenerio/internal/shared/response"
+	"github.com/krivolapovdev/trenerio/internal/shared/web"
+)
+
+type AuthService interface {
+	LoginGoogle(ctx context.Context, token string) (response.LoginResponse, error)
+	LoginReviewer(ctx context.Context, reviewerKey string) (response.LoginResponse, error)
+	RefreshTokens(ctx context.Context, refreshToken string) (response.JwtResponse, error)
+}
+
+type Handler struct {
+	service AuthService
+}
+
+func NewHandler(service AuthService) *Handler {
+	return &Handler{
+		service: service,
+	}
+}
+
+// GoogleLogin
+// @ID           googleLogin
+// @Tags         o-auth-2-controller
+// @Param        body  body      request.OAuth2LoginRequest  true  "Google OAuth2 login request"
+// @Success      200   {object}  response.LoginResponse
+// @Router       /api/v1/oauth2/google [post]
+func (h *Handler) GoogleLogin(c *gin.Context) {
+	var req request.OAuth2LoginRequest
+	if !web.BindJSON(c, &req) {
+		return
+	}
+
+	loginResponse, err := h.service.LoginGoogle(c.Request.Context(), req.Token)
+	if err != nil {
+		pkgerrors.HandleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, loginResponse)
+}
+
+// ReviewerLogin
+// @ID           login
+// @Tags         reviewer-auth-controller
+// @Param        X-Reviewer-Key  header    string  true  "Reviewer secret key"
+// @Success      200             {object}  response.LoginResponse
+// @Router       /api/v1/reviewer/login [post]
+func (h *Handler) ReviewerLogin(c *gin.Context) {
+	reviewerKey := c.GetHeader(web.HeaderXReviewerKey)
+	if reviewerKey == "" {
+		pkgerrors.RespondUnauthorized(c, "Authentication failed or token is invalid")
+		return
+	}
+
+	loginResponse, err := h.service.LoginReviewer(c.Request.Context(), reviewerKey)
+	if err != nil {
+		pkgerrors.HandleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, loginResponse)
+}
+
+// RefreshTokens
+// @ID           refreshTokens
+// @Tags         jwt-controller
+// @Param        body  body      request.RefreshTokenRequest  true  "Refresh token request"
+// @Success      200   {object}  response.JwtResponse
+// @Router       /api/v1/jwt/refresh [post]
+func (h *Handler) RefreshTokens(c *gin.Context) {
+	var req request.RefreshTokenRequest
+	if !web.BindJSON(c, &req) {
+		return
+	}
+
+	jwtTokens, err := h.service.RefreshTokens(c.Request.Context(), req.RefreshToken)
+	if err != nil {
+		pkgerrors.HandleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, jwtTokens)
+}

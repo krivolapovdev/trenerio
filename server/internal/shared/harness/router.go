@@ -3,7 +3,7 @@ package harness
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/krivolapovdev/trenerio/internal/auth"
+	"github.com/krivolapovdev/trenerio/internal/modules/auth"
 )
 
 func SetupTestRouter(user auth.JwtUser, registerRoutes func(rg *gin.RouterGroup)) *gin.Engine {

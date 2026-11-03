@@ -7,7 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/krivolapovdev/trenerio/internal/auth"
+	"github.com/krivolapovdev/trenerio/internal/modules/auth"
 	"github.com/stretchr/testify/assert"
 )
 

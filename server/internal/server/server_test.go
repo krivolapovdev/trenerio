@@ -10,11 +10,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/krivolapovdev/trenerio/internal/auth"
 	"github.com/krivolapovdev/trenerio/internal/db"
+	"github.com/krivolapovdev/trenerio/internal/modules/auth"
+	"github.com/krivolapovdev/trenerio/internal/modules/user"
 	pkgerrors "github.com/krivolapovdev/trenerio/internal/shared/errors"
 	"github.com/krivolapovdev/trenerio/internal/shared/response"
-	"github.com/krivolapovdev/trenerio/internal/user"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -147,7 +147,7 @@ func TestServer_AuthAndProtectedRoutes(t *testing.T) {
 		},
 	})
 
-	srv := NewServer(tokenProvider, []string{"https://trenerio.ru"}, authHandler, userHandler, nil, nil, nil, nil, nil, nil)
+	srv := NewServer(tokenProvider, []string{"https://trenerio.ru"}, auth.NewRouter(authHandler), user.NewRouter(userHandler), nil, nil, nil, nil, nil, nil)
 
 	t.Run("PublicRoute_ReviewerLogin_Success", func(t *testing.T) {
 		w := httptest.NewRecorder()

@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/krivolapovdev/trenerio/internal/visit"
+	"github.com/krivolapovdev/trenerio/internal/modules/visit"
 )
 
 // @name StudentVisit

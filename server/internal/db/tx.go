@@ -6,9 +6,13 @@ import (
 )
 
 // WithTx executes a callback function inside a database transaction.
+// If sqlDB is nil, it executes the callback directly with the provided queries.
 // If the callback returns an error or panics, the transaction is rolled back.
 // Otherwise, the transaction is committed.
 func WithTx(ctx context.Context, sqlDB *sql.DB, queries *Queries, fn func(qtx *Queries) error) (err error) {
+	if sqlDB == nil {
+		return fn(queries)
+	}
 	tx, err := sqlDB.BeginTx(ctx, nil)
 	if err != nil {
 		return err

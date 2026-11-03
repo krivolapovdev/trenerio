@@ -4,44 +4,30 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/krivolapovdev/trenerio/internal/auth"
-	"github.com/krivolapovdev/trenerio/internal/group"
-	"github.com/krivolapovdev/trenerio/internal/lesson"
-	"github.com/krivolapovdev/trenerio/internal/metric"
-	"github.com/krivolapovdev/trenerio/internal/roster"
+	"github.com/krivolapovdev/trenerio/internal/modules/auth"
 	"github.com/krivolapovdev/trenerio/internal/server/middleware"
 	"github.com/krivolapovdev/trenerio/internal/server/swagger"
 	pkgerrors "github.com/krivolapovdev/trenerio/internal/shared/errors"
-	"github.com/krivolapovdev/trenerio/internal/student"
-	"github.com/krivolapovdev/trenerio/internal/transaction"
-	"github.com/krivolapovdev/trenerio/internal/user"
 )
+
+// RouteRegistrar defines a component capable of registering its routes onto a gin router group.
+type RouteRegistrar interface {
+	RegisterRoutes(rg *gin.RouterGroup)
+}
 
 type Server struct {
 	engine        *gin.Engine
 	tokenProvider *auth.TokenProvider
 
-	authHandler    *auth.Handler
-	userHandler    *user.Handler
-	groupHandler   *group.Handler
-	studentHandler *student.Handler
-	lessonHandler  *lesson.Handler
-	txHandler      *transaction.Handler
-	metricHandler  *metric.Handler
-	rosterHandler  *roster.Handler
+	authRouter       RouteRegistrar
+	protectedRouters []RouteRegistrar
 }
 
 func NewServer(
 	tokenProvider *auth.TokenProvider,
 	allowedOrigins []string,
-	authHandler *auth.Handler,
-	userHandler *user.Handler,
-	groupHandler *group.Handler,
-	studentHandler *student.Handler,
-	lessonHandler *lesson.Handler,
-	txHandler *transaction.Handler,
-	metricHandler *metric.Handler,
-	rosterHandler *roster.Handler,
+	authRouter RouteRegistrar,
+	protectedRouters ...RouteRegistrar,
 ) *Server {
 	engine := gin.New()
 	engine.HandleMethodNotAllowed = true
@@ -56,16 +42,10 @@ func NewServer(
 	}
 
 	s := &Server{
-		engine:         engine,
-		tokenProvider:  tokenProvider,
-		authHandler:    authHandler,
-		userHandler:    userHandler,
-		groupHandler:   groupHandler,
-		studentHandler: studentHandler,
-		lessonHandler:  lessonHandler,
-		txHandler:      txHandler,
-		metricHandler:  metricHandler,
-		rosterHandler:  rosterHandler,
+		engine:           engine,
+		tokenProvider:    tokenProvider,
+		authRouter:       authRouter,
+		protectedRouters: protectedRouters,
 	}
 
 	s.setupRoutes(allowedOrigins)
@@ -96,33 +76,17 @@ func (s *Server) setupRoutes(allowedOrigins []string) {
 
 	api := s.engine.Group("/api/v1")
 	{
-		if s.authHandler != nil {
-			s.authHandler.RegisterRoutes(api)
+		if s.authRouter != nil {
+			s.authRouter.RegisterRoutes(api)
 		}
 
 		authRequired := api.Group("")
 		authRequired.Use(middleware.AuthMiddleware(s.tokenProvider))
 		{
-			if s.userHandler != nil {
-				s.userHandler.RegisterRoutes(authRequired)
-			}
-			if s.groupHandler != nil {
-				s.groupHandler.RegisterRoutes(authRequired)
-			}
-			if s.studentHandler != nil {
-				s.studentHandler.RegisterRoutes(authRequired)
-			}
-			if s.lessonHandler != nil {
-				s.lessonHandler.RegisterRoutes(authRequired)
-			}
-			if s.txHandler != nil {
-				s.txHandler.RegisterRoutes(authRequired)
-			}
-			if s.metricHandler != nil {
-				s.metricHandler.RegisterRoutes(authRequired)
-			}
-			if s.rosterHandler != nil {
-				s.rosterHandler.RegisterRoutes(authRequired)
+			for _, r := range s.protectedRouters {
+				if r != nil {
+					r.RegisterRoutes(authRequired)
+				}
 			}
 		}
 	}

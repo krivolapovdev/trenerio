@@ -20,6 +20,34 @@ func ValidateRequiredName(name, fieldName string) (string, error) {
 	return trimmed, nil
 }
 
+// ValidateNameUpdate checks if fieldName exists in updates. If present, it validates that it's a non-blank string
+// within 255 characters and updates the map with the trimmed string. Returns error if invalid.
+func ValidateNameUpdate(updates map[string]any, fieldName string) error {
+	raw, ok := updates[fieldName]
+	if !ok || raw == nil {
+		return nil
+	}
+	nameStr, ok := raw.(string)
+	if !ok {
+		return pkgerrors.NewBadRequest(fmt.Sprintf("%s must not be blank", fieldName))
+	}
+	trimmed, err := ValidateRequiredName(nameStr, fieldName)
+	if err != nil {
+		return err
+	}
+	updates[fieldName] = trimmed
+	return nil
+}
+
+// SanitizeTrimmedStringUpdate trims the string value in updates if the field is present and non-nil.
+func SanitizeTrimmedStringUpdate(updates map[string]any, fieldName string) {
+	if raw, ok := updates[fieldName]; ok && raw != nil {
+		if str, ok := raw.(string); ok {
+			updates[fieldName] = strings.TrimSpace(str)
+		}
+	}
+}
+
 // TrimStringPtr returns a pointer to the trimmed string, or nil if the input pointer is nil.
 func TrimStringPtr(s *string) *string {
 	if s == nil {

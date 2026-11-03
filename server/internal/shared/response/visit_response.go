@@ -1,7 +1,7 @@
 package response
 
 import (
-	"github.com/krivolapovdev/trenerio/internal/visit"
+	"github.com/krivolapovdev/trenerio/internal/modules/visit"
 )
 
 // @name VisitResponse

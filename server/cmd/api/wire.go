@@ -3,17 +3,17 @@ package main
 import (
 	"database/sql"
 
-	"github.com/krivolapovdev/trenerio/internal/auth"
 	"github.com/krivolapovdev/trenerio/internal/db"
-	"github.com/krivolapovdev/trenerio/internal/group"
-	"github.com/krivolapovdev/trenerio/internal/lesson"
-	"github.com/krivolapovdev/trenerio/internal/metric"
-	"github.com/krivolapovdev/trenerio/internal/roster"
+	"github.com/krivolapovdev/trenerio/internal/modules/auth"
+	"github.com/krivolapovdev/trenerio/internal/modules/group"
+	"github.com/krivolapovdev/trenerio/internal/modules/lesson"
+	"github.com/krivolapovdev/trenerio/internal/modules/metric"
+	"github.com/krivolapovdev/trenerio/internal/modules/roster"
+	"github.com/krivolapovdev/trenerio/internal/modules/student"
+	"github.com/krivolapovdev/trenerio/internal/modules/transaction"
+	"github.com/krivolapovdev/trenerio/internal/modules/user"
+	"github.com/krivolapovdev/trenerio/internal/modules/visit"
 	"github.com/krivolapovdev/trenerio/internal/server"
-	"github.com/krivolapovdev/trenerio/internal/student"
-	"github.com/krivolapovdev/trenerio/internal/transaction"
-	"github.com/krivolapovdev/trenerio/internal/user"
-	"github.com/krivolapovdev/trenerio/internal/visit"
 )
 
 func wireServer(dbConn *sql.DB, cfg Config) *server.Server {
@@ -79,13 +79,13 @@ func wireServer(dbConn *sql.DB, cfg Config) *server.Server {
 	return server.NewServer(
 		tokenProvider,
 		cfg.AllowedOrigins,
-		authHandler,
-		userHandler,
-		groupHandler,
-		studentHandler,
-		lessonHandler,
-		txHandler,
-		metricHandler,
-		rosterHandler,
+		auth.NewRouter(authHandler),
+		user.NewRouter(userHandler),
+		group.NewRouter(groupHandler),
+		student.NewRouter(studentHandler),
+		lesson.NewRouter(lessonHandler),
+		transaction.NewRouter(txHandler),
+		metric.NewRouter(metricHandler),
+		roster.NewRouter(rosterHandler),
 	)
 }

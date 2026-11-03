@@ -1,9 +1,13 @@
 package response
 
-import "github.com/krivolapovdev/trenerio/internal/auth"
-
 // @name JwtResponse
-type JwtResponse = auth.JwtResponse
+type JwtResponse struct {
+	AccessToken  string `json:"accessToken" binding:"required"`
+	RefreshToken string `json:"refreshToken" binding:"required"`
+}
 
 // @name LoginResponse
-type LoginResponse = auth.LoginResponse
+type LoginResponse struct {
+	User      UserResponse `json:"user" binding:"required"`
+	JwtTokens JwtResponse  `json:"jwtTokens" binding:"required"`
+}

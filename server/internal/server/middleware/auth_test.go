@@ -9,7 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/krivolapovdev/trenerio/internal/auth"
+	"github.com/krivolapovdev/trenerio/internal/modules/auth"
 	pkgerrors "github.com/krivolapovdev/trenerio/internal/shared/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
