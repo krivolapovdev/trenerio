@@ -208,6 +208,9 @@ void main() {
     await tester.pumpWidget(_wrap(_FakeGroupClient()));
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(find.text(t.create));
+    await tester.pumpAndSettle();
+
     await tester.tap(find.text(t.create));
     await tester.pumpAndSettle();
 
