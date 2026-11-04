@@ -9,4 +9,4 @@ pre-commit:
     - name: server
       root: server
       stage_fixed: true
-      run: go fmt ./... && go vet ./...
+      run: go fmt ./... && golangci-lint run

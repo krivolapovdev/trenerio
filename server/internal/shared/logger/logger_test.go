@@ -11,11 +11,12 @@ import (
 )
 
 func TestLogger_ContextValues(t *testing.T) {
+	var nilCtx context.Context
 	ctx := context.Background()
 
-	assert.Empty(t, GetRequestID(nil))
+	assert.Empty(t, GetRequestID(nilCtx))
 	assert.Empty(t, GetRequestID(ctx))
-	assert.Empty(t, GetUserID(nil))
+	assert.Empty(t, GetUserID(nilCtx))
 	assert.Empty(t, GetUserID(ctx))
 
 	reqID := "req-abc-123"
@@ -32,7 +33,8 @@ func TestLogger_ContextValues(t *testing.T) {
 }
 
 func TestLogger_FromContext(t *testing.T) {
-	assert.Equal(t, slog.Default(), FromContext(nil))
+	var nilCtx context.Context
+	assert.Equal(t, slog.Default(), FromContext(nilCtx))
 	assert.Equal(t, slog.Default(), FromContext(context.Background()))
 
 	customLogger := slog.New(slog.NewTextHandler(bytes.NewBuffer(nil), nil))
