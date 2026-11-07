@@ -44,66 +44,72 @@ class _StudentPageState extends ConsumerState<StudentPage> {
     super.dispose();
   }
 
-  Future<void> _openEditStudentSheet() async {
+  Future<void> _openEditStudentSheet([StudentSummaryResponse? student]) async {
+    final s = student ?? _student;
     await AppBottomSheet.show(
       context: context,
-      child: EditStudentBottomSheet(student: _student),
+      child: EditStudentBottomSheet(student: s),
     );
   }
 
-  Future<void> _openAssignGroupPage() async {
+  Future<void> _openAssignGroupPage([StudentSummaryResponse? student]) async {
+    final s = student ?? _student;
+    final groupIds = (s.studentGroups ?? const [])
+        .map((group) => group.id)
+        .toSet();
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => StudentGroupPage(
-          studentId: _student.id,
-          initialGroupIds: _studentGroupIds,
-        ),
+        builder: (context) =>
+            StudentGroupPage(studentId: s.id, initialGroupIds: groupIds),
       ),
     );
   }
 
-  Future<void> _openCreateLessonPage() async {
+  Future<void> _openCreateLessonPage([StudentSummaryResponse? student]) async {
+    final s = student ?? _student;
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => StudentLessonPage(
-          studentId: _student.id,
-          studentName: _student.fullName,
-          free: _student.free,
+          studentId: s.id,
+          studentName: s.fullName,
+          free: s.free,
           date: DateTime.now(),
         ),
       ),
     );
   }
 
-  Future<void> _openReportSheet() async {
+  Future<void> _openReportSheet([StudentSummaryResponse? student]) async {
+    final s = student ?? _student;
     await AppBottomSheet.show(
       context: context,
-      child: StudentReportBottomSheet(student: _student),
+      child: StudentReportBottomSheet(student: s),
     );
   }
 
-  Set<String> get _studentGroupIds =>
-      (_student.studentGroups ?? const []).map((group) => group.id).toSet();
-
-  Future<void> _openCreatePaymentSheet() async {
+  Future<void> _openCreatePaymentSheet([
+    StudentSummaryResponse? student,
+  ]) async {
+    final s = student ?? _student;
     await AppBottomSheet.show(
       context: context,
       child: CreateTransactionBottomSheet(
-        initialStudentId: _student.id,
-        initialStudentName: _student.fullName,
-        initialAmount: _student.studentGroups?.firstOrNull?.defaultPrice,
+        initialStudentId: s.id,
+        initialStudentName: s.fullName,
+        initialAmount: s.studentGroups?.firstOrNull?.defaultPrice,
         isIncomeOnly: true,
         isStudentLocked: true,
       ),
     );
   }
 
-  Future<void> _confirmDelete() async {
+  Future<void> _confirmDelete([StudentSummaryResponse? student]) async {
+    final s = student ?? _student;
     final navigator = Navigator.of(context);
 
     final deleted = await AppBottomSheet.show<bool>(
       context: context,
-      child: DeleteStudentBottomSheet(student: _student),
+      child: DeleteStudentBottomSheet(student: s),
     );
 
     if (!mounted || deleted != true) return;
@@ -111,15 +117,14 @@ class _StudentPageState extends ConsumerState<StudentPage> {
     navigator.pop();
   }
 
-  Future<void> _refresh() async {
+  Future<void> _refresh([String? studentId]) async {
+    final id = studentId ?? _student.id;
     setState(() => _isRefreshing = true);
 
     try {
       await Future.wait([
-        ref.read(studentLessonsProvider(_student.id).notifier).refresh(),
-        ref
-            .read(studentPaymentsControllerProvider(_student.id).notifier)
-            .refresh(),
+        ref.read(studentLessonsProvider(id).notifier).refresh(),
+        ref.read(studentPaymentsControllerProvider(id).notifier).refresh(),
         ref
             .read(studentListControllerProvider.notifier)
             .getAllStudents(forceRefresh: true),
@@ -131,7 +136,7 @@ class _StudentPageState extends ConsumerState<StudentPage> {
       if (listState.hasError) return;
 
       final updated = (listState.value ?? const [])
-          .where((student) => student.id == _student.id)
+          .where((student) => student.id == id)
           .firstOrNull;
 
       if (updated == null) {
@@ -187,12 +192,21 @@ class _StudentPageState extends ConsumerState<StudentPage> {
       studentPaymentsControllerProvider(_student.id),
     );
 
+    final studentFromList = ref.watch(
+      studentListControllerProvider.select(
+        (state) => (state.value ?? const <StudentSummaryResponse>[])
+            .where((student) => student.id == _student.id)
+            .firstOrNull,
+      ),
+    );
+    final currentStudent = studentFromList ?? _student;
+
     ref.listen(studentListControllerProvider, (previous, next) {
       final updated = (next.value ?? const <StudentSummaryResponse>[])
           .where((student) => student.id == _student.id)
           .firstOrNull;
 
-      if (updated != null) {
+      if (updated != null && mounted) {
         setState(() => _student = updated);
       }
     });
@@ -215,7 +229,7 @@ class _StudentPageState extends ConsumerState<StudentPage> {
           displacement: 20,
           color: Colors.black,
           clipBehavior: Clip.antiAlias,
-          onRefresh: _refresh,
+          onRefresh: () => _refresh(currentStudent.id),
           child: NotificationListener<ScrollNotification>(
             onNotification: _handleScrollNotification,
             child: CustomScrollView(
@@ -231,18 +245,20 @@ class _StudentPageState extends ConsumerState<StudentPage> {
                 SliverPersistentHeader(
                   pinned: true,
                   delegate: StudentHeaderDelegate(
-                    student: _student,
+                    student: currentStudent,
                     payments:
                         paymentsAsync.value ?? const <TransactionResponse>[],
                     topPadding: topPadding,
                     isRefreshing: _isRefreshing,
                     menu: StudentAppMenu(
-                      onEdit: _openEditStudentSheet,
-                      onCreateLesson: _openCreateLessonPage,
-                      onCreatePayment: _openCreatePaymentSheet,
-                      onAssignGroup: _openAssignGroupPage,
-                      onReport: _openReportSheet,
-                      onDelete: _confirmDelete,
+                      onEdit: () => _openEditStudentSheet(currentStudent),
+                      onCreateLesson: () =>
+                          _openCreateLessonPage(currentStudent),
+                      onCreatePayment: () =>
+                          _openCreatePaymentSheet(currentStudent),
+                      onAssignGroup: () => _openAssignGroupPage(currentStudent),
+                      onReport: () => _openReportSheet(currentStudent),
+                      onDelete: () => _confirmDelete(currentStudent),
                     ),
                   ),
                 ),
@@ -251,28 +267,30 @@ class _StudentPageState extends ConsumerState<StudentPage> {
                   sliver: SliverList.list(
                     children: [
                       StudentLessonsSection(
-                        studentId: _student.id,
-                        studentName: _student.fullName,
-                        studentGroups: _student.studentGroups ?? const [],
+                        studentId: currentStudent.id,
+                        studentName: currentStudent.fullName,
+                        studentGroups: currentStudent.studentGroups ?? const [],
                       ),
                       const SizedBox(height: 16),
                       RecentTransactions(
                         asyncTransactions: paymentsAsync,
-                        overrideTitle: _student.fullName,
+                        overrideTitle: currentStudent.fullName,
                         onSeeAllPressed: () {
                           Navigator.of(context).push(
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  StudentPaymentListPage(student: _student),
+                              builder: (context) => StudentPaymentListPage(
+                                student: currentStudent,
+                              ),
                             ),
                           );
                         },
-                        onAddPressed: _openCreatePaymentSheet,
+                        onAddPressed: () =>
+                            _openCreatePaymentSheet(currentStudent),
                       ),
                       const SizedBox(height: 16),
                       StudentGroupsSection(
-                        student: _student,
-                        onEdit: _openAssignGroupPage,
+                        student: currentStudent,
+                        onEdit: () => _openAssignGroupPage(currentStudent),
                       ),
                     ],
                   ),

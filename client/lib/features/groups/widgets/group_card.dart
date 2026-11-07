@@ -74,19 +74,19 @@ class GroupCard extends StatelessWidget {
 
                         const SizedBox(height: 8),
 
-                        Row(
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
                           children: [
                             CardBadge(
                               icon: const Icon(
                                 CupertinoIcons.rectangle_stack_person_crop,
                               ),
-                              label: '${group.countOfStudents}',
+                              label: '${group.countOfStudents ?? 0}',
                               backgroundColor: colorScheme.primaryContainer
                                   .withValues(alpha: 0.6),
                               foregroundColor: colorScheme.onPrimaryContainer,
                             ),
-
-                            const SizedBox(width: 8),
 
                             if (group.defaultPrice != null)
                               CardBadge(
@@ -97,6 +97,15 @@ class GroupCard extends StatelessWidget {
                                 backgroundColor: const Color(0xFFE8F5E9)
                                     .withValues(alpha: 0.6),
                                 foregroundColor: const Color(0xFF2E7D32),
+                              ),
+
+                            if ((group.countOfDebtors ?? 0) > 0)
+                              CardBadge(
+                                icon: const Icon(CupertinoIcons.eye_fill),
+                                label: '${group.countOfDebtors}',
+                                backgroundColor: colorScheme.errorContainer
+                                    .withValues(alpha: 0.6),
+                                foregroundColor: colorScheme.onErrorContainer,
                               ),
                           ],
                         ),

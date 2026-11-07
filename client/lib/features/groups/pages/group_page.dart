@@ -33,9 +33,11 @@ class _GroupPageState extends ConsumerState<GroupPage> {
     super.dispose();
   }
 
-  Future<void> _openGroupStudentsPage() async {
+  Future<void> _openGroupStudentsPage([GroupSummaryResponse? group]) async {
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => GroupStudentsPage(group: _group)),
+      MaterialPageRoute(
+        builder: (context) => GroupStudentsPage(group: group ?? _group),
+      ),
     );
   }
 
@@ -79,12 +81,21 @@ class _GroupPageState extends ConsumerState<GroupPage> {
       groupListControllerProvider.select((state) => state.isLoading),
     );
 
+    final groupFromList = ref.watch(
+      groupListControllerProvider.select(
+        (state) => (state.value ?? const <GroupSummaryResponse>[])
+            .where((group) => group.id == _group.id)
+            .firstOrNull,
+      ),
+    );
+    final currentGroup = groupFromList ?? _group;
+
     ref.listen(groupListControllerProvider, (previous, next) {
       final updated = (next.value ?? const <GroupSummaryResponse>[])
           .where((group) => group.id == _group.id)
           .firstOrNull;
 
-      if (updated != null) {
+      if (updated != null && mounted) {
         setState(() => _group = updated);
       }
     });
@@ -109,8 +120,12 @@ class _GroupPageState extends ConsumerState<GroupPage> {
           clipBehavior: Clip.antiAlias,
           onRefresh: () async {
             await Future.wait([
-              ref.read(groupLessonsProvider(_group.id).notifier).refresh(),
-              ref.read(groupStudentsProvider(_group.id).notifier).refresh(),
+              ref
+                  .read(groupLessonsProvider(currentGroup.id).notifier)
+                  .refresh(),
+              ref
+                  .read(groupStudentsProvider(currentGroup.id).notifier)
+                  .refresh(),
               ref
                   .read(groupListControllerProvider.notifier)
                   .getAllGroups(forceRefresh: true),
@@ -122,7 +137,7 @@ class _GroupPageState extends ConsumerState<GroupPage> {
             if (listState.hasError) return;
 
             final updated = (listState.value ?? const [])
-                .where((g) => g.id == _group.id)
+                .where((g) => g.id == currentGroup.id)
                 .firstOrNull;
 
             if (updated == null) {
@@ -147,7 +162,7 @@ class _GroupPageState extends ConsumerState<GroupPage> {
                 SliverPersistentHeader(
                   pinned: true,
                   delegate: GroupHeaderDelegate(
-                    group: _group,
+                    group: currentGroup,
                     topPadding: topPadding,
                     isRefreshing: isGroupRefreshing,
                   ),
@@ -157,16 +172,16 @@ class _GroupPageState extends ConsumerState<GroupPage> {
                   sliver: SliverList.list(
                     children: [
                       GroupLessonsSection(
-                        groupId: _group.id,
-                        groupName: _group.name,
+                        groupId: currentGroup.id,
+                        groupName: currentGroup.name,
                       ),
                       const SizedBox(height: 16),
                       GroupStudentsSection(
-                        groupId: _group.id,
-                        studentCount: _group.countOfStudents == 0
+                        groupId: currentGroup.id,
+                        studentCount: currentGroup.countOfStudents == 0
                             ? null
-                            : _group.countOfStudents,
-                        onEdit: _openGroupStudentsPage,
+                            : currentGroup.countOfStudents,
+                        onEdit: () => _openGroupStudentsPage(currentGroup),
                       ),
                     ],
                   ),

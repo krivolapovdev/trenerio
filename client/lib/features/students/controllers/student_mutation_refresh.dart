@@ -12,9 +12,14 @@ Future<void> refreshAfterStudentMutation(Ref ref) async {
     ..invalidate(groupStudentsProvider)
     ..invalidate(groupReportProvider);
 
-  await ref
-      .read(studentListControllerProvider.notifier)
-      .getAllStudents(forceRefresh: true);
+  await Future.wait([
+    ref
+        .read(studentListControllerProvider.notifier)
+        .getAllStudents(forceRefresh: true),
+    ref
+        .read(groupListControllerProvider.notifier)
+        .getAllGroups(forceRefresh: true),
+  ]);
 }
 
 void refreshAfterStudentGroupChange(

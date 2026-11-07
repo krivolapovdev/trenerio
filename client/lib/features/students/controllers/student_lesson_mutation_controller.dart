@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phone/core/errors/dio_error_mapper.dart';
+import 'package:phone/features/groups/controllers/group_list_controller.dart';
 import 'package:phone/features/groups/controllers/group_report_controller.dart';
 import 'package:phone/features/groups/controllers/group_students_controller.dart';
 import 'package:phone/features/groups/controllers/lesson_details_controller.dart';
@@ -81,9 +82,14 @@ class StudentLessonMutationController extends AsyncNotifier<void> {
         ..invalidate(groupStudentsProvider)
         ..invalidate(groupReportProvider);
 
-      await ref
-          .read(studentListControllerProvider.notifier)
-          .getAllStudents(forceRefresh: true);
+      await Future.wait([
+        ref
+            .read(studentListControllerProvider.notifier)
+            .getAllStudents(forceRefresh: true),
+        ref
+            .read(groupListControllerProvider.notifier)
+            .getAllGroups(forceRefresh: true),
+      ]);
     });
 
     return !state.hasError;

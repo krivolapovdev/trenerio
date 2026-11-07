@@ -31,6 +31,8 @@ void refreshAfterGroupLessonsMutation(
     ..invalidate(groupReportProvider)
     ..invalidate(groupStudentsProvider(groupId));
 
+  refreshAfterGroupMutation(ref);
+
   unawaited(
     ref
         .read(studentListControllerProvider.notifier)
@@ -80,14 +82,14 @@ Future<void> refreshAfterGroupPaymentsMutation(
         }),
   );
 
-  unawaited(
+  await Future.wait([
     ref
         .read(studentListControllerProvider.notifier)
-        .getAllStudents(forceRefresh: true)
-        .catchError((error, _) {
-          log('Error refreshing the students after group payments: $error');
-        }),
-  );
+        .getAllStudents(forceRefresh: true),
+    ref
+        .read(groupListControllerProvider.notifier)
+        .getAllGroups(forceRefresh: true),
+  ]);
 }
 
 void refreshAfterGroupStudentsMutation(Ref ref, {required String groupId}) {

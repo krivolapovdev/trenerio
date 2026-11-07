@@ -107,6 +107,136 @@ func (s *Service) GetAllGroupsSummary(ctx context.Context, ownerID uuid.UUID) ([
 		countMap[c.GroupID] = c.StudentCount
 	}
 
+	debtorCountMap := make(map[uuid.UUID]int64, len(groups))
+	groupStudents, err := s.db.FindGroupStudentsByOwnerID(ctx, ownerID)
+	if err != nil {
+		logger.ErrorContext(ctx, "Failed to fetch group students for debtor counts", "error", err, "user_id", ownerID.String())
+		return nil, err
+	}
+
+	if len(groupStudents) > 0 {
+		groupStudentIDsMap := make(map[uuid.UUID][]uuid.UUID)
+		allStudentIDsMap := make(map[uuid.UUID]bool)
+		for _, gs := range groupStudents {
+			groupStudentIDsMap[gs.GroupID] = append(groupStudentIDsMap[gs.GroupID], gs.StudentID)
+			allStudentIDsMap[gs.StudentID] = true
+		}
+
+		allStudentIDs := make([]uuid.UUID, 0, len(allStudentIDsMap))
+		for sid := range allStudentIDsMap {
+			allStudentIDs = append(allStudentIDs, sid)
+		}
+
+		var (
+			stRows              []response.StudentResponse
+			visitsByStudentID   map[uuid.UUID][]visit.VisitResponse
+			balancesByStudentID map[uuid.UUID]transaction.StudentBalance
+		)
+
+		g, gCtx := errgroup.WithContext(ctx)
+		if s.studentProvider != nil {
+			g.Go(func() error {
+				rows, err := s.studentProvider.GetStudentsByIDs(gCtx, allStudentIDs, ownerID)
+				if err != nil {
+					return err
+				}
+				stRows = rows
+				return nil
+			})
+		}
+		if s.visitProvider != nil {
+			g.Go(func() error {
+				vm, err := s.visitProvider.GetVisitsByStudentIDs(gCtx, allStudentIDs, ownerID)
+				if err != nil {
+					return err
+				}
+				visitsByStudentID = vm
+				return nil
+			})
+		}
+		if s.transactionProvider != nil {
+			g.Go(func() error {
+				bm, err := s.transactionProvider.GetStudentBalancesByStudentIDs(gCtx, allStudentIDs, ownerID)
+				if err != nil {
+					return err
+				}
+				balancesByStudentID = bm
+				return nil
+			})
+		}
+
+		if err := g.Wait(); err != nil {
+			logger.ErrorContext(ctx, "Failed to fetch student dependencies for group debtor counts", "error", err, "user_id", ownerID.String())
+			return nil, err
+		}
+
+		studentsMap := make(map[uuid.UUID]response.StudentResponse, len(stRows))
+		for _, sr := range stRows {
+			studentsMap[sr.ID] = sr
+		}
+
+		allLessonIDsMap := make(map[uuid.UUID]bool)
+		for _, visits := range visitsByStudentID {
+			for _, vr := range visits {
+				allLessonIDsMap[vr.LessonID] = true
+			}
+		}
+
+		allLessonIDs := make([]uuid.UUID, 0, len(allLessonIDsMap))
+		for lid := range allLessonIDsMap {
+			allLessonIDs = append(allLessonIDs, lid)
+		}
+
+		lessonsMap := make(map[uuid.UUID]response.LessonResponse, len(allLessonIDs))
+		if len(allLessonIDs) > 0 && s.lessonProvider != nil {
+			lRows, err := s.lessonProvider.GetLessonsByIDs(ctx, allLessonIDs, ownerID)
+			if err != nil {
+				logger.WarnContext(ctx, "Failed to fetch lessons for debtor counts", "error", err, "user_id", ownerID.String())
+			} else {
+				for _, lr := range lRows {
+					lessonsMap[lr.ID] = lr
+				}
+			}
+		}
+
+		today := time.Now().UTC()
+		for _, grp := range groups {
+			groupLessonsMap := make(map[uuid.UUID]response.LessonResponse)
+			for lid, l := range lessonsMap {
+				if l.GroupID != nil && *l.GroupID == grp.ID {
+					groupLessonsMap[lid] = l
+				}
+			}
+
+			sids := groupStudentIDsMap[grp.ID]
+			var countOfDebtors int64
+			for _, sid := range sids {
+				st, ok := studentsMap[sid]
+				if !ok {
+					continue
+				}
+				stVisits := visitsByStudentID[sid]
+				var balancePtr *transaction.StudentBalance
+				if bal, ok := balancesByStudentID[sid]; ok {
+					b := bal
+					balancePtr = &b
+				}
+
+				var statuses []student.StudentStatus
+				if s.studentProvider != nil {
+					statuses = s.studentProvider.ComputeStudentStatuses(st, stVisits, balancePtr, groupLessonsMap, groupLessonsMap, today)
+				}
+				for _, status := range statuses {
+					if status == student.StudentStatusUnpaid {
+						countOfDebtors++
+						break
+					}
+				}
+			}
+			debtorCountMap[grp.ID] = countOfDebtors
+		}
+	}
+
 	summaries := make([]response.GroupSummaryResponse, 0, len(groups))
 	for _, g := range groups {
 		var defPrice *float64
@@ -125,6 +255,7 @@ func (s *Service) GetAllGroupsSummary(ctx context.Context, ownerID uuid.UUID) ([
 			Note:            note,
 			CreatedAt:       g.CreatedAt,
 			CountOfStudents: countMap[g.ID],
+			CountOfDebtors:  debtorCountMap[g.ID],
 		})
 	}
 
@@ -277,7 +408,7 @@ func (s *Service) GetGroupStudents(ctx context.Context, groupID, ownerID uuid.UU
 
 		var statuses []student.StudentStatus
 		if s.studentProvider != nil {
-			statuses = s.studentProvider.ComputeStudentStatuses(st, stVisits, balancePtr, lessonsMap, groupLessonsMap, today)
+			statuses = s.studentProvider.ComputeStudentStatuses(st, stVisits, balancePtr, groupLessonsMap, groupLessonsMap, today)
 		}
 
 		groupStudents = append(groupStudents, GroupStudentSummaryResponse{

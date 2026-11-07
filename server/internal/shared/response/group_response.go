@@ -30,4 +30,5 @@ type GroupSummaryResponse struct {
 	Note            *string   `json:"note,omitempty"`
 	CreatedAt       time.Time `json:"createdAt" binding:"required" format:"date-time"`
 	CountOfStudents int64     `json:"countOfStudents"`
+	CountOfDebtors  int64     `json:"countOfDebtors"`
 }

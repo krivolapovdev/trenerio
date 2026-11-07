@@ -297,8 +297,8 @@ void main() {
     final futurePaidUntil = DateTime(2026, 12, 7);
     final pastPaidUntil = DateTime(2026, 11, 1);
 
-    final paidUntilLabel = t.students.balance.paidUntil(date: '07.12.2026');
-    final sessionsLabel = t.students.balance.sessionsLeft(n: 8);
+    const paidUntilLabel = '07.12.2026';
+    const sessionsLabel = '8';
 
     testWidgets('shows both lines with status badges and balance badges', (
       tester,
@@ -389,11 +389,8 @@ void main() {
       expect(find.text('+7 999 123-45-67'), findsOneWidget);
       expect(find.text(t.students.status.present), findsOneWidget);
       expect(find.text(t.students.status.paid), findsOneWidget);
-      expect(find.text(t.students.balance.sessionsLeft(n: 23)), findsOneWidget);
-      expect(
-        find.text(t.students.balance.paidUntil(date: '30.11.2026')),
-        findsOneWidget,
-      );
+      expect(find.text('23'), findsOneWidget);
+      expect(find.text('30.11.2026'), findsOneWidget);
     });
   });
 }

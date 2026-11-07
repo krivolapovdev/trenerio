@@ -137,6 +137,20 @@ class GroupHeaderDelegate extends SliverPersistentHeaderDelegate {
                                         ),
                                       ),
                                     ],
+                                    if ((group.countOfDebtors ?? 0) > 0) ...[
+                                      const SizedBox(width: 8),
+                                      CardBadge(
+                                        icon: const Icon(
+                                          CupertinoIcons.eye_fill,
+                                        ),
+                                        label: '${group.countOfDebtors}',
+                                        backgroundColor: colorScheme
+                                            .errorContainer
+                                            .withValues(alpha: 0.6),
+                                        foregroundColor:
+                                            colorScheme.onErrorContainer,
+                                      ),
+                                    ],
                                   ],
                                 ),
                                 if (hasNote) ...[

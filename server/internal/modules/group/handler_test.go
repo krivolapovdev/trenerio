@@ -115,7 +115,7 @@ func TestGroupHandler_GetAllGroupsSummary(t *testing.T) {
 
 	t.Run("Success", func(t *testing.T) {
 		expected := []response.GroupSummaryResponse{
-			{ID: uuid.New(), Name: "Beginners", CountOfStudents: 10},
+			{ID: uuid.New(), Name: "Beginners", CountOfStudents: 10, CountOfDebtors: 2},
 		}
 		mockSvc := &mockGroupService{
 			getAllGroupsSummaryFn: func(ctx context.Context, ownerID uuid.UUID) ([]response.GroupSummaryResponse, error) {
@@ -135,6 +135,7 @@ func TestGroupHandler_GetAllGroupsSummary(t *testing.T) {
 		require.NoError(t, err)
 		assert.Len(t, actual, 1)
 		assert.Equal(t, "Beginners", actual[0].Name)
+		assert.Equal(t, int64(2), actual[0].CountOfDebtors)
 	})
 
 	t.Run("InternalServerError", func(t *testing.T) {
