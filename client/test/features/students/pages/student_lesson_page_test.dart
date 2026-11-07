@@ -121,6 +121,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text(_studentName), findsOneWidget);
+    expect(
+      find.text(t.lessons.individualLessonTitle(name: _studentName)),
+      findsOneWidget,
+    );
     final checkbox = tester.widget<Checkbox>(find.byType(Checkbox));
     expect(checkbox.value, isTrue);
   });
@@ -260,6 +264,78 @@ void main() {
     },
   );
 
+  testWidgets('toggling all deselects and selects the student', (tester) async {
+    final client = _FakeLessonClient();
+    await tester.pumpWidget(
+      _wrap(
+        child: StudentLessonPage(
+          studentId: _studentId,
+          studentName: _studentName,
+          date: _lessonDate,
+        ),
+        lessonClient: client,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(t.lessons.deselectAll), findsOneWidget);
+    await tester.tap(find.text(t.lessons.deselectAll));
+    await tester.pumpAndSettle();
+
+    var checkbox = tester.widget<Checkbox>(find.byType(Checkbox));
+    expect(checkbox.value, isFalse);
+    expect(find.text(t.lessons.selectAll), findsOneWidget);
+
+    await tester.tap(find.text(t.lessons.selectAll));
+    await tester.pumpAndSettle();
+
+    checkbox = tester.widget<Checkbox>(find.byType(Checkbox));
+    expect(checkbox.value, isTrue);
+  });
+
+  testWidgets(
+    'viewing a stored lesson displays attendance mark and popup menu',
+    (tester) async {
+      final client = _FakeLessonClient(
+        visits: [
+          VisitResponse(
+            id: 'visit-1',
+            lessonId: 'lesson-1',
+            studentId: _studentId,
+            status: VisitStatus.present,
+            type: VisitType.free,
+            createdAt: DateTime(2026, 10, 8),
+          ),
+        ],
+      );
+      await tester.pumpWidget(
+        _wrap(
+          child: StudentLessonPage(
+            studentId: _studentId,
+            studentName: _studentName,
+            date: _lessonDate,
+            lesson: LessonResponse(
+              id: 'lesson-1',
+              date: _lessonDate,
+              createdAt: DateTime(2026, 10, 8),
+            ),
+          ),
+          lessonClient: client,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text(t.lessons.freeLesson), findsOneWidget);
+      expect(find.byType(Checkbox), findsNothing);
+
+      await tester.tap(find.byType(PopupMenuButton<String>));
+      await tester.pumpAndSettle();
+
+      expect(find.text(t.edit), findsOneWidget);
+      expect(find.text(t.delete), findsOneWidget);
+    },
+  );
+
   testWidgets(
     'editing an existing stored lesson starts with stored attendance',
     (tester) async {
@@ -292,10 +368,62 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      await tester.tap(find.byType(PopupMenuButton<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(t.edit));
+      await tester.pumpAndSettle();
+
       expect(find.text(t.lessons.freeLesson), findsOneWidget);
       final checkbox = tester.widget<Checkbox>(find.byType(Checkbox));
       expect(checkbox.value, isTrue);
       expect(checkbox.activeColor, freeCheckColor);
     },
   );
+
+  testWidgets('editing a stored lesson updates it', (tester) async {
+    final client = _FakeLessonClient(
+      visits: [
+        VisitResponse(
+          id: 'visit-1',
+          lessonId: 'lesson-1',
+          studentId: _studentId,
+          status: VisitStatus.present,
+          type: VisitType.regular,
+          createdAt: DateTime(2026, 10, 8),
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      _wrap(
+        child: StudentLessonPage(
+          studentId: _studentId,
+          studentName: _studentName,
+          date: _lessonDate,
+          lesson: LessonResponse(
+            id: 'lesson-1',
+            date: _lessonDate,
+            createdAt: DateTime(2026, 10, 8),
+          ),
+        ),
+        lessonClient: client,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(PopupMenuButton<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(t.edit));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(Checkbox));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text(t.update));
+    await tester.pumpAndSettle();
+
+    expect(client.updateBodies, hasLength(1));
+    final body = client.updateBodies.single;
+    expect(body.students, hasLength(1));
+    expect(body.students!.single.status, VisitStatus.absent);
+  });
 }

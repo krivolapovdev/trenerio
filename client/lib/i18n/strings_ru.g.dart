@@ -146,6 +146,7 @@ class _Translations$lessons$ru implements Translations$lessons$en {
 	// Translations
 	@override String get title => 'Урок';
 	@override String get individualLesson => 'Индивидуальный урок';
+	@override String individualLessonTitle({required Object name}) => 'Индивидуальный урок: ${name}';
 	@override String get individualLessons => 'Индивидуальные уроки';
 	@override String get groupLesson => 'Групповой урок';
 	@override String groupLessonTitle({required Object name}) => 'Групповой урок: ${name}';
@@ -408,6 +409,7 @@ extension on TranslationsRu {
 			'groups.deleteGroupMessage' => 'Группа будет удалена безвозвратно. Действие нельзя отменить.',
 			'lessons.title' => 'Урок',
 			'lessons.individualLesson' => 'Индивидуальный урок',
+			'lessons.individualLessonTitle' => ({required Object name}) => 'Индивидуальный урок: ${name}',
 			'lessons.individualLessons' => 'Индивидуальные уроки',
 			'lessons.groupLesson' => 'Групповой урок',
 			'lessons.groupLessonTitle' => ({required Object name}) => 'Групповой урок: ${name}',

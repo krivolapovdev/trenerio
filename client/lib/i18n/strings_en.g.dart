@@ -277,6 +277,9 @@ class Translations$lessons$en {
 	/// en: 'Individual lesson'
 	String get individualLesson => 'Individual lesson';
 
+	/// en: 'Individual lesson: $name'
+	String individualLessonTitle({required Object name}) => 'Individual lesson: ${name}';
+
 	/// en: 'Individual lessons'
 	String get individualLessons => 'Individual lessons';
 
@@ -768,6 +771,7 @@ extension on Translations {
 			'groups.deleteGroupMessage' => 'The group will be deleted permanently. This action cannot be undone.',
 			'lessons.title' => 'Lesson',
 			'lessons.individualLesson' => 'Individual lesson',
+			'lessons.individualLessonTitle' => ({required Object name}) => 'Individual lesson: ${name}',
 			'lessons.individualLessons' => 'Individual lessons',
 			'lessons.groupLesson' => 'Group lesson',
 			'lessons.groupLessonTitle' => ({required Object name}) => 'Group lesson: ${name}',

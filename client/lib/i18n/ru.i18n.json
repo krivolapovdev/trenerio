@@ -69,6 +69,7 @@
   "lessons": {
     "title": "Урок",
     "individualLesson": "Индивидуальный урок",
+    "individualLessonTitle": "Индивидуальный урок: $name",
     "individualLessons": "Индивидуальные уроки",
     "groupLesson": "Групповой урок",
     "groupLessonTitle": "Групповой урок: $name",
