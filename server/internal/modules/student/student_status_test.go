@@ -263,6 +263,47 @@ func TestStudentStatus_PaidVsUnpaidAndSessionBalances(t *testing.T) {
 		assert.Equal(t, []StudentStatus{StudentStatusPresent, StudentStatusUnpaid}, statuses)
 	})
 
+	t.Run("SingleSessionPurchased_OneLessonAttended_Paid", func(t *testing.T) {
+		bal := &transaction.StudentBalance{
+			StudentID:          studentID,
+			PaidUntil:          nil,
+			SessionsLeft:       0,
+			TotalSessionsAdded: 1,
+		}
+		statuses := ComputeStudentStatuses(st, visits, bal, lessonsMap, time.Now().UTC())
+		assert.Equal(t, []StudentStatus{StudentStatusPresent, StudentStatusPaid}, statuses)
+	})
+
+	t.Run("SingleSessionPurchased_TwoLessonsAttended_Unpaid", func(t *testing.T) {
+		lesson2ID := uuid.New()
+		twoVisits := []response.VisitResponse{
+			visits[0],
+			{
+				ID:        uuid.New(),
+				LessonID:  lesson2ID,
+				StudentID: studentID,
+				Status:    visit.VisitStatusPresent,
+				Type:      visit.VisitTypeRegular,
+			},
+		}
+		twoLessonsMap := map[uuid.UUID]response.LessonResponse{
+			lessonID: lessonsMap[lessonID],
+			lesson2ID: {
+				ID:        lesson2ID,
+				Date:      lastLessonDay.AddDate(0, 0, 1),
+				CreatedAt: createdAt,
+			},
+		}
+		bal := &transaction.StudentBalance{
+			StudentID:          studentID,
+			PaidUntil:          nil,
+			SessionsLeft:       0,
+			TotalSessionsAdded: 1,
+		}
+		statuses := ComputeStudentStatuses(st, twoVisits, bal, twoLessonsMap, time.Now().UTC())
+		assert.Equal(t, []StudentStatus{StudentStatusPresent, StudentStatusUnpaid}, statuses)
+	})
+
 	t.Run("FreeLessonOnly_NoBalance_PaidNotUnpaid", func(t *testing.T) {
 		freeLessonID := uuid.New()
 		freeLessonDay := time.Date(2026, 11, 5, 10, 0, 0, 0, time.UTC)

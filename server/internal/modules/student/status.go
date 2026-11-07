@@ -76,7 +76,33 @@ func ComputeStudentStatusesWithVisitLessons(
 		return statuses
 	}
 
-	if balance.IsPaidAt(lastLesson.Date) {
+	var paidUntil *time.Time
+	var totalSessionsAdded int64
+	var sessionsLeft int64
+	if balance != nil {
+		paidUntil = balance.PaidUntil
+		totalSessionsAdded = balance.TotalSessionsAdded
+		sessionsLeft = balance.SessionsLeft
+	}
+
+	var uncoveredBillableVisits int64
+	for _, v := range visits {
+		if student.Free || v.Type == visit.VisitTypeFree || v.Status == visit.VisitStatusExcused {
+			continue
+		}
+		if !v.Status.IsPresent() && v.Status != visit.VisitStatusAbsent {
+			continue
+		}
+		l, ok := lessonsMap[v.LessonID]
+		if !ok {
+			continue
+		}
+		if !transaction.IsSubscriptionActive(paidUntil, l.Date) {
+			uncoveredBillableVisits++
+		}
+	}
+
+	if sessionsLeft > 0 || uncoveredBillableVisits <= totalSessionsAdded {
 		statuses = append(statuses, StudentStatusPaid)
 	} else {
 		statuses = append(statuses, StudentStatusUnpaid)

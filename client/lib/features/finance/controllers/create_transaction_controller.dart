@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phone/features/finance/controllers/transaction_mutation_refresh.dart';
 import 'package:phone/features/finance/repositories/transaction_repository.dart';
+import 'package:phone/generated/models/create_student_payment_details_request.dart';
 import 'package:phone/generated/models/transaction_type.dart';
 
 final createTransactionControllerProvider =
@@ -16,6 +17,7 @@ class CreateTransactionController extends AsyncNotifier<void> {
     required TransactionType type,
     required double amount,
     required DateTime date,
+    CreateStudentPaymentDetailsRequest? paymentDetails,
   }) async {
     final transactionRepository = ref.read(transactionRepositoryProvider);
 
@@ -25,9 +27,14 @@ class CreateTransactionController extends AsyncNotifier<void> {
         type: type,
         amount: amount,
         date: date,
+        paymentDetails: paymentDetails,
       );
 
-      await refreshAfterTransactionMutation(ref, action: 'creating');
+      await refreshAfterTransactionMutation(
+        ref,
+        action: 'creating',
+        studentId: paymentDetails?.studentId,
+      );
     });
 
     return !state.hasError;

@@ -21,6 +21,9 @@ class UpdateTransactionController extends AsyncNotifier<void> {
     required DateTime date,
     String? studentId,
     DateTime? paidUntil,
+    bool clearPaidUntil = false,
+    int? sessionsAdded,
+    bool clearSessionsAdded = false,
   }) async {
     TransactionResponse? updatedTransaction;
 
@@ -35,7 +38,13 @@ class UpdateTransactionController extends AsyncNotifier<void> {
               'amount': amount,
               'date': date.toIso8601StringWithOffset(),
               if (paidUntil != null)
-                'paidUntil': paidUntil.toIso8601StringWithOffset(),
+                'paidUntil': paidUntil.toIso8601StringWithOffset()
+              else if (clearPaidUntil)
+                'paidUntil': null,
+              if (sessionsAdded != null)
+                'sessionsAdded': sessionsAdded
+              else if (clearSessionsAdded)
+                'sessionsAdded': null,
             },
           );
 

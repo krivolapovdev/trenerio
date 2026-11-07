@@ -2,22 +2,71 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:phone/features/finance/services/metric_service.dart';
+import 'package:phone/features/finance/services/transaction_service.dart';
 import 'package:phone/features/finance/widgets/create_transaction_bottom_sheet.dart';
+import 'package:phone/features/finance/widgets/student_payment_mode_selector.dart';
 import 'package:phone/features/students/services/student_service.dart';
+import 'package:phone/generated/metric_controller/metric_controller_client.dart';
+import 'package:phone/generated/models/create_student_payment_request.dart';
+import 'package:phone/generated/models/metric_scope.dart';
+import 'package:phone/generated/models/page_transaction_response.dart';
+import 'package:phone/generated/models/payment_metric_response.dart';
 import 'package:phone/generated/models/student_summary_response.dart';
+import 'package:phone/generated/models/transaction_response.dart';
+import 'package:phone/generated/models/transaction_type.dart';
 import 'package:phone/generated/student_controller/student_controller_client.dart';
+import 'package:phone/generated/transaction_controller/transaction_controller_client.dart';
 import 'package:phone/i18n/strings.g.dart';
 
 class _FakeStudentClient implements StudentControllerClient {
   new([this.students = const []]);
 
   final List<StudentSummaryResponse> students;
+  final List<CreateStudentPaymentRequest> createdPayments = [];
+  final List<String> createdPaymentStudentIds = [];
 
   @override
   Future<List<StudentSummaryResponse>> getStudentsSummary() async => students;
 
   @override
+  Future<TransactionResponse> createStudentPayment({
+    required String studentId,
+    required CreateStudentPaymentRequest body,
+  }) async {
+    createdPaymentStudentIds.add(studentId);
+    createdPayments.add(body);
+    return TransactionResponse(
+      id: 'tx-1',
+      amount: body.amount,
+      date: body.date,
+      type: TransactionType.income,
+      createdAt: DateTime(2025, 8, 22),
+    );
+  }
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _FakeTransactionClient implements TransactionControllerClient {
+  @override
+  Future<PageTransactionResponse> getPaginatedTransactions({
+    int? page = 1,
+    int? size = 20,
+  }) async => const PageTransactionResponse(content: [], totalElements: 0);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _FakeMetricClient implements MetricControllerClient {
+  @override
+  Future<List<PaymentMetricResponse>> getPaymentStatistics({
+    required DateTime startDate,
+    required DateTime endDate,
+    MetricScope? scope = MetricScope.month,
+  }) async => const [];
 }
 
 final _student = StudentSummaryResponse(
@@ -39,17 +88,23 @@ final _otherStudent = StudentSummaryResponse(
 Widget _wrap({
   num? initialAmount,
   List<StudentSummaryResponse> students = const [],
+  String? initialStudentId = 'student-1',
   String? initialStudentName,
   bool isStudentLocked = false,
+  _FakeStudentClient? studentClient,
 }) => ProviderScope(
   overrides: [
-    studentServiceProvider.overrideWithValue(_FakeStudentClient(students)),
+    studentServiceProvider.overrideWithValue(
+      studentClient ?? _FakeStudentClient(students),
+    ),
+    transactionServiceProvider.overrideWithValue(_FakeTransactionClient()),
+    metricServiceProvider.overrideWithValue(_FakeMetricClient()),
   ],
   child: TranslationProvider(
     child: MaterialApp(
       home: Scaffold(
         body: CreateTransactionBottomSheet(
-          initialStudentId: 'student-1',
+          initialStudentId: initialStudentId,
           initialStudentName: initialStudentName,
           initialAmount: initialAmount,
           isStudentLocked: isStudentLocked,
@@ -63,8 +118,10 @@ Future<void> _pump(
   WidgetTester tester, {
   num? initialAmount,
   List<StudentSummaryResponse> students = const [],
+  String? initialStudentId = 'student-1',
   String? initialStudentName,
   bool isStudentLocked = false,
+  _FakeStudentClient? studentClient,
 }) async {
   tester.view.physicalSize = const Size(1200, 2400);
   tester.view.devicePixelRatio = 1.0;
@@ -74,8 +131,10 @@ Future<void> _pump(
     _wrap(
       initialAmount: initialAmount,
       students: students,
+      initialStudentId: initialStudentId,
       initialStudentName: initialStudentName,
       isStudentLocked: isStudentLocked,
+      studentClient: studentClient,
     ),
   );
   await tester.pumpAndSettle();
@@ -284,4 +343,144 @@ void main() {
 
     expect(find.text(_student.fullName), findsOneWidget);
   });
+
+  testWidgets(
+    'payment mode selector is shown only when an income student is selected',
+    (tester) async {
+      await _pump(tester, initialStudentId: null, students: [_student]);
+
+      expect(find.byType(StudentPaymentModeSelector), findsNothing);
+      expect(_field(_paidUntilLabel), findsNothing);
+
+      await tester.tap(find.text(t.students.noStudent));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(_student.fullName));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(StudentPaymentModeSelector), findsOneWidget);
+      expect(_field(_paidUntilLabel), findsOneWidget);
+
+      await tester.tap(find.text(t.finance.typeExpense));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(StudentPaymentModeSelector), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'switching between Paid until and Sessions count swaps the input field and enforces digits only',
+    (tester) async {
+      await _pump(tester, initialAmount: 1000);
+
+      final sessionsLabel = '${t.finance.sessionsCount}*';
+
+      expect(_field(_paidUntilLabel), findsOneWidget);
+      expect(_field(sessionsLabel), findsNothing);
+
+      await tester.tap(find.text(t.finance.sessionsCount));
+      await tester.pumpAndSettle();
+
+      expect(_field(_paidUntilLabel), findsNothing);
+      expect(_field(sessionsLabel), findsOneWidget);
+      expect(
+        tester
+            .widget<TextButton>(find.widgetWithText(TextButton, t.create))
+            .onPressed,
+        isNull,
+      );
+
+      await tester.enterText(_field(sessionsLabel), '0');
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<TextButton>(find.widgetWithText(TextButton, t.create))
+            .onPressed,
+        isNull,
+      );
+
+      await tester.enterText(_field(sessionsLabel), 'a-12.5b');
+      await tester.pumpAndSettle();
+
+      expect(_textOf(tester, sessionsLabel), '125');
+      expect(
+        tester
+            .widget<TextButton>(find.widgetWithText(TextButton, t.create))
+            .onPressed,
+        isNotNull,
+      );
+
+      await tester.tap(find.text(t.finance.paidUntil));
+      await tester.pumpAndSettle();
+
+      expect(_field(_paidUntilLabel), findsOneWidget);
+      expect(_field(sessionsLabel), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'submitting in Sessions count mode sends sessionsAdded without paidUntil',
+    (tester) async {
+      final client = _FakeStudentClient([_student]);
+      await _pump(tester, initialAmount: 2500, studentClient: client);
+
+      await tester.tap(find.text(t.finance.sessionsCount));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(_field('${t.finance.sessionsCount}*'), '8');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(TextButton, t.create));
+      await tester.pumpAndSettle();
+
+      expect(client.createdPaymentStudentIds, ['student-1']);
+      expect(client.createdPayments, hasLength(1));
+      expect(client.createdPayments.single.amount, 2500);
+      expect(client.createdPayments.single.paidUntil, isNull);
+      expect(client.createdPayments.single.sessionsAdded, 8);
+    },
+  );
+
+  testWidgets(
+    'submitting in Paid until mode sends paidUntil without sessionsAdded',
+    (tester) async {
+      final client = _FakeStudentClient([_student]);
+      await _pump(tester, initialAmount: 2500, studentClient: client);
+
+      await tester.tap(find.widgetWithText(TextButton, t.create));
+      await tester.pumpAndSettle();
+
+      final now = DateTime.now();
+      final expectedPaidUntil = DateTime(now.year, now.month + 1, now.day);
+
+      expect(client.createdPaymentStudentIds, ['student-1']);
+      expect(client.createdPayments, hasLength(1));
+      expect(client.createdPayments.single.amount, 2500);
+      expect(client.createdPayments.single.paidUntil, expectedPaidUntil);
+      expect(client.createdPayments.single.sessionsAdded, isNull);
+    },
+  );
+
+  testWidgets(
+    'renders Russian selector and sessions field cleanly on narrow screens',
+    (tester) async {
+      await tester.runAsync(() => LocaleSettings.setLocale(AppLocale.ru));
+      addTearDown(() => LocaleSettings.setLocaleSync(AppLocale.en));
+
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(_wrap(initialAmount: 1500));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Оплачено до'), findsOneWidget);
+      expect(find.text('Количество занятий'), findsOneWidget);
+
+      await tester.tap(find.text('Количество занятий'));
+      await tester.pumpAndSettle();
+
+      expect(_field('Количество занятий*'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

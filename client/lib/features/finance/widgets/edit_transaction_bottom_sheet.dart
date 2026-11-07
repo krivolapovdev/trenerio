@@ -7,6 +7,8 @@ import 'package:phone/core/widgets/app_snack_bar.dart';
 import 'package:phone/core/widgets/date_input_field.dart';
 import 'package:phone/features/finance/controllers/update_transaction_controller.dart';
 import 'package:phone/features/finance/widgets/paid_until_field.dart';
+import 'package:phone/features/finance/widgets/sessions_count_field.dart';
+import 'package:phone/features/finance/widgets/student_payment_mode_selector.dart';
 import 'package:phone/generated/models/transaction_response.dart';
 import 'package:phone/generated/models/transaction_type.dart';
 import 'package:phone/i18n/strings.g.dart';
@@ -24,16 +26,27 @@ class EditTransactionBottomSheet extends ConsumerStatefulWidget {
 class _EditTransactionBottomSheetState
     extends ConsumerState<EditTransactionBottomSheet> {
   final TextEditingController _amountController = TextEditingController();
+  final TextEditingController _sessionsController = TextEditingController();
 
   late DateTime _selectedDate;
   late DateTime? _paidUntil;
+  late StudentPaymentMode _paymentMode;
 
   late final String _initialAmountText;
+  late final StudentPaymentMode _initialPaymentMode;
 
   bool _isDateValid = true;
   bool _isLoading = false;
 
   bool get _isStudentPayment => widget.transaction.paymentDetails != null;
+
+  bool get _isPaidUntilMode => _paymentMode == StudentPaymentMode.paidUntil;
+
+  int? get _parsedSessionsAdded =>
+      int.tryParse(_sessionsController.text.trim());
+
+  DateTime get _defaultPaidUntil =>
+      DateTime(_selectedDate.year, _selectedDate.month + 1, _selectedDate.day);
 
   DateTime get _maxPaidUntil =>
       DateTime.now().add(const Duration(days: 365 * 3));
@@ -42,20 +55,33 @@ class _EditTransactionBottomSheetState
       _amountController.text != _initialAmountText ||
       DateUtils.dateOnly(_selectedDate) !=
           DateUtils.dateOnly(widget.transaction.date) ||
-      _hasPaidUntilChanged;
+      _hasPaymentDetailsChanged;
 
-  bool get _hasPaidUntilChanged {
+  bool get _hasPaymentDetailsChanged {
     if (!_isStudentPayment) return false;
+    if (_paymentMode != _initialPaymentMode) return true;
 
-    final initialPaidUntil = widget.transaction.paymentDetails?.paidUntil;
-    final paidUntil = _paidUntil;
+    if (_isPaidUntilMode) {
+      final initialPaidUntil = widget.transaction.paymentDetails?.paidUntil;
+      final paidUntil = _paidUntil;
 
-    if (initialPaidUntil == null || paidUntil == null) {
-      return initialPaidUntil != paidUntil;
+      if (initialPaidUntil == null || paidUntil == null) {
+        return initialPaidUntil != paidUntil;
+      }
+
+      return DateUtils.dateOnly(paidUntil) !=
+          DateUtils.dateOnly(initialPaidUntil);
     }
 
-    return DateUtils.dateOnly(paidUntil) !=
-        DateUtils.dateOnly(initialPaidUntil);
+    return _parsedSessionsAdded !=
+        widget.transaction.paymentDetails?.sessionsAdded;
+  }
+
+  bool get _isPaymentFieldInvalid {
+    if (!_isStudentPayment) return false;
+    if (_isPaidUntilMode) return _paidUntil == null;
+    final sessions = _parsedSessionsAdded;
+    return sessions == null || sessions <= 0;
   }
 
   @override
@@ -71,17 +97,37 @@ class _EditTransactionBottomSheetState
       ..text = _initialAmountText
       ..addListener(_onAmountChanged);
 
+    final details = widget.transaction.paymentDetails;
     _selectedDate = widget.transaction.date;
-    _paidUntil = widget.transaction.paymentDetails?.paidUntil;
+    _paidUntil = details?.paidUntil;
+
+    final initialSessions = details?.sessionsAdded;
+    final initialSessionsText = initialSessions != null && initialSessions > 0
+        ? initialSessions.toString()
+        : '';
+
+    _initialPaymentMode = (_paidUntil == null && initialSessions != null)
+        ? StudentPaymentMode.sessionsCount
+        : StudentPaymentMode.paidUntil;
+    _paymentMode = _initialPaymentMode;
+
+    _sessionsController
+      ..text = initialSessionsText
+      ..addListener(_onSessionsChanged);
   }
 
   void _onAmountChanged() {
     setState(() {});
   }
 
+  void _onSessionsChanged() {
+    setState(() {});
+  }
+
   @override
   void dispose() {
     _amountController.dispose();
+    _sessionsController.dispose();
     super.dispose();
   }
 
@@ -100,12 +146,31 @@ class _EditTransactionBottomSheetState
     });
   }
 
+  void _onPaymentModeChanged(StudentPaymentMode mode) {
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _paymentMode = mode;
+      if (mode == StudentPaymentMode.paidUntil && _paidUntil == null) {
+        _paidUntil =
+            widget.transaction.paymentDetails?.paidUntil ?? _defaultPaidUntil;
+      }
+    });
+  }
+
   Future<void> _onUpdate() async {
     final amount = double.tryParse(_amountController.text.trim());
     if (amount == null || amount <= 0) return;
+    if (_isPaymentFieldInvalid) return;
 
-    final paidUntil = _paidUntil;
-    if (_isStudentPayment && paidUntil == null) return;
+    final details = widget.transaction.paymentDetails;
+    final paidUntil = _isStudentPayment && _isPaidUntilMode ? _paidUntil : null;
+    final sessionsAdded = _isStudentPayment && !_isPaidUntilMode
+        ? _parsedSessionsAdded
+        : null;
+    final clearPaidUntil =
+        _isStudentPayment && !_isPaidUntilMode && details?.paidUntil != null;
+    final clearSessionsAdded =
+        _isStudentPayment && _isPaidUntilMode && details?.sessionsAdded != null;
 
     FocusScope.of(context).unfocus();
 
@@ -119,8 +184,11 @@ class _EditTransactionBottomSheetState
           transactionId: widget.transaction.id,
           amount: amount,
           date: _selectedDate,
-          studentId: widget.transaction.paymentDetails?.studentId,
-          paidUntil: _isStudentPayment ? paidUntil : null,
+          studentId: details?.studentId,
+          paidUntil: paidUntil,
+          clearPaidUntil: clearPaidUntil,
+          sessionsAdded: sessionsAdded,
+          clearSessionsAdded: clearSessionsAdded,
         );
 
     if (!mounted) return;
@@ -147,9 +215,9 @@ class _EditTransactionBottomSheetState
 
   @override
   Widget build(BuildContext context) {
-    final isAmountEmpty = _amountController.text.trim().isEmpty;
+    final parsedAmount = double.tryParse(_amountController.text.trim());
+    final isAmountInvalid = parsedAmount == null || parsedAmount <= 0;
     final isIncome = widget.transaction.type == TransactionType.income;
-    final isPaidUntilMissing = _isStudentPayment && _paidUntil == null;
     final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
 
     return SafeArea(
@@ -226,13 +294,24 @@ class _EditTransactionBottomSheetState
                         onDateChanged: _onDateChanged,
                       ),
 
-                      if (_isStudentPayment)
-                        PaidUntilField(
-                          initialDate: _paidUntil,
-                          lastDate: _maxPaidUntil,
-                          enabled: !_isLoading,
-                          onDateChanged: _onPaidUntilChanged,
+                      if (_isStudentPayment) ...[
+                        StudentPaymentModeSelector(
+                          selectedMode: _paymentMode,
+                          onChanged: _onPaymentModeChanged,
                         ),
+                        if (_isPaidUntilMode)
+                          PaidUntilField(
+                            initialDate: _paidUntil,
+                            lastDate: _maxPaidUntil,
+                            enabled: !_isLoading,
+                            onDateChanged: _onPaidUntilChanged,
+                          )
+                        else
+                          SessionsCountField(
+                            controller: _sessionsController,
+                            enabled: !_isLoading,
+                          ),
+                      ],
 
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 10),
@@ -240,9 +319,9 @@ class _EditTransactionBottomSheetState
                           alignment: Alignment.centerRight,
                           child: TextButton.icon(
                             onPressed:
-                                (isAmountEmpty ||
+                                (isAmountInvalid ||
                                     !_isDateValid ||
-                                    isPaidUntilMissing ||
+                                    _isPaymentFieldInvalid ||
                                     !_hasChanges ||
                                     _isLoading)
                                 ? null

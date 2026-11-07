@@ -574,4 +574,133 @@ void main() {
     expect(client.updateBodies, hasLength(1));
     expect(studentClient.paymentRequests, 2);
   });
+
+  testWidgets('transaction page shows sessions count for session payments', (
+    tester,
+  ) async {
+    final transaction = _transaction(
+      paymentDetails: const StudentPaymentDetailsResponse(
+        detailsType: 'STUDENT',
+        studentId: 'student-1',
+        studentName: 'Ivan Petrov',
+        sessionsAdded: 8,
+      ),
+    );
+
+    await tester.pumpWidget(
+      _wrap(
+        TransactionPage(transaction: transaction, overrideTitle: 'Ivan P.'),
+      ),
+    );
+
+    expect(find.text(t.finance.student.toUpperCase()), findsOneWidget);
+    expect(find.text('Ivan Petrov'), findsOneWidget);
+    expect(find.text(t.finance.sessionsCount.toUpperCase()), findsOneWidget);
+    expect(find.text('8'), findsOneWidget);
+    expect(find.text(t.finance.paidUntil.toUpperCase()), findsNothing);
+  });
+
+  testWidgets('editing a session payment updates sessionsAdded', (
+    tester,
+  ) async {
+    final transaction = _transaction(
+      paymentDetails: const StudentPaymentDetailsResponse(
+        detailsType: 'STUDENT',
+        studentId: 'student-1',
+        studentName: 'Ivan Petrov',
+        sessionsAdded: 8,
+      ),
+    );
+    final client = _FakeTransactionClient(transaction: transaction);
+
+    await tester.pumpWidget(
+      _wrapWithApi(TransactionPage(transaction: transaction), client),
+    );
+
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(t.edit));
+    await tester.pumpAndSettle();
+
+    final sessionsField = find.widgetWithText(
+      TextField,
+      '${t.finance.sessionsCount}*',
+    );
+    expect(sessionsField, findsOneWidget);
+    expect(_paidUntilField(), findsNothing);
+    expect(tester.widget<TextField>(sessionsField).controller!.text, '8');
+    expect(_editAction(tester).onPressed, isNull);
+
+    await tester.enterText(sessionsField, 'a12b');
+    await tester.pump();
+
+    expect(tester.widget<TextField>(sessionsField).controller!.text, '12');
+    expect(_editAction(tester).onPressed, isNotNull);
+
+    await tester.tap(find.text(t.update));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+
+    final expectedDate = DateTime(2025, 8, 22).toIso8601StringWithOffset();
+    expect(client.updateBodies, hasLength(1));
+    expect(client.updateBodies.single, {
+      'amount': 3800.0,
+      'date': expectedDate,
+      'sessionsAdded': 12,
+    });
+  });
+
+  testWidgets(
+    'editing a paidUntil payment can switch mode to sessions count and clears paidUntil',
+    (tester) async {
+      final transaction = _transaction(
+        paymentDetails: StudentPaymentDetailsResponse(
+          detailsType: 'STUDENT',
+          studentId: 'student-1',
+          studentName: 'Ivan Petrov',
+          paidUntil: DateTime(2025, 9),
+        ),
+      );
+      final client = _FakeTransactionClient(transaction: transaction);
+
+      await tester.pumpWidget(
+        _wrapWithApi(TransactionPage(transaction: transaction), client),
+      );
+
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(t.edit));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text(t.finance.sessionsCount));
+      await tester.pumpAndSettle();
+
+      final sessionsField = find.widgetWithText(
+        TextField,
+        '${t.finance.sessionsCount}*',
+      );
+      expect(sessionsField, findsOneWidget);
+      expect(_editAction(tester).onPressed, isNull);
+
+      await tester.enterText(sessionsField, '10');
+      await tester.pump();
+
+      expect(_editAction(tester).onPressed, isNotNull);
+
+      await tester.tap(find.text(t.update));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle();
+
+      final expectedDate = DateTime(2025, 8, 22).toIso8601StringWithOffset();
+      expect(client.updateBodies, hasLength(1));
+      expect(client.updateBodies.single, {
+        'amount': 3800.0,
+        'date': expectedDate,
+        'paidUntil': null,
+        'sessionsAdded': 10,
+      });
+    },
+  );
 }

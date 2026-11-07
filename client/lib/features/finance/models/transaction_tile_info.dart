@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:phone/core/constants/app_colors.dart';
 import 'package:phone/core/constants/app_date_formats.dart';
+import 'package:phone/generated/models/student_payment_details_response.dart';
 import 'package:phone/generated/models/transaction_response.dart';
 import 'package:phone/generated/models/transaction_type.dart';
 import 'package:phone/i18n/strings.g.dart';
@@ -33,7 +34,7 @@ class TransactionTileInfo {
     if (details != null) {
       return TransactionTileInfo(
         title: overrideTitle ?? details.studentName ?? t.finance.deposit,
-        subtitle: _subtitle(details.paidUntil),
+        subtitle: _subtitle(details),
         icon: typeIcon,
         backgroundColor: typeColor,
       );
@@ -47,8 +48,18 @@ class TransactionTileInfo {
     );
   }
 
-  static String _subtitle(DateTime? paidUntil) => paidUntil == null
-      ? ''
-      : '${t.finance.paidUntil} '
-            '${DateFormat(AppDateFormats.dayMonthYear).format(paidUntil)}';
+  static String _subtitle(StudentPaymentDetailsResponse details) {
+    final parts = <String>[
+      if (details.paidUntil != null)
+        '${t.finance.paidUntil} '
+            '${DateFormat(AppDateFormats.dayMonthYear).format(details.paidUntil!)}',
+      if (details.sessionsAdded != null)
+        t.titleWithCount(
+          title: t.finance.sessionsCount,
+          count: details.sessionsAdded!,
+        ),
+    ];
+
+    return parts.join(' • ');
+  }
 }

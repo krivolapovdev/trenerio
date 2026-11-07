@@ -7,8 +7,10 @@ import 'package:phone/core/widgets/date_input_field.dart';
 import 'package:phone/features/finance/controllers/create_transaction_controller.dart';
 import 'package:phone/features/finance/widgets/amount_field.dart';
 import 'package:phone/features/finance/widgets/paid_until_field.dart';
+import 'package:phone/features/finance/widgets/sessions_count_field.dart';
 import 'package:phone/features/finance/widgets/sheet_title.dart';
 import 'package:phone/features/finance/widgets/student_field.dart';
+import 'package:phone/features/finance/widgets/student_payment_mode_selector.dart';
 import 'package:phone/features/finance/widgets/submit_button.dart';
 import 'package:phone/features/finance/widgets/transaction_type_selector.dart';
 import 'package:phone/features/students/controllers/create_student_payment_controller.dart';
@@ -45,8 +47,10 @@ class CreateTransactionBottomSheet extends ConsumerStatefulWidget {
 class _CreateTransactionBottomSheetState
     extends ConsumerState<CreateTransactionBottomSheet> {
   final TextEditingController _amountController = TextEditingController();
+  final TextEditingController _sessionsController = TextEditingController();
 
   TransactionType _selectedType = TransactionType.income;
+  StudentPaymentMode _paymentMode = StudentPaymentMode.paidUntil;
   DateTime _selectedDate = DateTime.now();
   bool _isDateValid = true;
   String? _selectedStudentId;
@@ -67,6 +71,7 @@ class _CreateTransactionBottomSheetState
     }
 
     _amountController.addListener(_onAmountChanged);
+    _sessionsController.addListener(_onSessionsChanged);
 
     final initialStudentId = widget.initialStudentId;
     if (initialStudentId != null) {
@@ -77,15 +82,23 @@ class _CreateTransactionBottomSheetState
 
   void _onAmountChanged() => setState(() {});
 
+  void _onSessionsChanged() => setState(() {});
+
   @override
   void dispose() {
     _amountController.dispose();
+    _sessionsController.dispose();
     super.dispose();
   }
 
   bool get _isIncome => _selectedType == TransactionType.income;
 
   bool get _isStudentPayment => _isIncome && _selectedStudentId != null;
+
+  bool get _isPaidUntilMode => _paymentMode == StudentPaymentMode.paidUntil;
+
+  int? get _parsedSessionsAdded =>
+      int.tryParse(_sessionsController.text.trim());
 
   DateTime get _defaultPaidUntil =>
       DateTime(_selectedDate.year, _selectedDate.month + 1, _selectedDate.day);
@@ -105,6 +118,17 @@ class _CreateTransactionBottomSheetState
   void _onPaidUntilChanged(DateTime? date) {
     setState(() {
       _paidUntil = date;
+    });
+  }
+
+  void _onPaymentModeChanged(StudentPaymentMode mode) {
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _paymentMode = mode;
+      _isStudentExpanded = false;
+      if (mode == StudentPaymentMode.paidUntil && _paidUntil == null) {
+        _paidUntil = _defaultPaidUntil;
+      }
     });
   }
 
@@ -154,8 +178,15 @@ class _CreateTransactionBottomSheetState
     final amount = double.tryParse(amountText);
     if (amount == null || amount <= 0) return;
 
-    final paidUntil = _paidUntil;
-    if (_isStudentPayment && paidUntil == null) return;
+    final paidUntil = _isPaidUntilMode ? _paidUntil : null;
+    final sessionsAdded = _isPaidUntilMode ? null : _parsedSessionsAdded;
+
+    if (_isStudentPayment) {
+      if (_isPaidUntilMode && paidUntil == null) return;
+      if (!_isPaidUntilMode && (sessionsAdded == null || sessionsAdded <= 0)) {
+        return;
+      }
+    }
 
     FocusScope.of(context).unfocus();
 
@@ -174,7 +205,8 @@ class _CreateTransactionBottomSheetState
               studentId: _selectedStudentId!,
               amount: amount,
               date: _selectedDate,
-              paidUntil: paidUntil!,
+              paidUntil: paidUntil,
+              sessionsAdded: sessionsAdded,
             );
       } else {
         isSaved = await ref
@@ -265,10 +297,18 @@ class _CreateTransactionBottomSheetState
 
     final amount = double.tryParse(_amountController.text.trim());
     final isAmountPositive = amount != null && amount > 0;
-    final isPaidUntilMissing = _isStudentPayment && _paidUntil == null;
+    final sessionsAdded = _parsedSessionsAdded;
+    final isPaymentFieldInvalid =
+        _isStudentPayment &&
+        (_isPaidUntilMode
+            ? _paidUntil == null
+            : (sessionsAdded == null || sessionsAdded <= 0));
     final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
     final canSubmit =
-        isAmountPositive && !isPaidUntilMissing && _isDateValid && !_isLoading;
+        isAmountPositive &&
+        !isPaymentFieldInvalid &&
+        _isDateValid &&
+        !_isLoading;
 
     return SafeArea(
       child: Padding(
@@ -324,13 +364,25 @@ class _CreateTransactionBottomSheetState
                           onSelect: _selectStudent,
                         ),
 
-                      if (_isStudentPayment)
-                        PaidUntilField(
-                          initialDate: _paidUntil,
-                          lastDate: _maxPaidUntil,
-                          enabled: !_isLoading,
-                          onDateChanged: _onPaidUntilChanged,
+                      if (_isStudentPayment) ...[
+                        StudentPaymentModeSelector(
+                          selectedMode: _paymentMode,
+                          onChanged: _onPaymentModeChanged,
                         ),
+                        if (_isPaidUntilMode)
+                          PaidUntilField(
+                            initialDate: _paidUntil,
+                            lastDate: _maxPaidUntil,
+                            enabled: !_isLoading,
+                            onDateChanged: _onPaidUntilChanged,
+                          )
+                        else
+                          SessionsCountField(
+                            controller: _sessionsController,
+                            enabled: !_isLoading,
+                            onTap: _collapseStudent,
+                          ),
+                      ],
 
                       SubmitButton(
                         isLoading: _isLoading,

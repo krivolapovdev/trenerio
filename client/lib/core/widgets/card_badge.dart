@@ -42,12 +42,16 @@ class CardBadge extends StatelessWidget {
           const SizedBox(width: _iconGap),
         ],
 
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            color: foregroundColor,
-            fontWeight: FontWeight.w500,
+        Flexible(
+          child: Text(
+            label,
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+            style: TextStyle(
+              fontSize: 14,
+              color: foregroundColor,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ),
       ],

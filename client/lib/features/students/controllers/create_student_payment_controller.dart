@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phone/features/finance/controllers/transaction_mutation_refresh.dart';
 import 'package:phone/features/students/repositories/student_repository.dart';
@@ -9,17 +11,24 @@ final createStudentPaymentControllerProvider =
 
 class CreateStudentPaymentController extends AsyncNotifier<void> {
   @override
-  Future<void> build() async {}
+  FutureOr<void> build() {}
 
   Future<bool> saveStudentPayment({
     required String studentId,
     required double amount,
     required DateTime date,
-    required DateTime paidUntil,
+    DateTime? paidUntil,
+    int? sessionsAdded,
   }) async {
     state = const AsyncLoading();
 
     state = await AsyncValue.guard(() async {
+      if (paidUntil == null && (sessionsAdded == null || sessionsAdded <= 0)) {
+        throw ArgumentError(
+          'Either paidUntil or a positive sessionsAdded must be provided.',
+        );
+      }
+
       await ref
           .read(studentRepositoryProvider)
           .createStudentPayment(
@@ -27,6 +36,7 @@ class CreateStudentPaymentController extends AsyncNotifier<void> {
             amount: amount,
             date: date,
             paidUntil: paidUntil,
+            sessionsAdded: sessionsAdded,
           );
 
       await refreshAfterTransactionMutation(

@@ -74,17 +74,25 @@ class StudentRepository {
     required String studentId,
     required double amount,
     required DateTime date,
-    required DateTime paidUntil,
-  }) => guardApiCall(
-    () => _service.createStudentPayment(
-      studentId: studentId,
-      body: CreateStudentPaymentRequest(
-        amount: amount,
-        date: date,
-        paidUntil: paidUntil,
+    DateTime? paidUntil,
+    int? sessionsAdded,
+  }) {
+    assert(
+      paidUntil != null || (sessionsAdded != null && sessionsAdded > 0),
+      'Either paidUntil or a positive sessionsAdded must be provided.',
+    );
+    return guardApiCall(
+      () => _service.createStudentPayment(
+        studentId: studentId,
+        body: CreateStudentPaymentRequest(
+          amount: amount,
+          date: date,
+          paidUntil: paidUntil,
+          sessionsAdded: sessionsAdded,
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   Future<void> assignStudentGroups({
     required String studentId,

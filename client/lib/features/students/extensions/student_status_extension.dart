@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:phone/core/constants/app_colors.dart';
 import 'package:phone/features/students/models/student_badge_data.dart';
 import 'package:phone/generated/models/student_status.dart';
+import 'package:phone/generated/models/student_summary_response.dart';
 import 'package:phone/i18n/strings.g.dart';
 
 extension StudentStatusLabelExtension on StudentStatus {
@@ -72,5 +73,42 @@ extension StudentStatusExtension on List<StudentStatus> {
         ),
       },
     ).toList();
+  }
+}
+
+extension StudentSummaryHeaderBadgesExtension on StudentSummaryResponse {
+  /// First line header badges:
+  /// - present / missing
+  /// - paid / unpaid / free (or inactive)
+  List<StudentBadgeData> toHeaderStatusBadges(BuildContext context) {
+    final statusSet = statuses.toSet();
+
+    // 1. Attendance status: present / missing
+    final StudentStatus? attendance;
+    if (statusSet.contains(StudentStatus.present)) {
+      attendance = StudentStatus.present;
+    } else if (statusSet.contains(StudentStatus.missing)) {
+      attendance = StudentStatus.missing;
+    } else {
+      attendance = null;
+    }
+
+    // 2. Payment status: paid / unpaid / free (or inactive)
+    final StudentStatus? payment;
+    if (free || statusSet.contains(StudentStatus.free)) {
+      payment = StudentStatus.free;
+    } else if (statusSet.contains(StudentStatus.paid)) {
+      payment = StudentStatus.paid;
+    } else if (statusSet.contains(StudentStatus.unpaid)) {
+      payment = StudentStatus.unpaid;
+    } else if (statusSet.contains(StudentStatus.inactive)) {
+      payment = StudentStatus.inactive;
+    } else {
+      payment = null;
+    }
+
+    final headerStatuses = <StudentStatus>[?attendance, ?payment];
+
+    return headerStatuses.toBadges(context);
   }
 }

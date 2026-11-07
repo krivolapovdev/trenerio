@@ -127,6 +127,15 @@
       "paid": "Оплачено",
       "unpaid": "Не оплачено",
       "free": "Бесплатно"
+    },
+    "balance": {
+      "paidUntil": "Оплачено до $date",
+      "sessionsLeft(param=n)": {
+        "one": "Осталось $n занятие",
+        "few": "Осталось $n занятия",
+        "many": "Осталось $n занятий",
+        "other": "Осталось $n занятия"
+      }
     }
   },
   "rosters": {
@@ -188,6 +197,7 @@
     "typeExpense": "Расход",
     "student": "Ученик",
     "paidUntil": "Оплачено до",
+    "sessionsCount": "Количество занятий",
     "createdAt": "Создано",
     "deposit": "Пополнение",
     "withdrawal": "Списание",

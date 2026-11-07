@@ -9,16 +9,17 @@ import (
 )
 
 type StudentBalance struct {
-	StudentID    uuid.UUID
-	PaidUntil    *time.Time
-	SessionsLeft int64
+	StudentID          uuid.UUID
+	PaidUntil          *time.Time
+	SessionsLeft       int64
+	TotalSessionsAdded int64
 }
 
 func (b *StudentBalance) HasPaymentActivity() bool {
 	if b == nil {
 		return false
 	}
-	return b.PaidUntil != nil || b.SessionsLeft > 0
+	return b.PaidUntil != nil || b.SessionsLeft > 0 || b.TotalSessionsAdded > 0
 }
 
 func (b *StudentBalance) IsPaidAt(referenceDate time.Time) bool {

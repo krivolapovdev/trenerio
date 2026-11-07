@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phone/core/errors/dio_error_mapper.dart';
 import 'package:phone/features/finance/services/transaction_service.dart';
+import 'package:phone/generated/models/create_student_payment_details_request.dart';
 import 'package:phone/generated/models/create_transaction_request.dart';
 import 'package:phone/generated/models/page_transaction_response.dart';
 import 'package:phone/generated/models/transaction_response.dart';
@@ -39,10 +40,16 @@ class TransactionRepository {
     required TransactionType type,
     required double amount,
     required DateTime date,
+    CreateStudentPaymentDetailsRequest? paymentDetails,
   }) async {
     await guardApiCall(
       () => _client.createTransaction(
-        body: CreateTransactionRequest(type: type, amount: amount, date: date),
+        body: CreateTransactionRequest(
+          type: type,
+          amount: amount,
+          date: date,
+          paymentDetails: paymentDetails,
+        ),
       ),
     );
   }

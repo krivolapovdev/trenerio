@@ -83,65 +83,78 @@ class GroupHeaderDelegate extends SliverPersistentHeaderDelegate {
                   opacity: expandedOpacity,
                   child: IgnorePointer(
                     ignoring: expandedOpacity < 0.2,
-                    child: Skeletonizer(
-                      enabled: isRefreshing,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            group.name,
-                            style: const TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: -0.5,
-                              height: 1.2,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 10),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              CardBadge(
-                                icon: const Icon(
-                                  CupertinoIcons.rectangle_stack_person_crop,
-                                ),
-                                label: '${group.countOfStudents}',
-                                backgroundColor: colorScheme.primaryContainer
-                                    .withValues(alpha: 0.6),
-                                foregroundColor: colorScheme.onPrimaryContainer,
-                              ),
-                              if (group.defaultPrice != null) ...[
-                                const SizedBox(width: 8),
-                                CardBadge(
-                                  icon: const Icon(CupertinoIcons.tags),
-                                  label: group.defaultPrice!.toFormattedAmount(
-                                    showSign: false,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) => Skeletonizer(
+                        enabled: isRefreshing,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.center,
+                          child: SizedBox(
+                            width: constraints.maxWidth,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  group.name,
+                                  style: const TextStyle(
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: -0.5,
+                                    height: 1.2,
                                   ),
-                                  backgroundColor: const Color(0xFFE8F5E9)
-                                      .withValues(alpha: 0.6),
-                                  foregroundColor: const Color(0xFF2E7D32),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
                                 ),
+                                const SizedBox(height: 10),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    CardBadge(
+                                      icon: const Icon(
+                                        CupertinoIcons
+                                            .rectangle_stack_person_crop,
+                                      ),
+                                      label: '${group.countOfStudents}',
+                                      backgroundColor: colorScheme
+                                          .primaryContainer
+                                          .withValues(alpha: 0.6),
+                                      foregroundColor:
+                                          colorScheme.onPrimaryContainer,
+                                    ),
+                                    if (group.defaultPrice != null) ...[
+                                      const SizedBox(width: 8),
+                                      CardBadge(
+                                        icon: const Icon(CupertinoIcons.tags),
+                                        label: group.defaultPrice!
+                                            .toFormattedAmount(showSign: false),
+                                        backgroundColor: const Color(0xFFE8F5E9)
+                                            .withValues(alpha: 0.6),
+                                        foregroundColor: const Color(
+                                          0xFF2E7D32,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                if (hasNote) ...[
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    group.note!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
                               ],
-                            ],
-                          ),
-                          if (hasNote) ...[
-                            const SizedBox(height: 6),
-                            Text(
-                              group.note!,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: colorScheme.onSurfaceVariant,
-                              ),
                             ),
-                          ],
-                        ],
+                          ),
+                        ),
                       ),
                     ),
                   ),

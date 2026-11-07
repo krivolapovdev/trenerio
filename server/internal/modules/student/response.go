@@ -19,4 +19,6 @@ type StudentSummaryResponse struct {
 	Free          bool                     `json:"free" binding:"required"`
 	Statuses      []StudentStatus          `json:"statuses" binding:"required"`
 	StudentGroups []response.GroupResponse `json:"studentGroups"`
+	PaidUntil     *time.Time               `json:"paidUntil,omitempty" format:"date-time"`
+	SessionsLeft  int64                    `json:"sessionsLeft" default:"0"`
 }

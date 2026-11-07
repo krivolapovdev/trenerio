@@ -49,6 +49,24 @@ func toStudentPaymentDetailsResponse(studentID uuid.UUID, paidUntil sql.NullTime
 	}
 }
 
+func toStudentBalanceFromOwnerRow(b db.FindStudentBalancesByOwnerIDRow) StudentBalance {
+	return StudentBalance{
+		StudentID:          b.StudentID,
+		PaidUntil:          fromNullTime(b.PaidUntil),
+		SessionsLeft:       b.SessionsLeft,
+		TotalSessionsAdded: b.TotalSessionsAdded,
+	}
+}
+
+func toStudentBalanceFromIDsRow(b db.FindStudentBalancesByStudentIDsAndOwnerIDRow) StudentBalance {
+	return StudentBalance{
+		StudentID:          b.StudentID,
+		PaidUntil:          fromNullTime(b.PaidUntil),
+		SessionsLeft:       b.SessionsLeft,
+		TotalSessionsAdded: b.TotalSessionsAdded,
+	}
+}
+
 func toStudentBalance(b db.PaymentsModuleStudentBalance) StudentBalance {
 	return StudentBalance{
 		StudentID:    b.StudentID,

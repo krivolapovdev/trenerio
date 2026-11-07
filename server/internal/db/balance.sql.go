@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
@@ -69,9 +70,21 @@ func (q *Queries) CreateStudentBalance(ctx context.Context, arg CreateStudentBal
 }
 
 const findStudentBalanceByStudentIDAndOwnerID = `-- name: FindStudentBalanceByStudentIDAndOwnerID :one
-SELECT owner_id, student_id, paid_until, sessions_left, created_at, updated_at
-FROM payments_module.student_balances
-WHERE owner_id = $1 AND student_id = $2
+SELECT b.owner_id,
+       b.student_id,
+       b.paid_until,
+       b.sessions_left,
+       COALESCE(
+           (SELECT SUM(sp.sessions_added)
+            FROM payments_module.student_payments sp
+            JOIN payments_module.transactions t ON t.id = sp.transaction_id
+            WHERE sp.student_id = b.student_id AND t.owner_id = b.owner_id),
+           0
+       )::bigint AS total_sessions_added,
+       b.created_at,
+       b.updated_at
+FROM payments_module.student_balances b
+WHERE b.owner_id = $1 AND b.student_id = $2
 `
 
 type FindStudentBalanceByStudentIDAndOwnerIDParams struct {
@@ -79,14 +92,25 @@ type FindStudentBalanceByStudentIDAndOwnerIDParams struct {
 	StudentID uuid.UUID `json:"student_id"`
 }
 
-func (q *Queries) FindStudentBalanceByStudentIDAndOwnerID(ctx context.Context, arg FindStudentBalanceByStudentIDAndOwnerIDParams) (PaymentsModuleStudentBalance, error) {
+type FindStudentBalanceByStudentIDAndOwnerIDRow struct {
+	OwnerID            uuid.UUID    `json:"owner_id"`
+	StudentID          uuid.UUID    `json:"student_id"`
+	PaidUntil          sql.NullTime `json:"paid_until"`
+	SessionsLeft       int64        `json:"sessions_left"`
+	TotalSessionsAdded int64        `json:"total_sessions_added"`
+	CreatedAt          time.Time    `json:"created_at"`
+	UpdatedAt          time.Time    `json:"updated_at"`
+}
+
+func (q *Queries) FindStudentBalanceByStudentIDAndOwnerID(ctx context.Context, arg FindStudentBalanceByStudentIDAndOwnerIDParams) (FindStudentBalanceByStudentIDAndOwnerIDRow, error) {
 	row := q.db.QueryRowContext(ctx, findStudentBalanceByStudentIDAndOwnerID, arg.OwnerID, arg.StudentID)
-	var i PaymentsModuleStudentBalance
+	var i FindStudentBalanceByStudentIDAndOwnerIDRow
 	err := row.Scan(
 		&i.OwnerID,
 		&i.StudentID,
 		&i.PaidUntil,
 		&i.SessionsLeft,
+		&i.TotalSessionsAdded,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -120,25 +144,48 @@ func (q *Queries) FindStudentBalanceForUpdate(ctx context.Context, arg FindStude
 }
 
 const findStudentBalancesByOwnerID = `-- name: FindStudentBalancesByOwnerID :many
-SELECT owner_id, student_id, paid_until, sessions_left, created_at, updated_at
-FROM payments_module.student_balances
-WHERE owner_id = $1
+SELECT b.owner_id,
+       b.student_id,
+       b.paid_until,
+       b.sessions_left,
+       COALESCE(
+           (SELECT SUM(sp.sessions_added)
+            FROM payments_module.student_payments sp
+            JOIN payments_module.transactions t ON t.id = sp.transaction_id
+            WHERE sp.student_id = b.student_id AND t.owner_id = b.owner_id),
+           0
+       )::bigint AS total_sessions_added,
+       b.created_at,
+       b.updated_at
+FROM payments_module.student_balances b
+WHERE b.owner_id = $1
 `
 
-func (q *Queries) FindStudentBalancesByOwnerID(ctx context.Context, ownerID uuid.UUID) ([]PaymentsModuleStudentBalance, error) {
+type FindStudentBalancesByOwnerIDRow struct {
+	OwnerID            uuid.UUID    `json:"owner_id"`
+	StudentID          uuid.UUID    `json:"student_id"`
+	PaidUntil          sql.NullTime `json:"paid_until"`
+	SessionsLeft       int64        `json:"sessions_left"`
+	TotalSessionsAdded int64        `json:"total_sessions_added"`
+	CreatedAt          time.Time    `json:"created_at"`
+	UpdatedAt          time.Time    `json:"updated_at"`
+}
+
+func (q *Queries) FindStudentBalancesByOwnerID(ctx context.Context, ownerID uuid.UUID) ([]FindStudentBalancesByOwnerIDRow, error) {
 	rows, err := q.db.QueryContext(ctx, findStudentBalancesByOwnerID, ownerID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []PaymentsModuleStudentBalance{}
+	items := []FindStudentBalancesByOwnerIDRow{}
 	for rows.Next() {
-		var i PaymentsModuleStudentBalance
+		var i FindStudentBalancesByOwnerIDRow
 		if err := rows.Scan(
 			&i.OwnerID,
 			&i.StudentID,
 			&i.PaidUntil,
 			&i.SessionsLeft,
+			&i.TotalSessionsAdded,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -156,9 +203,21 @@ func (q *Queries) FindStudentBalancesByOwnerID(ctx context.Context, ownerID uuid
 }
 
 const findStudentBalancesByStudentIDsAndOwnerID = `-- name: FindStudentBalancesByStudentIDsAndOwnerID :many
-SELECT owner_id, student_id, paid_until, sessions_left, created_at, updated_at
-FROM payments_module.student_balances
-WHERE owner_id = $1 AND student_id = ANY($2::uuid[])
+SELECT b.owner_id,
+       b.student_id,
+       b.paid_until,
+       b.sessions_left,
+       COALESCE(
+           (SELECT SUM(sp.sessions_added)
+            FROM payments_module.student_payments sp
+            JOIN payments_module.transactions t ON t.id = sp.transaction_id
+            WHERE sp.student_id = b.student_id AND t.owner_id = b.owner_id),
+           0
+       )::bigint AS total_sessions_added,
+       b.created_at,
+       b.updated_at
+FROM payments_module.student_balances b
+WHERE b.owner_id = $1 AND b.student_id = ANY($2::uuid[])
 `
 
 type FindStudentBalancesByStudentIDsAndOwnerIDParams struct {
@@ -166,20 +225,31 @@ type FindStudentBalancesByStudentIDsAndOwnerIDParams struct {
 	Column2 []uuid.UUID `json:"column_2"`
 }
 
-func (q *Queries) FindStudentBalancesByStudentIDsAndOwnerID(ctx context.Context, arg FindStudentBalancesByStudentIDsAndOwnerIDParams) ([]PaymentsModuleStudentBalance, error) {
+type FindStudentBalancesByStudentIDsAndOwnerIDRow struct {
+	OwnerID            uuid.UUID    `json:"owner_id"`
+	StudentID          uuid.UUID    `json:"student_id"`
+	PaidUntil          sql.NullTime `json:"paid_until"`
+	SessionsLeft       int64        `json:"sessions_left"`
+	TotalSessionsAdded int64        `json:"total_sessions_added"`
+	CreatedAt          time.Time    `json:"created_at"`
+	UpdatedAt          time.Time    `json:"updated_at"`
+}
+
+func (q *Queries) FindStudentBalancesByStudentIDsAndOwnerID(ctx context.Context, arg FindStudentBalancesByStudentIDsAndOwnerIDParams) ([]FindStudentBalancesByStudentIDsAndOwnerIDRow, error) {
 	rows, err := q.db.QueryContext(ctx, findStudentBalancesByStudentIDsAndOwnerID, arg.OwnerID, pq.Array(arg.Column2))
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []PaymentsModuleStudentBalance{}
+	items := []FindStudentBalancesByStudentIDsAndOwnerIDRow{}
 	for rows.Next() {
-		var i PaymentsModuleStudentBalance
+		var i FindStudentBalancesByStudentIDsAndOwnerIDRow
 		if err := rows.Scan(
 			&i.OwnerID,
 			&i.StudentID,
 			&i.PaidUntil,
 			&i.SessionsLeft,
+			&i.TotalSessionsAdded,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {

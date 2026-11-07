@@ -35,6 +35,7 @@ class TransactionTicketCard extends StatelessWidget {
     final amount = (isIncome ? transaction.amount : -transaction.amount)
         .toFormattedAmount();
     final paidUntil = paymentDetails?.paidUntil;
+    final sessionsAdded = paymentDetails?.sessionsAdded;
 
     final details = <Widget>[
       TicketDetail(
@@ -65,6 +66,11 @@ class TransactionTicketCard extends StatelessWidget {
         TicketDetail(
           label: context.t.finance.paidUntil,
           value: _formatDate(paidUntil, languageCode),
+        ),
+      if (sessionsAdded != null)
+        TicketDetail(
+          label: context.t.finance.sessionsCount,
+          value: sessionsAdded.toString(),
         ),
       TicketDetail(
         label: context.t.finance.createdAt,

@@ -52,6 +52,31 @@ void main() {
     final info = TransactionTileInfo.fromTransaction(_studentPayment());
 
     expect(info.title, 'Ivan Petrov');
+    expect(info.subtitle, '${t.finance.paidUntil} 01.09.2025');
+  });
+
+  test('session student payments display sessions count in subtitle', () {
+    final tx = TransactionResponse(
+      id: 'tx-2',
+      amount: 4000,
+      date: DateTime(2025, 8, 22),
+      type: TransactionType.income,
+      createdAt: DateTime(2025, 8, 22, 14, 30),
+      paymentDetails: const StudentPaymentDetailsResponse(
+        detailsType: 'STUDENT',
+        studentId: 'student-1',
+        studentName: 'Ivan Petrov',
+        sessionsAdded: 8,
+      ),
+    );
+
+    final info = TransactionTileInfo.fromTransaction(tx);
+
+    expect(info.title, 'Ivan Petrov');
+    expect(
+      info.subtitle,
+      t.titleWithCount(title: t.finance.sessionsCount, count: 8),
+    );
   });
 
   test('expense transactions use the up arrow and the expense color', () {

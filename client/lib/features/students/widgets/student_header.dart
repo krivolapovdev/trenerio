@@ -1,9 +1,12 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:phone/core/constants/app_radius.dart';
+import 'package:phone/features/students/extensions/student_balance_extension.dart';
 import 'package:phone/features/students/extensions/student_status_extension.dart';
 import 'package:phone/features/students/widgets/student_badges.dart';
 import 'package:phone/generated/models/student_summary_response.dart';
+import 'package:phone/generated/models/transaction_response.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 class StudentHeaderDelegate extends SliverPersistentHeaderDelegate {
@@ -11,15 +14,19 @@ class StudentHeaderDelegate extends SliverPersistentHeaderDelegate {
   static const double contentHeight = 136.0;
 
   final StudentSummaryResponse student;
+  final List<TransactionResponse> payments;
   final double topPadding;
   final bool isRefreshing;
   final Widget? menu;
+  final DateTime? now;
 
   const new({
     required this.student,
     required this.topPadding,
+    this.payments = const [],
     this.isRefreshing = false,
     this.menu,
+    this.now,
   });
 
   @override
@@ -52,7 +59,8 @@ class StudentHeaderDelegate extends SliverPersistentHeaderDelegate {
       curveProgress,
     )!;
 
-    final badges = student.statuses.toBadges(context);
+    final firstLineBadges = student.toHeaderStatusBadges(context);
+    final secondLineBadges = student.toBalanceBadges(context, payments, now);
     final hasNote = student.note != null && student.note!.trim().isNotEmpty;
     final hasPhone = student.phone != null && student.phone!.isNotEmpty;
 
@@ -85,52 +93,73 @@ class StudentHeaderDelegate extends SliverPersistentHeaderDelegate {
                   opacity: expandedOpacity,
                   child: IgnorePointer(
                     ignoring: expandedOpacity < 0.2,
-                    child: Skeletonizer(
-                      enabled: isRefreshing,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            student.fullName,
-                            style: const TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: -0.5,
-                              height: 1.2,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) => Skeletonizer(
+                        enabled: isRefreshing,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.center,
+                          child: SizedBox(
+                            width: constraints.maxWidth,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  student.fullName,
+                                  style: const TextStyle(
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: -0.5,
+                                    height: 1.2,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                ),
+                                if (firstLineBadges.isNotEmpty) ...[
+                                  const SizedBox(height: 10),
+                                  StudentBadges(
+                                    badges: firstLineBadges,
+                                    alignment: WrapAlignment.center,
+                                  ),
+                                ],
+                                if (secondLineBadges.isNotEmpty) ...[
+                                  SizedBox(
+                                    height: firstLineBadges.isNotEmpty ? 6 : 10,
+                                  ),
+                                  StudentBadges(
+                                    badges: secondLineBadges,
+                                    alignment: WrapAlignment.center,
+                                  ),
+                                ],
+                                if (hasPhone) ...[
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    student.phone!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ] else if (hasNote) ...[
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    student.note!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
                           ),
-                          if (badges.isNotEmpty) ...[
-                            const SizedBox(height: 10),
-                            StudentBadges(badges: badges),
-                          ],
-                          if (hasPhone) ...[
-                            const SizedBox(height: 6),
-                            Text(
-                              student.phone!,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ] else if (hasNote) ...[
-                            const SizedBox(height: 6),
-                            Text(
-                              student.note!,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ],
+                        ),
                       ),
                     ),
                   ),
@@ -175,7 +204,9 @@ class StudentHeaderDelegate extends SliverPersistentHeaderDelegate {
   @override
   bool shouldRebuild(covariant StudentHeaderDelegate oldDelegate) =>
       oldDelegate.student != student ||
+      !listEquals(oldDelegate.payments, payments) ||
       oldDelegate.topPadding != topPadding ||
       oldDelegate.isRefreshing != isRefreshing ||
-      oldDelegate.menu != menu;
+      oldDelegate.menu != menu ||
+      oldDelegate.now != now;
 }

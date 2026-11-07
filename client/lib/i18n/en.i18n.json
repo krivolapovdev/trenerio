@@ -127,6 +127,13 @@
       "paid": "Paid",
       "unpaid": "Unpaid",
       "free": "Free"
+    },
+    "balance": {
+      "paidUntil": "Paid until $date",
+      "sessionsLeft(param=n)": {
+        "one": "$n session left",
+        "other": "$n sessions left"
+      }
     }
   },
   "rosters": {
@@ -188,6 +195,7 @@
     "typeExpense": "Expense",
     "student": "Student",
     "paidUntil": "Paid until",
+    "sessionsCount": "Sessions count",
     "createdAt": "Created at",
     "deposit": "Deposit",
     "withdrawal": "Withdrawal",

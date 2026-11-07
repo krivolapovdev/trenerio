@@ -199,6 +199,7 @@ class _Translations$students$ru implements Translations$students$en {
 	@override String get deleteStudentMessage => 'Ученик и его уроки будут удалены безвозвратно. Действие нельзя отменить.';
 	@override late final _Translations$students$filter$ru filter = _Translations$students$filter$ru._(_root);
 	@override late final _Translations$students$status$ru status = _Translations$students$status$ru._(_root);
+	@override late final _Translations$students$balance$ru balance = _Translations$students$balance$ru._(_root);
 }
 
 // Path: rosters
@@ -287,6 +288,7 @@ class _Translations$finance$ru implements Translations$finance$en {
 	@override String get typeExpense => 'Расход';
 	@override String get student => 'Ученик';
 	@override String get paidUntil => 'Оплачено до';
+	@override String get sessionsCount => 'Количество занятий';
 	@override String get createdAt => 'Создано';
 	@override String get deposit => 'Пополнение';
 	@override String get withdrawal => 'Списание';
@@ -323,6 +325,22 @@ class _Translations$students$status$ru implements Translations$students$status$e
 	@override String get paid => 'Оплачено';
 	@override String get unpaid => 'Не оплачено';
 	@override String get free => 'Бесплатно';
+}
+
+// Path: students.balance
+class _Translations$students$balance$ru implements Translations$students$balance$en {
+	_Translations$students$balance$ru._(this._root);
+
+	final TranslationsRu _root; // ignore: unused_field
+
+	// Translations
+	@override String paidUntil({required Object date}) => 'Оплачено до ${date}';
+	@override String sessionsLeft({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n,
+		one: 'Осталось ${n} занятие',
+		few: 'Осталось ${n} занятия',
+		many: 'Осталось ${n} занятий',
+		other: 'Осталось ${n} занятия',
+	);
 }
 
 // Path: finance.filter
@@ -462,6 +480,8 @@ extension on TranslationsRu {
 			'students.status.paid' => 'Оплачено',
 			'students.status.unpaid' => 'Не оплачено',
 			'students.status.free' => 'Бесплатно',
+			'students.balance.paidUntil' => ({required Object date}) => 'Оплачено до ${date}',
+			'students.balance.sessionsLeft' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('ru'))(n, one: 'Осталось ${n} занятие', few: 'Осталось ${n} занятия', many: 'Осталось ${n} занятий', other: 'Осталось ${n} занятия', ), 
 			'rosters.title' => 'Временные списки',
 			'rosters.temporaryRosters' => 'Временные списки',
 			'rosters.emptySubtitle' => 'Временных списков пока нет',
@@ -514,6 +534,7 @@ extension on TranslationsRu {
 			'finance.typeExpense' => 'Расход',
 			'finance.student' => 'Ученик',
 			'finance.paidUntil' => 'Оплачено до',
+			'finance.sessionsCount' => 'Количество занятий',
 			'finance.createdAt' => 'Создано',
 			'finance.deposit' => 'Пополнение',
 			'finance.withdrawal' => 'Списание',

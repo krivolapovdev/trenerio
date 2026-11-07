@@ -244,7 +244,7 @@ func (s *Service) GetStudentBalancesByOwnerID(ctx context.Context, ownerID uuid.
 
 	balances := make(map[uuid.UUID]StudentBalance, len(rows))
 	for _, r := range rows {
-		balances[r.StudentID] = toStudentBalance(r)
+		balances[r.StudentID] = toStudentBalanceFromOwnerRow(r)
 	}
 	return balances, nil
 }
@@ -265,7 +265,7 @@ func (s *Service) GetStudentBalancesByStudentIDs(ctx context.Context, studentIDs
 
 	balances := make(map[uuid.UUID]StudentBalance, len(rows))
 	for _, r := range rows {
-		balances[r.StudentID] = toStudentBalance(r)
+		balances[r.StudentID] = toStudentBalanceFromIDsRow(r)
 	}
 	return balances, nil
 }

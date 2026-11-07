@@ -248,6 +248,13 @@ func (s *Service) GetAllStudentsSummary(ctx context.Context, ownerID uuid.UUID) 
 			stGroups = []response.GroupResponse{}
 		}
 
+		var paidUntil *time.Time
+		var sessionsLeft int64
+		if balancePtr != nil {
+			paidUntil = balancePtr.PaidUntil
+			sessionsLeft = balancePtr.SessionsLeft
+		}
+
 		summaries = append(summaries, StudentSummaryResponse{
 			ID:            st.ID,
 			FullName:      st.FullName,
@@ -258,6 +265,8 @@ func (s *Service) GetAllStudentsSummary(ctx context.Context, ownerID uuid.UUID) 
 			Free:          st.Free,
 			Statuses:      statuses,
 			StudentGroups: stGroups,
+			PaidUntil:     paidUntil,
+			SessionsLeft:  sessionsLeft,
 		})
 	}
 

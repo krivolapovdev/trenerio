@@ -21,6 +21,7 @@ import 'package:phone/features/students/widgets/student_header.dart';
 import 'package:phone/features/students/widgets/student_lessons_section.dart';
 import 'package:phone/features/students/widgets/student_report_bottom_sheet.dart';
 import 'package:phone/generated/models/student_summary_response.dart';
+import 'package:phone/generated/models/transaction_response.dart';
 
 class StudentPage extends ConsumerStatefulWidget {
   final StudentSummaryResponse student;
@@ -231,6 +232,8 @@ class _StudentPageState extends ConsumerState<StudentPage> {
                   pinned: true,
                   delegate: StudentHeaderDelegate(
                     student: _student,
+                    payments:
+                        paymentsAsync.value ?? const <TransactionResponse>[],
                     topPadding: topPadding,
                     isRefreshing: _isRefreshing,
                     menu: StudentAppMenu(

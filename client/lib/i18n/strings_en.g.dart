@@ -414,6 +414,7 @@ class Translations$students$en {
 
 	late final Translations$students$filter$en filter = Translations$students$filter$en._(_root);
 	late final Translations$students$status$en status = Translations$students$status$en._(_root);
+	late final Translations$students$balance$en balance = Translations$students$balance$en._(_root);
 }
 
 // Path: rosters
@@ -607,6 +608,9 @@ class Translations$finance$en {
 	/// en: 'Paid until'
 	String get paidUntil => 'Paid until';
 
+	/// en: 'Sessions count'
+	String get sessionsCount => 'Sessions count';
+
 	/// en: 'Created at'
 	String get createdAt => 'Created at';
 
@@ -677,6 +681,24 @@ class Translations$students$status$en {
 
 	/// en: 'Free'
 	String get free => 'Free';
+}
+
+// Path: students.balance
+class Translations$students$balance$en {
+	Translations$students$balance$en._(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Paid until $date'
+	String paidUntil({required Object date}) => 'Paid until ${date}';
+
+	/// en: '(one) {$n session left} (other) {$n sessions left}'
+	String sessionsLeft({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n,
+		one: '${n} session left',
+		other: '${n} sessions left',
+	);
 }
 
 // Path: finance.filter
@@ -824,6 +846,8 @@ extension on Translations {
 			'students.status.paid' => 'Paid',
 			'students.status.unpaid' => 'Unpaid',
 			'students.status.free' => 'Free',
+			'students.balance.paidUntil' => ({required Object date}) => 'Paid until ${date}',
+			'students.balance.sessionsLeft' => ({required num n}) => (_root.$meta.cardinalResolver ?? PluralResolvers.cardinal('en'))(n, one: '${n} session left', other: '${n} sessions left', ), 
 			'rosters.title' => 'Temporary rosters',
 			'rosters.temporaryRosters' => 'Temporary rosters',
 			'rosters.emptySubtitle' => 'No temporary rosters yet',
@@ -876,6 +900,7 @@ extension on Translations {
 			'finance.typeExpense' => 'Expense',
 			'finance.student' => 'Student',
 			'finance.paidUntil' => 'Paid until',
+			'finance.sessionsCount' => 'Sessions count',
 			'finance.createdAt' => 'Created at',
 			'finance.deposit' => 'Deposit',
 			'finance.withdrawal' => 'Withdrawal',

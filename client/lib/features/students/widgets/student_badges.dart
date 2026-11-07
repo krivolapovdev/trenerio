@@ -6,11 +6,17 @@ class StudentBadges extends StatelessWidget {
   static const double _spacing = 8.0;
 
   final List<StudentBadgeData> badges;
+  final WrapAlignment alignment;
 
-  const new({super.key, required this.badges});
+  const new({
+    super.key,
+    required this.badges,
+    this.alignment = WrapAlignment.start,
+  });
 
   @override
   Widget build(BuildContext context) => Wrap(
+    alignment: alignment,
     spacing: _spacing,
     runSpacing: _spacing,
     children: [
