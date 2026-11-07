@@ -71,6 +71,13 @@ func (h *Handler) CreateTransaction(c *gin.Context) {
 		return
 	}
 
+	if req.PaymentDetails != nil {
+		if err := ValidateStudentPaymentFields(req.PaymentDetails.PaidUntil, req.PaymentDetails.SessionsAdded); err != nil {
+			pkgerrors.HandleError(c, err)
+			return
+		}
+	}
+
 	createdTx, err := h.service.CreateTransaction(c.Request.Context(), req, jwtUser.ID)
 	if err != nil {
 		pkgerrors.HandleError(c, err)

@@ -88,7 +88,7 @@ func (m *mockStudentService) DeleteStudent(ctx context.Context, studentID, owner
 	}
 	return nil
 }
-func (m *mockStudentService) ComputeStudentStatuses(student response.StudentResponse, visits []visit.VisitResponse, payments []transaction.TransactionResponse, lessonsMap map[uuid.UUID]response.LessonResponse, groupLessonsMap map[uuid.UUID]response.LessonResponse, today time.Time) []StudentStatus {
+func (m *mockStudentService) ComputeStudentStatuses(student response.StudentResponse, visits []visit.VisitResponse, balance *transaction.StudentBalance, lessonsMap map[uuid.UUID]response.LessonResponse, groupLessonsMap map[uuid.UUID]response.LessonResponse, today time.Time) []StudentStatus {
 	return nil
 }
 
@@ -505,6 +505,52 @@ func TestStudentHandler_CreateStudentPayment(t *testing.T) {
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusCreated, w.Code)
+	})
+
+	t.Run("Success_SessionPackageOnly", func(t *testing.T) {
+		expectedID := uuid.New()
+		paymentDate := time.Date(2026, 10, 17, 0, 0, 0, 0, time.UTC)
+
+		mockSvc := &mockStudentService{
+			createStudentPaymentFn: func(ctx context.Context, sID, ownerID uuid.UUID, req request.CreateStudentPaymentRequest) (transaction.TransactionResponse, error) {
+				assert.Equal(t, studentID, sID)
+				assert.Nil(t, req.PaidUntil)
+				require.NotNil(t, req.SessionsAdded)
+				assert.Equal(t, int64(12), *req.SessionsAdded)
+				return transaction.TransactionResponse{ID: expectedID, Amount: req.Amount}, nil
+			},
+		}
+
+		r := setupStudentRouter(mockSvc, testUser)
+		w := httptest.NewRecorder()
+		payload := `{"amount":6000.0,"date":"` + paymentDate.Format(time.RFC3339) + `","sessionsAdded":12}`
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/students/"+studentID.String()+"/payments", bytes.NewBufferString(payload))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusCreated, w.Code)
+	})
+
+	t.Run("BadRequest_MissingPaidUntilAndSessionsAdded", func(t *testing.T) {
+		r := setupStudentRouter(&mockStudentService{}, testUser)
+		w := httptest.NewRecorder()
+		payload := `{"amount":4500.0,"date":"2026-10-17T00:00:00Z"}`
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/students/"+studentID.String()+"/payments", bytes.NewBufferString(payload))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("BadRequest_ZeroSessionsAdded", func(t *testing.T) {
+		r := setupStudentRouter(&mockStudentService{}, testUser)
+		w := httptest.NewRecorder()
+		payload := `{"amount":4500.0,"date":"2026-10-17T00:00:00Z","sessionsAdded":0}`
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/students/"+studentID.String()+"/payments", bytes.NewBufferString(payload))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
 	t.Run("InternalServerError", func(t *testing.T) {

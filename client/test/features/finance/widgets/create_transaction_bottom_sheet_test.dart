@@ -151,6 +151,34 @@ void main() {
     expect(find.text(t.invalidDate), findsNothing);
   });
 
+  testWidgets('a paid until date in the previous month is accepted', (
+    tester,
+  ) async {
+    await _pump(tester, initialAmount: 1000);
+
+    final now = DateTime.now();
+    final previousMonth = DateTime(now.year, now.month - 1, 15);
+    final earlierPaymentDate = DateTime(now.year, now.month, 1);
+
+    await tester.enterText(_field(_paidUntilLabel), _digits(previousMonth));
+    await tester.pumpAndSettle();
+
+    expect(_textOf(tester, _paidUntilLabel), _formatDate(previousMonth));
+    expect(find.text(t.invalidDate), findsNothing);
+    expect(
+      tester
+          .widget<TextButton>(find.widgetWithText(TextButton, t.create))
+          .onPressed,
+      isNotNull,
+    );
+
+    await tester.enterText(_field(_dateLabel), _digits(earlierPaymentDate));
+    await tester.pumpAndSettle();
+
+    expect(_textOf(tester, _paidUntilLabel), _formatDate(previousMonth));
+    expect(find.text(t.invalidDate), findsNothing);
+  });
+
   testWidgets('an impossible paid until date blocks saving', (tester) async {
     await _pump(tester, initialAmount: 1000);
 

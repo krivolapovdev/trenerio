@@ -105,6 +105,28 @@ void main() {
     expect(find.text(t.invalidDate), findsOneWidget);
   });
 
+  testWidgets('accepts the firstDate day even when firstDate has a time', (
+    tester,
+  ) async {
+    DateTime? changed;
+
+    await tester.pumpWidget(
+      _wrap(
+        DateInputField(
+          labelText: 'Date',
+          firstDate: DateTime(2020, 5, 10, 18, 30),
+          onDateChanged: (date) => changed = date,
+        ),
+      ),
+    );
+
+    await tester.enterText(find.byType(TextField), '10052020');
+    await tester.pump();
+
+    expect(changed, DateTime(2020, 5, 10));
+    expect(find.text(t.invalidDate), findsNothing);
+  });
+
   testWidgets('the clear button empties the field', (tester) async {
     DateTime? changed = DateTime(2000);
 

@@ -25,7 +25,7 @@ import (
 
 type StudentProvider interface {
 	GetStudentsByIDs(ctx context.Context, studentIDs []uuid.UUID, ownerID uuid.UUID) ([]response.StudentResponse, error)
-	ComputeStudentStatuses(st response.StudentResponse, visits []visit.VisitResponse, payments []transaction.TransactionResponse, lessonsMap map[uuid.UUID]response.LessonResponse, groupLessonsMap map[uuid.UUID]response.LessonResponse, today time.Time) []student.StudentStatus
+	ComputeStudentStatuses(st response.StudentResponse, visits []visit.VisitResponse, balance *transaction.StudentBalance, lessonsMap map[uuid.UUID]response.LessonResponse, groupLessonsMap map[uuid.UUID]response.LessonResponse, today time.Time) []student.StudentStatus
 }
 
 type VisitProvider interface {
@@ -34,7 +34,7 @@ type VisitProvider interface {
 }
 
 type TransactionProvider interface {
-	GetTransactionsByStudentIDs(ctx context.Context, studentIDs []uuid.UUID, ownerID uuid.UUID) (map[uuid.UUID][]transaction.TransactionResponse, error)
+	GetStudentBalancesByStudentIDs(ctx context.Context, studentIDs []uuid.UUID, ownerID uuid.UUID) (map[uuid.UUID]transaction.StudentBalance, error)
 }
 
 type LessonProvider interface {
@@ -179,7 +179,7 @@ func (s *Service) GetGroupStudents(ctx context.Context, groupID, ownerID uuid.UU
 	var (
 		stRows              []response.StudentResponse
 		visitsByStudentID   map[uuid.UUID][]visit.VisitResponse
-		paymentsByStudentID map[uuid.UUID][]transaction.TransactionResponse
+		balancesByStudentID map[uuid.UUID]transaction.StudentBalance
 	)
 
 	g, gCtx := errgroup.WithContext(ctx)
@@ -205,11 +205,11 @@ func (s *Service) GetGroupStudents(ctx context.Context, groupID, ownerID uuid.UU
 	}
 	if s.transactionProvider != nil {
 		g.Go(func() error {
-			pm, err := s.transactionProvider.GetTransactionsByStudentIDs(gCtx, studentIDs, ownerID)
+			bm, err := s.transactionProvider.GetStudentBalancesByStudentIDs(gCtx, studentIDs, ownerID)
 			if err != nil {
 				return err
 			}
-			paymentsByStudentID = pm
+			balancesByStudentID = bm
 			return nil
 		})
 	}
@@ -263,7 +263,11 @@ func (s *Service) GetGroupStudents(ctx context.Context, groupID, ownerID uuid.UU
 			continue
 		}
 		stVisits := visitsByStudentID[sid]
-		stPayments := paymentsByStudentID[sid]
+		var balancePtr *transaction.StudentBalance
+		if bal, ok := balancesByStudentID[sid]; ok {
+			b := bal
+			balancePtr = &b
+		}
 		groupLessonsMap := make(map[uuid.UUID]response.LessonResponse)
 		for lid, l := range lessonsMap {
 			if l.GroupID != nil && *l.GroupID == groupID {
@@ -273,7 +277,7 @@ func (s *Service) GetGroupStudents(ctx context.Context, groupID, ownerID uuid.UU
 
 		var statuses []student.StudentStatus
 		if s.studentProvider != nil {
-			statuses = s.studentProvider.ComputeStudentStatuses(st, stVisits, stPayments, lessonsMap, groupLessonsMap, today)
+			statuses = s.studentProvider.ComputeStudentStatuses(st, stVisits, balancePtr, lessonsMap, groupLessonsMap, today)
 		}
 
 		groupStudents = append(groupStudents, GroupStudentSummaryResponse{
@@ -404,7 +408,7 @@ func (s *Service) GetGroupReport(ctx context.Context, groupID, ownerID uuid.UUID
 
 	var (
 		studentsList        []response.StudentResponse
-		paymentsByStudentID map[uuid.UUID][]transaction.TransactionResponse
+		balancesByStudentID map[uuid.UUID]transaction.StudentBalance
 	)
 
 	if len(studentIDOrder) > 0 {
@@ -430,16 +434,16 @@ func (s *Service) GetGroupReport(ctx context.Context, groupID, ownerID uuid.UUID
 		}
 		if s.transactionProvider != nil {
 			g2.Go(func() error {
-				pm, err := s.transactionProvider.GetTransactionsByStudentIDs(g2Ctx, studentIDOrder, ownerID)
+				bm, err := s.transactionProvider.GetStudentBalancesByStudentIDs(g2Ctx, studentIDOrder, ownerID)
 				if err != nil {
 					return err
 				}
-				paymentsByStudentID = pm
+				balancesByStudentID = bm
 				return nil
 			})
 		}
 		if err := g2.Wait(); err != nil {
-			logger.ErrorContext(ctx, "Failed to fetch students or payments for group report", "group_id", groupID.String(), "error", err, "user_id", ownerID.String())
+			logger.ErrorContext(ctx, "Failed to fetch students or balances for group report", "group_id", groupID.String(), "error", err, "user_id", ownerID.String())
 			return GroupReportResponse{}, err
 		}
 	}
@@ -453,7 +457,7 @@ func (s *Service) GetGroupReport(ctx context.Context, groupID, ownerID uuid.UUID
 		"user_id", ownerID.String(),
 	)
 
-	report := BuildGroupReport(grp, year, month, studentsList, lessons, visitsByStudentID, paymentsByStudentID, time.Now().UTC())
+	report := BuildGroupReport(grp, year, month, studentsList, lessons, visitsByStudentID, balancesByStudentID, time.Now().UTC())
 	logger.InfoContext(ctx, "Group report generated successfully",
 		"group_id", groupID.String(),
 		"year", year,

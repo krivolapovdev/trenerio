@@ -51,7 +51,7 @@ func TestBuildGroupReport_DayGrid(t *testing.T) {
 		{ID: ivanID, FullName: "Ivan Petrov", CreatedAt: createdAt},
 	}
 
-	report := BuildGroupReport(grp, 2026, 2, students, lessons, visits, map[uuid.UUID][]response.TransactionResponse{}, today)
+	report := BuildGroupReport(grp, 2026, 2, students, lessons, visits, map[uuid.UUID]transaction.StudentBalance{}, today)
 
 	assert.Equal(t, 28, report.DayCount)
 	assert.Equal(t, []int{3, 5, 10}, report.LessonDays)
@@ -114,7 +114,7 @@ func TestBuildGroupReport_MultipleLessonsInOneDay(t *testing.T) {
 		{ID: ivanID, FullName: "Ivan Petrov", CreatedAt: createdAt},
 	}
 
-	report := BuildGroupReport(grp, 2026, 2, students, lessons, visits, map[uuid.UUID][]response.TransactionResponse{}, today)
+	report := BuildGroupReport(grp, 2026, 2, students, lessons, visits, map[uuid.UUID]transaction.StudentBalance{}, today)
 
 	assert.Equal(t, 28, report.DayCount)
 	assert.Equal(t, []int{5, 10}, report.LessonDays)
@@ -168,7 +168,7 @@ func TestBuildGroupReport_OrderingAndEmpty(t *testing.T) {
 		{ID: annaID, FullName: "Anna Smirnova", CreatedAt: createdAt},
 	}
 
-	report := BuildGroupReport(grp, 2026, 2, students, lessons, map[uuid.UUID][]response.VisitResponse{}, map[uuid.UUID][]response.TransactionResponse{}, today)
+	report := BuildGroupReport(grp, 2026, 2, students, lessons, map[uuid.UUID][]response.VisitResponse{}, map[uuid.UUID]transaction.StudentBalance{}, today)
 
 	require.Len(t, report.Students, 2)
 	assert.Equal(t, "Anna Smirnova", report.Students[0].FullName)
@@ -176,7 +176,7 @@ func TestBuildGroupReport_OrderingAndEmpty(t *testing.T) {
 	assert.Equal(t, 0, report.TotalPresent)
 	assert.Equal(t, 2, report.TotalLessons)
 
-	emptyReport := BuildGroupReport(grp, 2026, 2, []response.StudentResponse{}, []response.LessonResponse{}, map[uuid.UUID][]response.VisitResponse{}, map[uuid.UUID][]response.TransactionResponse{}, today)
+	emptyReport := BuildGroupReport(grp, 2026, 2, []response.StudentResponse{}, []response.LessonResponse{}, map[uuid.UUID][]response.VisitResponse{}, map[uuid.UUID]transaction.StudentBalance{}, today)
 	assert.Empty(t, emptyReport.Students)
 	assert.Equal(t, 0, emptyReport.TotalPresent)
 	assert.Equal(t, 0, emptyReport.TotalLessons)
@@ -189,6 +189,7 @@ func TestBuildGroupReport_PaidFlags(t *testing.T) {
 	noPayID := uuid.New()
 	oct1ID := uuid.New()
 	oct31ID := uuid.New()
+	sessionPackID := uuid.New()
 	createdAt := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	today := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
 
@@ -207,68 +208,38 @@ func TestBuildGroupReport_PaidFlags(t *testing.T) {
 		{ID: noPayID, FullName: "Boris WithoutPayments", CreatedAt: createdAt},
 		{ID: oct1ID, FullName: "Cyril ExpiresInOctober", CreatedAt: createdAt},
 		{ID: oct31ID, FullName: "Daria PaidThroughOctober", CreatedAt: createdAt},
+		{ID: sessionPackID, FullName: "Elena SessionPack", CreatedAt: createdAt},
 	}
 
-	payments := map[uuid.UUID][]response.TransactionResponse{
-		decID: {
-			{
-				ID:        uuid.New(),
-				Amount:    3000,
-				Date:      createdAt,
-				CreatedAt: createdAt,
-				Type:      transaction.TransactionTypeIncome,
-				PaymentDetails: &response.StudentPaymentDetailsResponse{
-					StudentID: decID,
-					PaidUntil: time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC),
-				},
-			},
-		},
-		oct1ID: {
-			{
-				ID:        uuid.New(),
-				Amount:    3000,
-				Date:      createdAt,
-				CreatedAt: createdAt,
-				Type:      transaction.TransactionTypeIncome,
-				PaymentDetails: &response.StudentPaymentDetailsResponse{
-					StudentID: oct1ID,
-					PaidUntil: time.Date(2026, 10, 1, 23, 59, 59, 0, time.UTC),
-				},
-			},
-		},
-		oct31ID: {
-			{
-				ID:        uuid.New(),
-				Amount:    3000,
-				Date:      createdAt,
-				CreatedAt: createdAt,
-				Type:      transaction.TransactionTypeIncome,
-				PaymentDetails: &response.StudentPaymentDetailsResponse{
-					StudentID: oct31ID,
-					PaidUntil: time.Date(2026, 10, 31, 23, 59, 59, 0, time.UTC),
-				},
-			},
-		},
+	dec31 := time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC)
+	oct1 := time.Date(2026, 10, 1, 23, 59, 59, 0, time.UTC)
+	oct31 := time.Date(2026, 10, 31, 23, 59, 59, 0, time.UTC)
+
+	balances := map[uuid.UUID]transaction.StudentBalance{
+		decID:         {StudentID: decID, PaidUntil: &dec31, SessionsLeft: 0},
+		oct1ID:        {StudentID: oct1ID, PaidUntil: &oct1, SessionsLeft: 0},
+		oct31ID:       {StudentID: oct31ID, PaidUntil: &oct31, SessionsLeft: 0},
+		sessionPackID: {StudentID: sessionPackID, PaidUntil: nil, SessionsLeft: 4},
 	}
 
-	reportFeb := BuildGroupReport(grp, 2026, 2, students, lessons, map[uuid.UUID][]response.VisitResponse{}, payments, today)
+	reportFeb := BuildGroupReport(grp, 2026, 2, students, lessons, map[uuid.UUID][]response.VisitResponse{}, balances, today)
 	var febPaid []bool
 	for _, s := range reportFeb.Students {
 		febPaid = append(febPaid, s.Paid)
 	}
-	assert.Equal(t, []bool{true, false, true, true}, febPaid)
+	assert.Equal(t, []bool{true, false, true, true, true}, febPaid)
 
-	reportOct := BuildGroupReport(grp, 2026, 10, students, lessons, map[uuid.UUID][]response.VisitResponse{}, payments, today)
+	reportOct := BuildGroupReport(grp, 2026, 10, students, lessons, map[uuid.UUID][]response.VisitResponse{}, balances, today)
 	var octPaid []bool
 	for _, s := range reportOct.Students {
 		octPaid = append(octPaid, s.Paid)
 	}
-	assert.Equal(t, []bool{true, false, false, true}, octPaid)
+	assert.Equal(t, []bool{true, false, false, true, true}, octPaid)
 
-	reportDec := BuildGroupReport(grp, 2026, 12, students, lessons, map[uuid.UUID][]response.VisitResponse{}, payments, today)
+	reportDec := BuildGroupReport(grp, 2026, 12, students, lessons, map[uuid.UUID][]response.VisitResponse{}, balances, today)
 	var decPaid []bool
 	for _, s := range reportDec.Students {
 		decPaid = append(decPaid, s.Paid)
 	}
-	assert.Equal(t, []bool{true, false, false, false}, decPaid)
+	assert.Equal(t, []bool{true, false, false, false, true}, decPaid)
 }

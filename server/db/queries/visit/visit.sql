@@ -55,3 +55,12 @@ WHERE lesson_id = $1 AND owner_id = $2;
 -- name: DeleteVisitsByLessonIDAndStudentIDsAndOwnerID :exec
 DELETE FROM visits_module.visits
 WHERE lesson_id = $1 AND owner_id = $2 AND student_id = ANY($3::uuid[]);
+
+-- name: FindBillableVisitLessonDatesByStudentIDAndOwnerID :many
+SELECT l.date
+FROM visits_module.visits v
+JOIN lessons_module.lessons l ON l.id = v.lesson_id
+WHERE v.student_id = $1
+  AND v.owner_id = $2
+  AND v.type = 'REGULAR'
+  AND v.status IN ('PRESENT', 'ABSENT');

@@ -27,9 +27,9 @@ type VisitProvider interface {
 }
 
 type TransactionProvider interface {
-	GetTransactionsByStudentIDs(ctx context.Context, studentIDs []uuid.UUID, ownerID uuid.UUID) (map[uuid.UUID][]transaction.TransactionResponse, error)
+	GetStudentBalancesByOwnerID(ctx context.Context, ownerID uuid.UUID) (map[uuid.UUID]transaction.StudentBalance, error)
 	GetTransactionsByStudentID(ctx context.Context, studentID, ownerID uuid.UUID) ([]transaction.TransactionResponse, error)
-	CreateStudentPayment(ctx context.Context, studentID uuid.UUID, amount float64, date, paidUntil time.Time, ownerID uuid.UUID) (transaction.TransactionResponse, error)
+	CreateStudentPayment(ctx context.Context, studentID uuid.UUID, amount float64, date time.Time, paidUntil *time.Time, sessionsAdded *int64, ownerID uuid.UUID) (transaction.TransactionResponse, error)
 }
 
 type GroupProvider interface {
@@ -161,7 +161,7 @@ func (s *Service) GetAllStudentsSummary(ctx context.Context, ownerID uuid.UUID) 
 
 	var (
 		visitsMap        map[uuid.UUID][]visit.VisitResponse
-		paymentsMap      map[uuid.UUID][]transaction.TransactionResponse
+		balancesMap      map[uuid.UUID]transaction.StudentBalance
 		studentGroupsMap map[uuid.UUID][]response.GroupResponse
 	)
 
@@ -178,11 +178,11 @@ func (s *Service) GetAllStudentsSummary(ctx context.Context, ownerID uuid.UUID) 
 	}
 	if s.transactionProvider != nil {
 		g.Go(func() error {
-			pm, err := s.transactionProvider.GetTransactionsByStudentIDs(gCtx, studentIDs, ownerID)
+			bm, err := s.transactionProvider.GetStudentBalancesByOwnerID(gCtx, ownerID)
 			if err != nil {
 				return err
 			}
-			paymentsMap = pm
+			balancesMap = bm
 			return nil
 		})
 	}
@@ -236,9 +236,13 @@ func (s *Service) GetAllStudentsSummary(ctx context.Context, ownerID uuid.UUID) 
 	summaries := make([]StudentSummaryResponse, 0, len(students))
 	for _, st := range students {
 		stVisits := visitsMap[st.ID]
-		stPayments := paymentsMap[st.ID]
+		var balancePtr *transaction.StudentBalance
+		if bal, ok := balancesMap[st.ID]; ok {
+			b := bal
+			balancePtr = &b
+		}
 
-		statuses := ComputeStudentStatuses(st, stVisits, stPayments, lessonsMap, today)
+		statuses := ComputeStudentStatuses(st, stVisits, balancePtr, lessonsMap, today)
 		stGroups := studentGroupsMap[st.ID]
 		if stGroups == nil {
 			stGroups = []response.GroupResponse{}
@@ -413,16 +417,33 @@ func (s *Service) CreateStudent(ctx context.Context, req request.CreateStudentRe
 		note = sql.NullString{String: *req.Note, Valid: true}
 	}
 
-	created, err := s.db.CreateStudent(ctx, db.CreateStudentParams{
-		OwnerID:   ownerID,
-		FullName:  fullName,
-		Birthdate: birthdate,
-		Phone:     phone,
-		Note:      note,
-		Free:      req.Free,
+	var created db.StudentsModuleStudent
+	err = s.withTx(ctx, func(qtx *db.Queries) error {
+		var err error
+		created, err = qtx.CreateStudent(ctx, db.CreateStudentParams{
+			OwnerID:   ownerID,
+			FullName:  fullName,
+			Birthdate: birthdate,
+			Phone:     phone,
+			Note:      note,
+			Free:      req.Free,
+		})
+		if err != nil {
+			logger.ErrorContext(ctx, "Failed to create student record in database", "name", fullName, "error", err, "user_id", ownerID.String())
+			return err
+		}
+
+		if err := qtx.CreateStudentBalance(ctx, db.CreateStudentBalanceParams{
+			OwnerID:   ownerID,
+			StudentID: created.ID,
+		}); err != nil {
+			logger.ErrorContext(ctx, "Failed to initialize student balance record", "student_id", created.ID.String(), "error", err, "user_id", ownerID.String())
+			return err
+		}
+
+		return nil
 	})
 	if err != nil {
-		logger.ErrorContext(ctx, "Failed to create student record in database", "name", fullName, "error", err, "user_id", ownerID.String())
 		return response.StudentResponse{}, err
 	}
 
@@ -432,6 +453,11 @@ func (s *Service) CreateStudent(ctx context.Context, req request.CreateStudentRe
 
 func (s *Service) CreateStudentPayment(ctx context.Context, studentID, ownerID uuid.UUID, req request.CreateStudentPaymentRequest) (transaction.TransactionResponse, error) {
 	logger.InfoContext(ctx, "Creating payment for student", "student_id", studentID.String(), "amount", req.Amount, "user_id", ownerID.String())
+	if err := transaction.ValidateStudentPaymentFields(req.PaidUntil, req.SessionsAdded); err != nil {
+		logger.WarnContext(ctx, "Invalid student payment fields", "student_id", studentID.String(), "error", err, "user_id", ownerID.String())
+		return transaction.TransactionResponse{}, err
+	}
+
 	if err := validator.ValidateDateNotFuture(req.Date, "date"); err != nil {
 		logger.WarnContext(ctx, "Student payment date cannot be in the future", "date", req.Date.Format(time.RFC3339), "user_id", ownerID.String())
 		return transaction.TransactionResponse{}, err
@@ -445,7 +471,7 @@ func (s *Service) CreateStudentPayment(ctx context.Context, studentID, ownerID u
 	var payment transaction.TransactionResponse
 	if s.transactionProvider != nil {
 		var err error
-		payment, err = s.transactionProvider.CreateStudentPayment(ctx, studentID, req.Amount, req.Date, req.PaidUntil, ownerID)
+		payment, err = s.transactionProvider.CreateStudentPayment(ctx, studentID, req.Amount, req.Date, req.PaidUntil, req.SessionsAdded, ownerID)
 		if err != nil {
 			logger.ErrorContext(ctx, "Failed to create payment for student", "student_id", studentID.String(), "error", err, "user_id", ownerID.String())
 			return transaction.TransactionResponse{}, err
@@ -618,10 +644,10 @@ func (s *Service) DeleteStudent(ctx context.Context, studentID, ownerID uuid.UUI
 func (s *Service) ComputeStudentStatuses(
 	student response.StudentResponse,
 	visits []visit.VisitResponse,
-	payments []transaction.TransactionResponse,
+	balance *transaction.StudentBalance,
 	lessonsMap map[uuid.UUID]response.LessonResponse,
 	groupLessonsMap map[uuid.UUID]response.LessonResponse,
 	today time.Time,
 ) []StudentStatus {
-	return ComputeStudentStatusesWithVisitLessons(student, visits, payments, lessonsMap, groupLessonsMap, today)
+	return ComputeStudentStatusesWithVisitLessons(student, visits, balance, lessonsMap, groupLessonsMap, today)
 }

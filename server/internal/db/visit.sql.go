@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
@@ -123,6 +124,44 @@ func (q *Queries) FindAllVisitsByOwnerID(ctx context.Context, ownerID uuid.UUID)
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const findBillableVisitLessonDatesByStudentIDAndOwnerID = `-- name: FindBillableVisitLessonDatesByStudentIDAndOwnerID :many
+SELECT l.date
+FROM visits_module.visits v
+JOIN lessons_module.lessons l ON l.id = v.lesson_id
+WHERE v.student_id = $1
+  AND v.owner_id = $2
+  AND v.type = 'REGULAR'
+  AND v.status IN ('PRESENT', 'ABSENT')
+`
+
+type FindBillableVisitLessonDatesByStudentIDAndOwnerIDParams struct {
+	StudentID uuid.UUID `json:"student_id"`
+	OwnerID   uuid.UUID `json:"owner_id"`
+}
+
+func (q *Queries) FindBillableVisitLessonDatesByStudentIDAndOwnerID(ctx context.Context, arg FindBillableVisitLessonDatesByStudentIDAndOwnerIDParams) ([]time.Time, error) {
+	rows, err := q.db.QueryContext(ctx, findBillableVisitLessonDatesByStudentIDAndOwnerID, arg.StudentID, arg.OwnerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []time.Time{}
+	for rows.Next() {
+		var date time.Time
+		if err := rows.Scan(&date); err != nil {
+			return nil, err
+		}
+		items = append(items, date)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err

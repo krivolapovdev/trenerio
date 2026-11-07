@@ -14,10 +14,11 @@ Widget _wrap(Widget child) => TranslationProvider(
 );
 
 StudentLessonCalendarSection _section({
+  String title = 'Group A',
   List<LessonResponse> lessons = const [],
   VoidCallback? onCreate,
 }) => StudentLessonCalendarSection(
-  title: 'Group A',
+  title: title,
   lessons: lessons,
   focusedDay: _focusedDay,
   onDayTapped: (selectedDay, dayLessons) {},
@@ -93,5 +94,20 @@ void main() {
 
     expect(find.byType(CreateLessonButton), findsNothing);
     expect(find.byType(TableCalendar<LessonResponse>), findsOneWidget);
+  });
+
+  testWidgets('truncates a long title with an ellipsis without overflowing', (
+    tester,
+  ) async {
+    final longTitle = 'h' * 100;
+
+    await tester.pumpWidget(_wrap(_section(title: longTitle, onCreate: () {})));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    final titleText = tester.widget<Text>(find.text(longTitle));
+    expect(titleText.maxLines, 1);
+    expect(titleText.overflow, TextOverflow.ellipsis);
+    expect(find.byType(CreateLessonButton), findsOneWidget);
   });
 }

@@ -425,6 +425,54 @@ void main() {
     expect(find.byType(EditTransactionBottomSheet), findsNothing);
   });
 
+  testWidgets(
+    'editing a student payment allows paid until in the previous month',
+    (tester) async {
+      final transaction = _transaction(
+        paymentDetails: StudentPaymentDetailsResponse(
+          detailsType: 'STUDENT',
+          studentId: 'student-1',
+          studentName: 'Ivan Petrov',
+          paidUntil: DateTime(2025, 9),
+        ),
+      );
+      final client = _FakeTransactionClient(transaction: transaction);
+
+      await tester.pumpWidget(
+        _wrapWithApi(TransactionPage(transaction: transaction), client),
+      );
+
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(t.edit));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(_paidUntilField(), '15072025');
+      await tester.pump();
+
+      expect(find.text(t.invalidDate), findsNothing);
+
+      await tester.tap(find.text(t.update));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle();
+
+      final expectedDate = DateTime(2025, 8, 22).toIso8601StringWithOffset();
+      final expectedPaidUntil = DateTime(
+        2025,
+        7,
+        15,
+      ).toIso8601StringWithOffset();
+      expect(client.updateBodies, hasLength(1));
+      expect(client.updateBodies.single, {
+        'amount': 3800.0,
+        'date': expectedDate,
+        'paidUntil': expectedPaidUntil,
+      });
+      expect(find.byType(EditTransactionBottomSheet), findsNothing);
+    },
+  );
+
   testWidgets('deleting a transaction confirms and returns to the list', (
     tester,
   ) async {

@@ -98,14 +98,7 @@ class _CreateTransactionBottomSheetState
       _isDateValid = date != null;
       if (date == null) return;
 
-      final paidUntil = _paidUntil;
-      final isValidPaidUntil = paidUntil != null && !paidUntil.isBefore(date);
-
       _selectedDate = date;
-
-      if (!isValidPaidUntil) {
-        _paidUntil = _isStudentPayment ? _defaultPaidUntil : null;
-      }
     });
   }
 
@@ -334,7 +327,6 @@ class _CreateTransactionBottomSheetState
                       if (_isStudentPayment)
                         PaidUntilField(
                           initialDate: _paidUntil,
-                          firstDate: _selectedDate,
                           lastDate: _maxPaidUntil,
                           enabled: !_isLoading,
                           onDateChanged: _onPaidUntilChanged,

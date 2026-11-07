@@ -125,3 +125,14 @@ func TestFindVisitByLessonID(t *testing.T) {
 	notFound := FindVisitByLessonID(visits, uuid.New())
 	assert.Nil(t, notFound)
 }
+
+func TestIsBillableVisit(t *testing.T) {
+	assert.True(t, IsBillableVisit(VisitStatusPresent, VisitTypeRegular, false))
+	assert.True(t, IsBillableVisit(VisitStatusAbsent, VisitTypeRegular, false))
+
+	assert.False(t, IsBillableVisit(VisitStatusExcused, VisitTypeRegular, false))
+	assert.False(t, IsBillableVisit(VisitStatusPresent, VisitTypeFree, false))
+	assert.False(t, IsBillableVisit(VisitStatusAbsent, VisitTypeFree, false))
+	assert.False(t, IsBillableVisit(VisitStatusPresent, VisitTypeRegular, true))
+	assert.False(t, IsBillableVisit(VisitStatusAbsent, VisitTypeRegular, true))
+}

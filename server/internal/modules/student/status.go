@@ -13,22 +13,22 @@ import (
 func ComputeStudentStatuses(
 	student response.StudentResponse,
 	visits []visit.VisitResponse,
-	payments []transaction.TransactionResponse,
+	balance *transaction.StudentBalance,
 	lessonsMap map[uuid.UUID]response.LessonResponse,
 	today time.Time,
 ) []StudentStatus {
-	return ComputeStudentStatusesWithVisitLessons(student, visits, payments, lessonsMap, lessonsMap, today)
+	return ComputeStudentStatusesWithVisitLessons(student, visits, balance, lessonsMap, lessonsMap, today)
 }
 
 func ComputeStudentStatusesWithVisitLessons(
 	student response.StudentResponse,
 	visits []visit.VisitResponse,
-	payments []transaction.TransactionResponse,
+	balance *transaction.StudentBalance,
 	lessonsMap map[uuid.UUID]response.LessonResponse,
 	visitLessonsMap map[uuid.UUID]response.LessonResponse,
-	today time.Time,
+	_ time.Time,
 ) []StudentStatus {
-	if len(visits) == 0 && len(payments) == 0 {
+	if len(visits) == 0 && !balance.HasPaymentActivity() {
 		if student.Free {
 			return []StudentStatus{StudentStatusFree}
 		}
@@ -62,21 +62,21 @@ func ComputeStudentStatusesWithVisitLessons(
 
 	studentLessons := make(map[uuid.UUID]response.LessonResponse)
 	for _, v := range visits {
+		if v.Type == visit.VisitTypeFree || v.Status == visit.VisitStatusExcused {
+			continue
+		}
 		if l, ok := lessonsMap[v.LessonID]; ok {
 			studentLessons[v.LessonID] = l
 		}
 	}
 
 	lastLesson := lesson.FindLatestLesson(studentLessons)
-
-	referenceDate := today
-	if lastLesson != nil {
-		referenceDate = lastLesson.Date
+	if lastLesson == nil {
+		statuses = append(statuses, StudentStatusPaid)
+		return statuses
 	}
 
-	maxPaidUntil := transaction.MaxPaidUntil(payments)
-
-	if transaction.IsSubscriptionActive(maxPaidUntil, referenceDate) {
+	if balance.IsPaidAt(lastLesson.Date) {
 		statuses = append(statuses, StudentStatusPaid)
 	} else {
 		statuses = append(statuses, StudentStatusUnpaid)

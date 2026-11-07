@@ -17,7 +17,7 @@ func BuildGroupReport(
 	students []response.StudentResponse,
 	lessons []response.LessonResponse,
 	visitsByStudentID map[uuid.UUID][]visit.VisitResponse,
-	paymentsByStudentID map[uuid.UUID][]transaction.TransactionResponse,
+	balancesByStudentID map[uuid.UUID]transaction.StudentBalance,
 	today time.Time,
 ) GroupReportResponse {
 	lastDay := time.Date(year, time.Month(month)+1, 0, 0, 0, 0, 0, time.UTC)
@@ -94,7 +94,12 @@ func BuildGroupReport(
 			})
 		}
 
-		paid := isPaid(paymentsByStudentID[student.ID], year, month, today)
+		var balancePtr *transaction.StudentBalance
+		if bal, ok := balancesByStudentID[student.ID]; ok {
+			b := bal
+			balancePtr = &b
+		}
+		paid := isPaid(balancePtr, year, month, today)
 		totalPresent += studentPresentCount
 		totalLessons += totalLessonsInMonth
 
@@ -122,9 +127,8 @@ func BuildGroupReport(
 	}
 }
 
-func isPaid(payments []transaction.TransactionResponse, year, month int, today time.Time) bool {
-	maxPaidUntil := transaction.MaxPaidUntil(payments)
-	if maxPaidUntil == nil {
+func isPaid(balance *transaction.StudentBalance, year, month int, today time.Time) bool {
+	if balance == nil {
 		return false
 	}
 
@@ -141,5 +145,5 @@ func isPaid(payments []transaction.TransactionResponse, year, month int, today t
 		referenceDate = todayDay
 	}
 
-	return transaction.IsSubscriptionActive(maxPaidUntil, referenceDate)
+	return balance.IsPaidAt(referenceDate)
 }

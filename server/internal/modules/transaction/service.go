@@ -3,9 +3,13 @@ package transaction
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -100,18 +104,12 @@ func (s *Service) GetPaginatedTransactions(ctx context.Context, page, size int, 
 	transactions := make([]TransactionResponse, 0, len(rows))
 	for _, r := range rows {
 		var details *StudentPaymentDetailsResponse
-		if r.StudentID.Valid && r.PaidUntil.Valid {
+		if r.StudentID.Valid && (r.PaidUntil.Valid || r.SessionsAdded.Valid) {
 			var studentName *string
 			if name, ok := studentNames[r.StudentID.UUID]; ok {
 				studentName = &name
 			}
-
-			details = &StudentPaymentDetailsResponse{
-				DetailsType: DetailsTypeStudent,
-				StudentID:   r.StudentID.UUID,
-				PaidUntil:   r.PaidUntil.Time,
-				StudentName: studentName,
-			}
+			details = toStudentPaymentDetailsResponse(r.StudentID.UUID, r.PaidUntil, r.SessionsAdded, studentName)
 		}
 
 		transactions = append(transactions, toTransactionResponseFromPaginatedRow(r, details))
@@ -236,6 +234,42 @@ func (s *Service) GetTransactionsByStudentIDs(ctx context.Context, studentIDs []
 	return transactionsByStudent, nil
 }
 
+func (s *Service) GetStudentBalancesByOwnerID(ctx context.Context, ownerID uuid.UUID) (map[uuid.UUID]StudentBalance, error) {
+	logger.DebugContext(ctx, "Getting student balances by owner id", "user_id", ownerID.String())
+	rows, err := s.db.FindStudentBalancesByOwnerID(ctx, ownerID)
+	if err != nil {
+		logger.ErrorContext(ctx, "Failed to get student balances by owner id", "error", err, "user_id", ownerID.String())
+		return nil, err
+	}
+
+	balances := make(map[uuid.UUID]StudentBalance, len(rows))
+	for _, r := range rows {
+		balances[r.StudentID] = toStudentBalance(r)
+	}
+	return balances, nil
+}
+
+func (s *Service) GetStudentBalancesByStudentIDs(ctx context.Context, studentIDs []uuid.UUID, ownerID uuid.UUID) (map[uuid.UUID]StudentBalance, error) {
+	if len(studentIDs) == 0 {
+		return map[uuid.UUID]StudentBalance{}, nil
+	}
+
+	rows, err := s.db.FindStudentBalancesByStudentIDsAndOwnerID(ctx, db.FindStudentBalancesByStudentIDsAndOwnerIDParams{
+		OwnerID: ownerID,
+		Column2: studentIDs,
+	})
+	if err != nil {
+		logger.ErrorContext(ctx, "Failed to get student balances by student ids", "error", err, "user_id", ownerID.String())
+		return nil, err
+	}
+
+	balances := make(map[uuid.UUID]StudentBalance, len(rows))
+	for _, r := range rows {
+		balances[r.StudentID] = toStudentBalance(r)
+	}
+	return balances, nil
+}
+
 func (s *Service) CreateTransaction(ctx context.Context, req CreateTransactionRequest, ownerID uuid.UUID) (TransactionResponse, error) {
 	logger.InfoContext(ctx, "Creating transaction", "amount", req.Amount, "type", string(req.Type), "user_id", ownerID.String())
 	if req.Amount <= 0 {
@@ -252,6 +286,11 @@ func (s *Service) CreateTransaction(ctx context.Context, req CreateTransactionRe
 		if req.PaymentDetails.StudentID == uuid.Nil {
 			logger.WarnContext(ctx, "Student ID must not be nil for student payment", "user_id", ownerID.String())
 			return TransactionResponse{}, pkgerrors.NewBadRequest("studentId must not be null for student payment")
+		}
+
+		if err := ValidateStudentPaymentFields(req.PaymentDetails.PaidUntil, req.PaymentDetails.SessionsAdded); err != nil {
+			logger.WarnContext(ctx, "Invalid student payment details", "student_id", req.PaymentDetails.StudentID.String(), "error", err, "user_id", ownerID.String())
+			return TransactionResponse{}, err
 		}
 
 		if s.studentProvider != nil {
@@ -284,17 +323,25 @@ func (s *Service) CreateTransaction(ctx context.Context, req CreateTransactionRe
 			sp, err := qtx.CreateStudentPayment(ctx, db.CreateStudentPaymentParams{
 				TransactionID: createdTx.ID,
 				StudentID:     req.PaymentDetails.StudentID,
-				PaidUntil:     req.PaymentDetails.PaidUntil,
+				PaidUntil:     toNullTime(req.PaymentDetails.PaidUntil),
+				SessionsAdded: toNullInt64(req.PaymentDetails.SessionsAdded),
 			})
 			if err != nil {
 				logger.ErrorContext(ctx, "Failed to create student payment details record", "transaction_id", createdTx.ID.String(), "student_id", req.PaymentDetails.StudentID.String(), "error", err, "user_id", ownerID.String())
 				return err
 			}
-			details = &StudentPaymentDetailsResponse{
-				DetailsType: DetailsTypeStudent,
-				StudentID:   sp.StudentID,
-				PaidUntil:   sp.PaidUntil,
+
+			if _, err := qtx.ApplyPaymentToStudentBalance(ctx, db.ApplyPaymentToStudentBalanceParams{
+				OwnerID:       ownerID,
+				StudentID:     sp.StudentID,
+				PaidUntil:     sp.PaidUntil,
+				SessionsAdded: sp.SessionsAdded,
+			}); err != nil {
+				logger.ErrorContext(ctx, "Failed to update student balance on transaction creation", "transaction_id", createdTx.ID.String(), "student_id", sp.StudentID.String(), "error", err, "user_id", ownerID.String())
+				return err
 			}
+
+			details = toStudentPaymentDetailsResponse(sp.StudentID, sp.PaidUntil, sp.SessionsAdded, nil)
 		}
 		return nil
 	})
@@ -309,7 +356,7 @@ func (s *Service) CreateTransaction(ctx context.Context, req CreateTransactionRe
 	return toTransactionResponse(createdTx, details), nil
 }
 
-func (s *Service) CreateStudentPayment(ctx context.Context, studentID uuid.UUID, amount float64, date, paidUntil time.Time, ownerID uuid.UUID) (TransactionResponse, error) {
+func (s *Service) CreateStudentPayment(ctx context.Context, studentID uuid.UUID, amount float64, date time.Time, paidUntil *time.Time, sessionsAdded *int64, ownerID uuid.UUID) (TransactionResponse, error) {
 	logger.InfoContext(ctx, "Creating student payment transaction", "student_id", studentID.String(), "amount", amount, "user_id", ownerID.String())
 	if amount <= 0 {
 		logger.WarnContext(ctx, "Transaction amount must be greater than 0", "amount", amount, "user_id", ownerID.String())
@@ -319,6 +366,11 @@ func (s *Service) CreateStudentPayment(ctx context.Context, studentID uuid.UUID,
 	if studentID == uuid.Nil {
 		logger.WarnContext(ctx, "Student ID must not be nil for student payment", "user_id", ownerID.String())
 		return TransactionResponse{}, pkgerrors.NewBadRequest("studentId must not be null for student payment")
+	}
+
+	if err := ValidateStudentPaymentFields(paidUntil, sessionsAdded); err != nil {
+		logger.WarnContext(ctx, "Invalid student payment fields", "student_id", studentID.String(), "error", err, "user_id", ownerID.String())
+		return TransactionResponse{}, err
 	}
 
 	if s.studentProvider != nil {
@@ -354,11 +406,22 @@ func (s *Service) CreateStudentPayment(ctx context.Context, studentID uuid.UUID,
 		sp, err = qtx.CreateStudentPayment(ctx, db.CreateStudentPaymentParams{
 			TransactionID: createdTx.ID,
 			StudentID:     studentID,
-			PaidUntil:     paidUntil,
+			PaidUntil:     toNullTime(paidUntil),
+			SessionsAdded: toNullInt64(sessionsAdded),
 		})
 
 		if err != nil {
 			logger.ErrorContext(ctx, "Failed to create student payment record", "student_id", studentID.String(), "error", err, "user_id", ownerID.String())
+			return err
+		}
+
+		if _, err := qtx.ApplyPaymentToStudentBalance(ctx, db.ApplyPaymentToStudentBalanceParams{
+			OwnerID:       ownerID,
+			StudentID:     sp.StudentID,
+			PaidUntil:     sp.PaidUntil,
+			SessionsAdded: sp.SessionsAdded,
+		}); err != nil {
+			logger.ErrorContext(ctx, "Failed to update student balance for student payment", "student_id", sp.StudentID.String(), "error", err, "user_id", ownerID.String())
 			return err
 		}
 
@@ -371,15 +434,65 @@ func (s *Service) CreateStudentPayment(ctx context.Context, studentID uuid.UUID,
 
 	amt, _ := strconv.ParseFloat(createdTx.Amount, 64)
 	logger.InfoContext(ctx, "Student payment created successfully", "transaction_id", createdTx.ID.String(), "student_id", studentID.String(), "amount", amt, "user_id", ownerID.String())
-	return toTransactionResponse(createdTx, &StudentPaymentDetailsResponse{
-		DetailsType: DetailsTypeStudent,
-		StudentID:   sp.StudentID,
-		PaidUntil:   sp.PaidUntil,
-	}), nil
+	return toTransactionResponse(createdTx, toStudentPaymentDetailsResponse(sp.StudentID, sp.PaidUntil, sp.SessionsAdded, nil)), nil
 }
 
 func (s *Service) UpdateTransaction(ctx context.Context, transactionID, ownerID uuid.UUID, updates map[string]any) (TransactionResponse, error) {
 	logger.InfoContext(ctx, "Updating transaction", "transaction_id", transactionID.String(), "user_id", ownerID.String())
+
+	var patchedAmountStr *string
+	if rawAmt, ok := updates["amount"]; ok {
+		amtStr, err := parseAmountString(rawAmt)
+		if err != nil {
+			return TransactionResponse{}, err
+		}
+		patchedAmountStr = &amtStr
+	}
+
+	var patchedDate *time.Time
+	if rawDate, ok := updates["date"]; ok {
+		if rawDate == nil {
+			return TransactionResponse{}, pkgerrors.NewBadRequest("date must not be null")
+		}
+		d, err := parseTime(rawDate)
+		if err != nil {
+			return TransactionResponse{}, pkgerrors.NewBadRequest("invalid date format")
+		}
+		if err := validator.ValidateDateNotFuture(d, "date"); err != nil {
+			logger.WarnContext(ctx, "Updated transaction date cannot be in the future", "date", d.Format(time.RFC3339), "user_id", ownerID.String())
+			return TransactionResponse{}, err
+		}
+		patchedDate = &d
+	}
+
+	paymentUpdates := extractPaymentUpdateFields(updates)
+
+	hasPaidUntilUpdate := false
+	var patchedPaidUntil sql.NullTime
+	if rawPU, ok := paymentUpdates["paidUntil"]; ok {
+		hasPaidUntilUpdate = true
+		if rawPU != nil {
+			d, err := parseTime(rawPU)
+			if err != nil {
+				return TransactionResponse{}, pkgerrors.NewBadRequest("invalid paidUntil format")
+			}
+			patchedPaidUntil = sql.NullTime{Time: d, Valid: true}
+		}
+	}
+
+	hasSessionsAddedUpdate := false
+	var patchedSessionsAdded sql.NullInt64
+	if rawSA, ok := paymentUpdates["sessionsAdded"]; ok {
+		hasSessionsAddedUpdate = true
+		if rawSA != nil {
+			sa, err := parsePositiveInt64(rawSA)
+			if err != nil {
+				return TransactionResponse{}, err
+			}
+			patchedSessionsAdded = sql.NullInt64{Int64: sa, Valid: true}
+		}
+	}
+
 	var updatedTx db.PaymentsModuleTransaction
 	var details *StudentPaymentDetailsResponse
 
@@ -399,40 +512,28 @@ func (s *Service) UpdateTransaction(ctx context.Context, transactionID, ownerID 
 		}
 
 		amountStr := existing.Amount
-		if rawAmt, ok := updates["amount"]; ok && rawAmt != nil {
-			switch v := rawAmt.(type) {
-			case float64:
-				amountStr = strconv.FormatFloat(v, 'f', 2, 64)
-			case string:
-				amountStr = v
-			}
+		if patchedAmountStr != nil {
+			amountStr = *patchedAmountStr
 		}
 
 		txDate := existing.Date
-		patchesDate := false
-		if rawDate, ok := updates["date"]; ok && rawDate != nil {
-			d, err := parseTime(rawDate)
-			if err == nil {
-				txDate = d
-				patchesDate = true
-			}
+		if patchedDate != nil {
+			txDate = *patchedDate
 		}
 
-		if patchesDate {
-			if err := validator.ValidateDateNotFuture(txDate, "date"); err != nil {
-				logger.WarnContext(ctx, "Updated transaction date cannot be in the future", "date", txDate.Format(time.RFC3339), "user_id", ownerID.String())
-				return err
-			}
+		newPaidUntil := existing.PaidUntil
+		if hasPaidUntilUpdate {
+			newPaidUntil = patchedPaidUntil
 		}
 
-		paidUntilDate := existing.PaidUntil.Time
-		patchesPaidUntil := false
-		if rawPU, ok := updates["paidUntil"]; ok && rawPU != nil {
-			d, err := parseTime(rawPU)
-			if err == nil {
-				paidUntilDate = d
-				patchesPaidUntil = true
-			}
+		newSessionsAdded := existing.SessionsAdded
+		if hasSessionsAddedUpdate {
+			newSessionsAdded = patchedSessionsAdded
+		}
+
+		patchesPayment := hasPaidUntilUpdate || hasSessionsAddedUpdate
+		if existing.StudentID.Valid && patchesPayment && !newPaidUntil.Valid && !newSessionsAdded.Valid {
+			return pkgerrors.NewBadRequest("either paidUntil or sessionsAdded must be provided for student payment")
 		}
 
 		updatedTx, err = qtx.UpdateTransaction(ctx, db.UpdateTransactionParams{
@@ -447,26 +548,56 @@ func (s *Service) UpdateTransaction(ctx context.Context, transactionID, ownerID 
 			return err
 		}
 
-		if patchesPaidUntil && existing.StudentID.Valid {
+		if patchesPayment && existing.StudentID.Valid {
+			currentBal, err := lockOrInitStudentBalanceTx(ctx, qtx, ownerID, existing.StudentID.UUID)
+			if err != nil {
+				logger.ErrorContext(ctx, "Failed to lock student balance for payment update", "student_id", existing.StudentID.UUID.String(), "error", err, "user_id", ownerID.String())
+				return err
+			}
+
 			sp, err := qtx.UpdateStudentPayment(ctx, db.UpdateStudentPaymentParams{
 				TransactionID: transactionID,
-				PaidUntil:     paidUntilDate,
+				PaidUntil:     newPaidUntil,
+				SessionsAdded: newSessionsAdded,
 			})
 			if err != nil {
 				logger.ErrorContext(ctx, "Failed to update student payment record", "transaction_id", transactionID.String(), "error", err, "user_id", ownerID.String())
 				return err
 			}
-			details = &StudentPaymentDetailsResponse{
-				DetailsType: DetailsTypeStudent,
-				StudentID:   sp.StudentID,
-				PaidUntil:   sp.PaidUntil,
+
+			latestPaidUntil, err := findLatestPaidUntilTx(ctx, qtx, sp.StudentID, ownerID)
+			if err != nil {
+				logger.ErrorContext(ctx, "Failed to recalculate latest paid_until on payment update", "student_id", sp.StudentID.String(), "error", err, "user_id", ownerID.String())
+				return err
 			}
+
+			var oldSessions int64
+			if existing.SessionsAdded.Valid {
+				oldSessions = existing.SessionsAdded.Int64
+			}
+			var newSessions int64
+			if sp.SessionsAdded.Valid {
+				newSessions = sp.SessionsAdded.Int64
+			}
+
+			updatedSessionsLeft := currentBal.SessionsLeft + newSessions - oldSessions
+			if updatedSessionsLeft < 0 {
+				updatedSessionsLeft = 0
+			}
+
+			if _, err := qtx.UpsertStudentBalance(ctx, db.UpsertStudentBalanceParams{
+				OwnerID:      ownerID,
+				StudentID:    sp.StudentID,
+				PaidUntil:    latestPaidUntil,
+				SessionsLeft: updatedSessionsLeft,
+			}); err != nil {
+				logger.ErrorContext(ctx, "Failed to upsert student balance on payment update", "student_id", sp.StudentID.String(), "error", err, "user_id", ownerID.String())
+				return err
+			}
+
+			details = toStudentPaymentDetailsResponse(sp.StudentID, sp.PaidUntil, sp.SessionsAdded, nil)
 		} else if existing.StudentID.Valid {
-			details = &StudentPaymentDetailsResponse{
-				DetailsType: DetailsTypeStudent,
-				StudentID:   existing.StudentID.UUID,
-				PaidUntil:   existing.PaidUntil.Time,
-			}
+			details = toStudentPaymentDetailsResponse(existing.StudentID.UUID, existing.PaidUntil, existing.SessionsAdded, nil)
 		}
 
 		return nil
@@ -484,7 +615,7 @@ func (s *Service) UpdateTransaction(ctx context.Context, transactionID, ownerID 
 func (s *Service) DeleteTransaction(ctx context.Context, transactionID, ownerID uuid.UUID) error {
 	logger.InfoContext(ctx, "Deleting transaction", "transaction_id", transactionID.String(), "user_id", ownerID.String())
 	err := s.withTx(ctx, func(qtx *db.Queries) error {
-		_, err := qtx.FindTransactionByIDAndOwnerID(ctx, db.FindTransactionByIDAndOwnerIDParams{
+		existing, err := qtx.FindTransactionByIDAndOwnerID(ctx, db.FindTransactionByIDAndOwnerIDParams{
 			ID:      transactionID,
 			OwnerID: ownerID,
 		})
@@ -496,6 +627,15 @@ func (s *Service) DeleteTransaction(ctx context.Context, transactionID, ownerID 
 			}
 			logger.ErrorContext(ctx, "Failed to find transaction for deletion", "transaction_id", transactionID.String(), "error", err, "user_id", ownerID.String())
 			return err
+		}
+
+		var currentBal db.PaymentsModuleStudentBalance
+		if existing.StudentID.Valid {
+			currentBal, err = lockOrInitStudentBalanceTx(ctx, qtx, ownerID, existing.StudentID.UUID)
+			if err != nil {
+				logger.ErrorContext(ctx, "Failed to lock student balance for payment deletion", "student_id", existing.StudentID.UUID.String(), "error", err, "user_id", ownerID.String())
+				return err
+			}
 		}
 
 		if err := qtx.DeleteStudentPaymentByTransactionID(ctx, transactionID); err != nil {
@@ -511,6 +651,35 @@ func (s *Service) DeleteTransaction(ctx context.Context, transactionID, ownerID 
 			return err
 		}
 
+		if existing.StudentID.Valid {
+			studentID := existing.StudentID.UUID
+			latestPaidUntil, err := findLatestPaidUntilTx(ctx, qtx, studentID, ownerID)
+			if err != nil {
+				logger.ErrorContext(ctx, "Failed to recalculate latest paid_until on payment deletion", "student_id", studentID.String(), "error", err, "user_id", ownerID.String())
+				return err
+			}
+
+			var oldSessions int64
+			if existing.SessionsAdded.Valid {
+				oldSessions = existing.SessionsAdded.Int64
+			}
+
+			updatedSessionsLeft := currentBal.SessionsLeft - oldSessions
+			if updatedSessionsLeft < 0 {
+				updatedSessionsLeft = 0
+			}
+
+			if _, err := qtx.UpsertStudentBalance(ctx, db.UpsertStudentBalanceParams{
+				OwnerID:      ownerID,
+				StudentID:    studentID,
+				PaidUntil:    latestPaidUntil,
+				SessionsLeft: updatedSessionsLeft,
+			}); err != nil {
+				logger.ErrorContext(ctx, "Failed to update student balance on payment deletion", "student_id", studentID.String(), "error", err, "user_id", ownerID.String())
+				return err
+			}
+		}
+
 		return nil
 	})
 
@@ -520,6 +689,214 @@ func (s *Service) DeleteTransaction(ctx context.Context, transactionID, ownerID 
 	}
 	logger.InfoContext(ctx, "Transaction deleted successfully", "transaction_id", transactionID.String(), "user_id", ownerID.String())
 	return nil
+}
+
+// SyncLessonAttendanceBalancesTx applies the Priority Rule to student_balances for a batch of
+// lesson attendance transitions within an existing database transaction.
+func (s *Service) SyncLessonAttendanceBalancesTx(ctx context.Context, qtx *db.Queries, ownerID uuid.UUID, changes []AttendanceBalanceChange) error {
+	relevant := make([]AttendanceBalanceChange, 0, len(changes))
+	for _, ch := range changes {
+		if ch.OldBillable || ch.NewBillable {
+			relevant = append(relevant, ch)
+		}
+	}
+	if len(relevant) == 0 {
+		return nil
+	}
+
+	// Acquire row locks in deterministic student ID order to prevent deadlocks.
+	slices.SortFunc(relevant, func(a, b AttendanceBalanceChange) int {
+		return strings.Compare(a.StudentID.String(), b.StudentID.String())
+	})
+
+	for _, ch := range relevant {
+		bal, err := lockOrInitStudentBalanceTx(ctx, qtx, ownerID, ch.StudentID)
+		if err != nil {
+			logger.ErrorContext(ctx, "Failed to lock student balance during attendance sync", "student_id", ch.StudentID.String(), "error", err, "user_id", ownerID.String())
+			return err
+		}
+
+		paidUntil := fromNullTime(bal.PaidUntil)
+		oldNeeds := NeedsSessionForAttendance(paidUntil, ch.OldLessonDate, ch.OldBillable)
+		newNeeds := NeedsSessionForAttendance(paidUntil, ch.NewLessonDate, ch.NewBillable)
+		if oldNeeds == newNeeds {
+			continue
+		}
+
+		var totalSessionsAdded int64
+		var remainingUncovered int64
+		if oldNeeds && !newNeeds {
+			totalSessionsAdded, err = qtx.SumSessionsAddedByStudentIDAndOwnerID(ctx, db.SumSessionsAddedByStudentIDAndOwnerIDParams{
+				StudentID: ch.StudentID,
+				OwnerID:   ownerID,
+			})
+			if err != nil {
+				logger.ErrorContext(ctx, "Failed to sum sessions_added during attendance refund check", "student_id", ch.StudentID.String(), "error", err, "user_id", ownerID.String())
+				return err
+			}
+
+			billableDates, err := qtx.FindBillableVisitLessonDatesByStudentIDAndOwnerID(ctx, db.FindBillableVisitLessonDatesByStudentIDAndOwnerIDParams{
+				StudentID: ch.StudentID,
+				OwnerID:   ownerID,
+			})
+			if err != nil {
+				logger.ErrorContext(ctx, "Failed to query remaining billable visits during attendance refund check", "student_id", ch.StudentID.String(), "error", err, "user_id", ownerID.String())
+				return err
+			}
+			for _, d := range billableDates {
+				if !IsSubscriptionActive(paidUntil, d) {
+					remainingUncovered++
+				}
+			}
+		}
+
+		newSessionsLeft, changed := ResolveAttendanceSessionBalance(
+			ch,
+			paidUntil,
+			bal.SessionsLeft,
+			totalSessionsAdded,
+			remainingUncovered,
+		)
+		if !changed {
+			continue
+		}
+
+		if _, err := qtx.UpsertStudentBalance(ctx, db.UpsertStudentBalanceParams{
+			OwnerID:      ownerID,
+			StudentID:    ch.StudentID,
+			PaidUntil:    bal.PaidUntil,
+			SessionsLeft: newSessionsLeft,
+		}); err != nil {
+			logger.ErrorContext(ctx, "Failed to update student balance during attendance sync", "student_id", ch.StudentID.String(), "error", err, "user_id", ownerID.String())
+			return err
+		}
+	}
+
+	return nil
+}
+
+func findLatestPaidUntilTx(ctx context.Context, qtx *db.Queries, studentID, ownerID uuid.UUID) (sql.NullTime, error) {
+	pu, err := qtx.FindLatestPaidUntilByStudentID(ctx, db.FindLatestPaidUntilByStudentIDParams{
+		StudentID: studentID,
+		OwnerID:   ownerID,
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return sql.NullTime{}, nil
+		}
+		return sql.NullTime{}, err
+	}
+	return pu, nil
+}
+
+func lockOrInitStudentBalanceTx(ctx context.Context, qtx *db.Queries, ownerID, studentID uuid.UUID) (db.PaymentsModuleStudentBalance, error) {
+	bal, err := qtx.FindStudentBalanceForUpdate(ctx, db.FindStudentBalanceForUpdateParams{
+		OwnerID:   ownerID,
+		StudentID: studentID,
+	})
+	if err == nil {
+		return bal, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return db.PaymentsModuleStudentBalance{}, err
+	}
+
+	latestPaidUntil, err := findLatestPaidUntilTx(ctx, qtx, studentID, ownerID)
+	if err != nil {
+		return db.PaymentsModuleStudentBalance{}, err
+	}
+
+	return qtx.UpsertStudentBalance(ctx, db.UpsertStudentBalanceParams{
+		OwnerID:      ownerID,
+		StudentID:    studentID,
+		PaidUntil:    latestPaidUntil,
+		SessionsLeft: 0,
+	})
+}
+
+func extractPaymentUpdateFields(updates map[string]any) map[string]any {
+	merged := make(map[string]any, 2)
+	if nested, ok := updates["paymentDetails"].(map[string]any); ok {
+		if v, exists := nested["paidUntil"]; exists {
+			merged["paidUntil"] = v
+		}
+		if v, exists := nested["sessionsAdded"]; exists {
+			merged["sessionsAdded"] = v
+		}
+	}
+	if v, exists := updates["paidUntil"]; exists {
+		merged["paidUntil"] = v
+	}
+	if v, exists := updates["sessionsAdded"]; exists {
+		merged["sessionsAdded"] = v
+	}
+	return merged
+}
+
+func parseAmountString(raw any) (string, error) {
+	if raw == nil {
+		return "", pkgerrors.NewBadRequest("amount must be greater than 0")
+	}
+	var val float64
+	switch v := raw.(type) {
+	case float64:
+		val = v
+	case int:
+		val = float64(v)
+	case int64:
+		val = float64(v)
+	case json.Number:
+		parsed, err := v.Float64()
+		if err != nil {
+			return "", pkgerrors.NewBadRequest("invalid amount")
+		}
+		val = parsed
+	case string:
+		parsed, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return "", pkgerrors.NewBadRequest("invalid amount")
+		}
+		val = parsed
+	default:
+		return "", pkgerrors.NewBadRequest("invalid amount")
+	}
+	if val <= 0 || math.IsNaN(val) || math.IsInf(val, 0) {
+		return "", pkgerrors.NewBadRequest("amount must be greater than 0")
+	}
+	return strconv.FormatFloat(val, 'f', 2, 64), nil
+}
+
+func parsePositiveInt64(raw any) (int64, error) {
+	var val int64
+	switch v := raw.(type) {
+	case float64:
+		if math.IsNaN(v) || math.IsInf(v, 0) || math.Trunc(v) != v {
+			return 0, pkgerrors.NewBadRequest("sessionsAdded must be a positive integer")
+		}
+		val = int64(v)
+	case int:
+		val = int64(v)
+	case int64:
+		val = v
+	case json.Number:
+		parsed, err := v.Int64()
+		if err != nil {
+			return 0, pkgerrors.NewBadRequest("sessionsAdded must be a positive integer")
+		}
+		val = parsed
+	case string:
+		parsed, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return 0, pkgerrors.NewBadRequest("sessionsAdded must be a positive integer")
+		}
+		val = parsed
+	default:
+		return 0, pkgerrors.NewBadRequest("sessionsAdded must be a positive integer")
+	}
+	if val <= 0 {
+		return 0, pkgerrors.NewBadRequest("sessionsAdded must be greater than 0")
+	}
+	return val, nil
 }
 
 func parseTime(raw any) (time.Time, error) {

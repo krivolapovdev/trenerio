@@ -132,7 +132,7 @@ func TestStudentStatus_PrefersLessonCreatedLastOnSameDay(t *testing.T) {
 	assert.NotContains(t, statuses, StudentStatusMissing)
 }
 
-func TestStudentStatus_InactiveWhenNoVisitsAndNoPayments(t *testing.T) {
+func TestStudentStatus_InactiveWhenNoVisitsAndNoBalanceActivity(t *testing.T) {
 	studentID := uuid.New()
 	createdAt := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
 
@@ -145,6 +145,10 @@ func TestStudentStatus_InactiveWhenNoVisitsAndNoPayments(t *testing.T) {
 	statuses := ComputeStudentStatuses(stNotFree, nil, nil, nil, time.Now().UTC())
 	assert.Equal(t, []StudentStatus{StudentStatusInactive}, statuses)
 
+	zeroBalance := &transaction.StudentBalance{StudentID: studentID, PaidUntil: nil, SessionsLeft: 0}
+	zeroStatuses := ComputeStudentStatuses(stNotFree, nil, zeroBalance, nil, time.Now().UTC())
+	assert.Equal(t, []StudentStatus{StudentStatusInactive}, zeroStatuses)
+
 	stFree := response.StudentResponse{
 		ID:        studentID,
 		FullName:  "Free Student",
@@ -155,7 +159,7 @@ func TestStudentStatus_InactiveWhenNoVisitsAndNoPayments(t *testing.T) {
 	assert.Equal(t, []StudentStatus{StudentStatusFree}, freeStatuses)
 }
 
-func TestStudentStatus_PaidVsUnpaid(t *testing.T) {
+func TestStudentStatus_PaidVsUnpaidAndSessionBalances(t *testing.T) {
 	studentID := uuid.New()
 	lessonID := uuid.New()
 	createdAt := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
@@ -180,37 +184,195 @@ func TestStudentStatus_PaidVsUnpaid(t *testing.T) {
 		},
 	}
 
-	activePayments := []transaction.TransactionResponse{
-		{
-			ID:        uuid.New(),
-			Amount:    1000,
-			CreatedAt: createdAt,
-			PaymentDetails: &transaction.StudentPaymentDetailsResponse{
+	t.Run("ActiveSubscription_Paid", func(t *testing.T) {
+		activeBal := &transaction.StudentBalance{
+			StudentID:    studentID,
+			PaidUntil:    &lastLessonDay,
+			SessionsLeft: 0,
+		}
+		statuses := ComputeStudentStatuses(st, visits, activeBal, lessonsMap, time.Now().UTC())
+		assert.Contains(t, statuses, StudentStatusPaid)
+		assert.NotContains(t, statuses, StudentStatusUnpaid)
+	})
+
+	t.Run("ExpiredSubscription_ZeroSessions_Unpaid", func(t *testing.T) {
+		expired := lastLessonDay.AddDate(0, 0, -1)
+		expiredBal := &transaction.StudentBalance{
+			StudentID:    studentID,
+			PaidUntil:    &expired,
+			SessionsLeft: 0,
+		}
+		statuses := ComputeStudentStatuses(st, visits, expiredBal, lessonsMap, time.Now().UTC())
+		assert.Contains(t, statuses, StudentStatusUnpaid)
+		assert.NotContains(t, statuses, StudentStatusPaid)
+	})
+
+	t.Run("ExpiredSubscription_WithReserveSessions_Paid", func(t *testing.T) {
+		expired := lastLessonDay.AddDate(0, 0, -1)
+		hybridBal := &transaction.StudentBalance{
+			StudentID:    studentID,
+			PaidUntil:    &expired,
+			SessionsLeft: 3,
+		}
+		statuses := ComputeStudentStatuses(st, visits, hybridBal, lessonsMap, time.Now().UTC())
+		assert.Contains(t, statuses, StudentStatusPaid)
+		assert.NotContains(t, statuses, StudentStatusUnpaid)
+	})
+
+	t.Run("SessionPackageOnly_NoVisitsYet_PaidNotInactive", func(t *testing.T) {
+		sessionBal := &transaction.StudentBalance{
+			StudentID:    studentID,
+			PaidUntil:    nil,
+			SessionsLeft: 8,
+		}
+		statuses := ComputeStudentStatuses(st, nil, sessionBal, nil, time.Now().UTC())
+		assert.Equal(t, []StudentStatus{StudentStatusPaid}, statuses)
+	})
+
+	t.Run("SubscriptionWithPastPaidUntil_NoVisitsYet_PaidNotUnpaid", func(t *testing.T) {
+		today := time.Date(2026, 11, 7, 15, 30, 0, 0, time.UTC)
+		pastPaidUntil := time.Date(2026, 10, 7, 0, 0, 0, 0, time.UTC)
+		pastSubBal := &transaction.StudentBalance{
+			StudentID:    studentID,
+			PaidUntil:    &pastPaidUntil,
+			SessionsLeft: 0,
+		}
+		statuses := ComputeStudentStatuses(st, nil, pastSubBal, nil, today)
+		assert.Equal(t, []StudentStatus{StudentStatusPaid}, statuses)
+	})
+
+	t.Run("SubscriptionWithFuturePaidUntil_NoVisitsYet_Paid", func(t *testing.T) {
+		today := time.Date(2026, 11, 7, 15, 30, 0, 0, time.UTC)
+		futurePaidUntil := time.Date(2026, 12, 7, 0, 0, 0, 0, time.UTC)
+		futureSubBal := &transaction.StudentBalance{
+			StudentID:    studentID,
+			PaidUntil:    &futurePaidUntil,
+			SessionsLeft: 0,
+		}
+		statuses := ComputeStudentStatuses(st, nil, futureSubBal, nil, today)
+		assert.Equal(t, []StudentStatus{StudentStatusPaid}, statuses)
+	})
+
+	t.Run("ExhaustedSessionPackage_WithVisits_Unpaid", func(t *testing.T) {
+		exhaustedBal := &transaction.StudentBalance{
+			StudentID:    studentID,
+			PaidUntil:    nil,
+			SessionsLeft: 0,
+		}
+		statuses := ComputeStudentStatuses(st, visits, exhaustedBal, lessonsMap, time.Now().UTC())
+		assert.Equal(t, []StudentStatus{StudentStatusPresent, StudentStatusUnpaid}, statuses)
+	})
+
+	t.Run("FreeLessonOnly_NoBalance_PaidNotUnpaid", func(t *testing.T) {
+		freeLessonID := uuid.New()
+		freeLessonDay := time.Date(2026, 11, 5, 10, 0, 0, 0, time.UTC)
+		freeVisits := []response.VisitResponse{
+			{
+				ID:        uuid.New(),
+				LessonID:  freeLessonID,
 				StudentID: studentID,
-				PaidUntil: lastLessonDay,
+				Status:    visit.VisitStatusPresent,
+				Type:      visit.VisitTypeFree,
 			},
-		},
-	}
+		}
+		freeLessonsMap := map[uuid.UUID]response.LessonResponse{
+			freeLessonID: {
+				ID:        freeLessonID,
+				Date:      freeLessonDay,
+				CreatedAt: createdAt,
+			},
+		}
+		statuses := ComputeStudentStatuses(st, freeVisits, nil, freeLessonsMap, time.Now().UTC())
+		assert.Equal(t, []StudentStatus{StudentStatusPresent, StudentStatusPaid}, statuses)
+	})
 
-	statusesPaid := ComputeStudentStatuses(st, visits, activePayments, lessonsMap, time.Now().UTC())
-	assert.Contains(t, statusesPaid, StudentStatusPaid)
-	assert.NotContains(t, statusesPaid, StudentStatusUnpaid)
+	t.Run("BillableLessonPaid_FollowedByFreeLesson_RemainsPaid", func(t *testing.T) {
+		regularLessonID := uuid.New()
+		freeLessonID := uuid.New()
+		regularDay := time.Date(2026, 11, 1, 10, 0, 0, 0, time.UTC)
+		freeDay := time.Date(2026, 11, 5, 10, 0, 0, 0, time.UTC)
+		paidUntil := time.Date(2026, 11, 3, 0, 0, 0, 0, time.UTC)
 
-	expiredPayments := []transaction.TransactionResponse{
-		{
-			ID:        uuid.New(),
-			Amount:    1000,
-			CreatedAt: createdAt,
-			PaymentDetails: &transaction.StudentPaymentDetailsResponse{
+		twoVisits := []response.VisitResponse{
+			{
+				ID:        uuid.New(),
+				LessonID:  regularLessonID,
 				StudentID: studentID,
-				PaidUntil: lastLessonDay.AddDate(0, 0, -1),
+				Status:    visit.VisitStatusPresent,
+				Type:      visit.VisitTypeRegular,
 			},
-		},
-	}
+			{
+				ID:        uuid.New(),
+				LessonID:  freeLessonID,
+				StudentID: studentID,
+				Status:    visit.VisitStatusPresent,
+				Type:      visit.VisitTypeFree,
+			},
+		}
+		mixedLessonsMap := map[uuid.UUID]response.LessonResponse{
+			regularLessonID: {
+				ID:        regularLessonID,
+				Date:      regularDay,
+				CreatedAt: createdAt,
+			},
+			freeLessonID: {
+				ID:        freeLessonID,
+				Date:      freeDay,
+				CreatedAt: createdAt,
+			},
+		}
+		bal := &transaction.StudentBalance{
+			StudentID:    studentID,
+			PaidUntil:    &paidUntil,
+			SessionsLeft: 0,
+		}
+		statuses := ComputeStudentStatuses(st, twoVisits, bal, mixedLessonsMap, time.Now().UTC())
+		assert.Equal(t, []StudentStatus{StudentStatusPresent, StudentStatusPaid}, statuses)
+	})
 
-	statusesUnpaid := ComputeStudentStatuses(st, visits, expiredPayments, lessonsMap, time.Now().UTC())
-	assert.Contains(t, statusesUnpaid, StudentStatusUnpaid)
-	assert.NotContains(t, statusesUnpaid, StudentStatusPaid)
+	t.Run("BillableLessonUnpaid_FollowedByFreeLesson_RemainsUnpaid", func(t *testing.T) {
+		regularLessonID := uuid.New()
+		freeLessonID := uuid.New()
+		regularDay := time.Date(2026, 11, 1, 10, 0, 0, 0, time.UTC)
+		freeDay := time.Date(2026, 11, 5, 10, 0, 0, 0, time.UTC)
+		expiredPaidUntil := time.Date(2026, 10, 15, 0, 0, 0, 0, time.UTC)
+
+		twoVisits := []response.VisitResponse{
+			{
+				ID:        uuid.New(),
+				LessonID:  regularLessonID,
+				StudentID: studentID,
+				Status:    visit.VisitStatusPresent,
+				Type:      visit.VisitTypeRegular,
+			},
+			{
+				ID:        uuid.New(),
+				LessonID:  freeLessonID,
+				StudentID: studentID,
+				Status:    visit.VisitStatusPresent,
+				Type:      visit.VisitTypeFree,
+			},
+		}
+		mixedLessonsMap := map[uuid.UUID]response.LessonResponse{
+			regularLessonID: {
+				ID:        regularLessonID,
+				Date:      regularDay,
+				CreatedAt: createdAt,
+			},
+			freeLessonID: {
+				ID:        freeLessonID,
+				Date:      freeDay,
+				CreatedAt: createdAt,
+			},
+		}
+		bal := &transaction.StudentBalance{
+			StudentID:    studentID,
+			PaidUntil:    &expiredPaidUntil,
+			SessionsLeft: 0,
+		}
+		statuses := ComputeStudentStatuses(st, twoVisits, bal, mixedLessonsMap, time.Now().UTC())
+		assert.Equal(t, []StudentStatus{StudentStatusPresent, StudentStatusUnpaid}, statuses)
+	})
 }
 
 func TestStudentStatus_FreeStudent(t *testing.T) {
@@ -290,19 +452,14 @@ func TestStudentStatus_GroupScopedVisits(t *testing.T) {
 		},
 	}
 
-	payments := []response.TransactionResponse{
-		{
-			ID:        uuid.New(),
-			Amount:    1000,
-			CreatedAt: createdAt,
-			PaymentDetails: &response.StudentPaymentDetailsResponse{
-				StudentID: studentID,
-				PaidUntil: time.Date(2026, 9, 15, 0, 0, 0, 0, time.UTC),
-			},
-		},
+	paidUntil := time.Date(2026, 9, 15, 0, 0, 0, 0, time.UTC)
+	balance := &transaction.StudentBalance{
+		StudentID:    studentID,
+		PaidUntil:    &paidUntil,
+		SessionsLeft: 0,
 	}
 
-	statuses := ComputeStudentStatusesWithVisitLessons(st, visits, payments, everyLessonMap, groupLessonsMap, time.Now().UTC())
+	statuses := ComputeStudentStatusesWithVisitLessons(st, visits, balance, everyLessonMap, groupLessonsMap, time.Now().UTC())
 	assert.Contains(t, statuses, StudentStatusMissing)
 	assert.Contains(t, statuses, StudentStatusUnpaid)
 	assert.NotContains(t, statuses, StudentStatusPresent)
@@ -322,12 +479,10 @@ func TestStudentStatus_IgnoresLessonsForOtherStudents(t *testing.T) {
 		CreatedAt: createdAt,
 	}
 
-	// Student 1 has a visit for lesson 1 on Oct 22 (marked absent)
 	visits1 := []response.VisitResponse{
 		{ID: uuid.New(), LessonID: lesson1ID, StudentID: student1ID, Status: visit.VisitStatusAbsent},
 	}
 
-	// Global lessonsMap has lesson 1 (Oct 22) and lesson 2 (Oct 30) for Student 2
 	lessonsMap := map[uuid.UUID]response.LessonResponse{
 		lesson1ID: {
 			ID:        lesson1ID,
@@ -341,20 +496,14 @@ func TestStudentStatus_IgnoresLessonsForOtherStudents(t *testing.T) {
 		},
 	}
 
-	// Student 1 paid until Oct 25 (active for lesson 1 on Oct 22, but expired if compared to lesson 2 on Oct 30)
-	payments1 := []response.TransactionResponse{
-		{
-			ID:        uuid.New(),
-			Amount:    1000,
-			CreatedAt: createdAt,
-			PaymentDetails: &response.StudentPaymentDetailsResponse{
-				StudentID: student1ID,
-				PaidUntil: time.Date(2026, 10, 25, 0, 0, 0, 0, time.UTC),
-			},
-		},
+	paidUntil := time.Date(2026, 10, 25, 0, 0, 0, 0, time.UTC)
+	balance1 := &transaction.StudentBalance{
+		StudentID:    student1ID,
+		PaidUntil:    &paidUntil,
+		SessionsLeft: 0,
 	}
 
-	statuses := ComputeStudentStatuses(st1, visits1, payments1, lessonsMap, time.Now().UTC())
+	statuses := ComputeStudentStatuses(st1, visits1, balance1, lessonsMap, time.Now().UTC())
 
 	assert.Contains(t, statuses, StudentStatusMissing)
 	assert.NotContains(t, statuses, StudentStatusPresent)

@@ -5,7 +5,7 @@ import 'package:phone/i18n/strings.g.dart';
 
 class PaidUntilField extends StatelessWidget {
   final DateTime? initialDate;
-  final DateTime firstDate;
+  final DateTime? firstDate;
   final DateTime lastDate;
   final bool enabled;
   final ValueChanged<DateTime?> onDateChanged;
@@ -13,7 +13,7 @@ class PaidUntilField extends StatelessWidget {
   const new({
     super.key,
     required this.initialDate,
-    required this.firstDate,
+    this.firstDate,
     required this.lastDate,
     required this.enabled,
     required this.onDateChanged,

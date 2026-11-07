@@ -25,3 +25,15 @@ func FindVisitByLessonID(visits []VisitResponse, lessonID uuid.UUID) *VisitRespo
 	}
 	return nil
 }
+
+// IsBillableVisit returns true when an attendance mark counts toward paid sessions:
+// student is not free, visit type is REGULAR, and status is PRESENT or ABSENT.
+func IsBillableVisit(status VisitStatus, visitType VisitType, isStudentFree bool) bool {
+	if isStudentFree {
+		return false
+	}
+	if visitType != VisitTypeRegular {
+		return false
+	}
+	return status == VisitStatusPresent || status == VisitStatusAbsent
+}

@@ -35,9 +35,6 @@ class _EditTransactionBottomSheetState
 
   bool get _isStudentPayment => widget.transaction.paymentDetails != null;
 
-  DateTime get _defaultPaidUntil =>
-      DateTime(_selectedDate.year, _selectedDate.month + 1, _selectedDate.day);
-
   DateTime get _maxPaidUntil =>
       DateTime.now().add(const Duration(days: 365 * 3));
 
@@ -94,13 +91,6 @@ class _EditTransactionBottomSheetState
       if (date == null) return;
 
       _selectedDate = date;
-
-      final paidUntil = _paidUntil;
-      final isValidPaidUntil = paidUntil != null && !paidUntil.isBefore(date);
-
-      if (_isStudentPayment && !isValidPaidUntil) {
-        _paidUntil = _defaultPaidUntil;
-      }
     });
   }
 
@@ -239,7 +229,6 @@ class _EditTransactionBottomSheetState
                       if (_isStudentPayment)
                         PaidUntilField(
                           initialDate: _paidUntil,
-                          firstDate: _selectedDate,
                           lastDate: _maxPaidUntil,
                           enabled: !_isLoading,
                           onDateChanged: _onPaidUntilChanged,

@@ -109,22 +109,24 @@ class _GroupPaymentsPageState extends ConsumerState<GroupPaymentsPage> {
 
     setState(() {
       _paymentDate = picked;
-      if (_paidUntilDate.isBefore(picked)) {
-        _paidUntilDate = DateTime(picked.year, picked.month + 1, picked.day);
-      }
     });
   }
 
   Future<void> _pickPaidUntilDate() async {
-    final initial = _paidUntilDate.isBefore(_paymentDate)
-        ? _paymentDate
-        : _paidUntilDate;
+    final firstDate = DateTime(2000);
+    final lastDate = DateUtils.dateOnly(
+      DateTime.now().add(const Duration(days: 365 * 3)),
+    );
+    final selected = DateUtils.dateOnly(_paidUntilDate);
+    final initial = selected.isBefore(firstDate)
+        ? firstDate
+        : (selected.isAfter(lastDate) ? lastDate : selected);
 
     final picked = await showDatePicker(
       context: context,
       initialDate: initial,
-      firstDate: _paymentDate,
-      lastDate: DateTime.now().add(const Duration(days: 365 * 3)),
+      firstDate: firstDate,
+      lastDate: lastDate,
     );
 
     if (picked == null || !mounted) return;

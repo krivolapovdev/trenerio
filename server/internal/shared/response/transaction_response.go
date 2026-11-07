@@ -9,10 +9,11 @@ import (
 
 // @name StudentPaymentDetailsResponse
 type StudentPaymentDetailsResponse struct {
-	DetailsType string    `json:"detailsType" binding:"required"`
-	StudentID   uuid.UUID `json:"studentId" binding:"required" format:"uuid"`
-	PaidUntil   time.Time `json:"paidUntil" binding:"required" format:"date-time"`
-	StudentName *string   `json:"studentName,omitempty"`
+	DetailsType   string     `json:"detailsType" binding:"required"`
+	StudentID     uuid.UUID  `json:"studentId" binding:"required" format:"uuid"`
+	PaidUntil     *time.Time `json:"paidUntil,omitempty" format:"date-time"`
+	SessionsAdded *int64     `json:"sessionsAdded,omitempty"`
+	StudentName   *string    `json:"studentName,omitempty"`
 }
 
 // @name TransactionResponse

@@ -134,11 +134,12 @@ class _DateInputFieldState extends State<DateInputField> {
   }
 
   bool _isInRange(DateTime date) {
+    final day = DateUtils.dateOnly(date);
     final first = widget.firstDate;
     final last = widget.lastDate;
 
-    if (first != null && date.isBefore(first)) return false;
-    if (last != null && date.isAfter(last)) return false;
+    if (first != null && day.isBefore(DateUtils.dateOnly(first))) return false;
+    if (last != null && day.isAfter(DateUtils.dateOnly(last))) return false;
 
     return true;
   }

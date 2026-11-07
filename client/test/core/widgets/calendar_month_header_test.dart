@@ -72,4 +72,29 @@ void main() {
     expect(arrowOf(FluentIcons.chevron_left_24_regular).onPressed, isNull);
     expect(arrowOf(FluentIcons.chevron_right_24_regular).onPressed, isNull);
   });
+
+  testWidgets('truncates the month label with an ellipsis when constrained', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 140,
+            child: CalendarMonthHeader(
+              focusedDay: DateTime(2026, 9, 8),
+              locale: 'en',
+              onPreviousMonth: () {},
+              onNextMonth: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    final labelText = tester.widget<Text>(find.text('September 2026'));
+    expect(labelText.maxLines, 1);
+    expect(labelText.overflow, TextOverflow.ellipsis);
+  });
 }

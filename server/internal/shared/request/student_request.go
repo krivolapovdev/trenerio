@@ -17,7 +17,8 @@ type CreateStudentRequest struct {
 
 // @name CreateStudentPaymentRequest
 type CreateStudentPaymentRequest struct {
-	Amount    float64   `json:"amount" binding:"required,gt=0"`
-	Date      time.Time `json:"date" binding:"required" format:"date-time"`
-	PaidUntil time.Time `json:"paidUntil" binding:"required" format:"date-time"`
+	Amount        float64    `json:"amount" binding:"required,gt=0"`
+	Date          time.Time  `json:"date" binding:"required" format:"date-time"`
+	PaidUntil     *time.Time `json:"paidUntil,omitempty" format:"date-time"`
+	SessionsAdded *int64     `json:"sessionsAdded,omitempty" binding:"omitempty,gt=0"`
 }

@@ -28,6 +28,8 @@ class CalendarMonthHeader extends StatelessWidget {
       Expanded(
         child: Text(
           _label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontSize: 18, color: Colors.black),
         ),
       ),

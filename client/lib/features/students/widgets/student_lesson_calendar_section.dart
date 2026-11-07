@@ -40,10 +40,14 @@ class StudentLessonCalendarSection extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              title,
-              textAlign: TextAlign.left,
-              style: const TextStyle(fontSize: 18),
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.left,
+                style: const TextStyle(fontSize: 18),
+              ),
             ),
             if (onCreate != null) CreateLessonButton(onPressed: onCreate),
           ],

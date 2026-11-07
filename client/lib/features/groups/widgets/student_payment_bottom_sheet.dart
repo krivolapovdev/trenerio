@@ -60,11 +60,17 @@ class _StudentPaymentBottomSheetState extends State<StudentPaymentBottomSheet> {
 
   Future<void> _pickPaidUntil() async {
     final today = DateUtils.dateOnly(DateTime.now());
+    final firstDate = DateTime(2000);
+    final lastDate = today.add(const Duration(days: 365 * 3));
+    final selected = DateUtils.dateOnly(_paidUntil);
+    final initial = selected.isBefore(firstDate)
+        ? firstDate
+        : (selected.isAfter(lastDate) ? lastDate : selected);
     final picked = await showDatePicker(
       context: context,
-      initialDate: _paidUntil.isBefore(today) ? today : _paidUntil,
-      firstDate: today.subtract(const Duration(days: 365)),
-      lastDate: today.add(const Duration(days: 365 * 3)),
+      initialDate: initial,
+      firstDate: firstDate,
+      lastDate: lastDate,
     );
 
     if (picked == null || !mounted) return;

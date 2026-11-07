@@ -177,6 +177,11 @@ func (h *Handler) CreateStudentPayment(c *gin.Context) {
 		return
 	}
 
+	if err := transaction.ValidateStudentPaymentFields(req.PaidUntil, req.SessionsAdded); err != nil {
+		pkgerrors.HandleError(c, err)
+		return
+	}
+
 	payment, err := h.service.CreateStudentPayment(c.Request.Context(), studentID, jwtUser.ID, req)
 	if err != nil {
 		pkgerrors.HandleError(c, err)

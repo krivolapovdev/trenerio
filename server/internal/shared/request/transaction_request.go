@@ -15,9 +15,10 @@ const (
 
 // @name CreateStudentPaymentDetailsRequest
 type CreateStudentPaymentDetailsRequest struct {
-	DetailsType string    `json:"detailsType,omitempty"`
-	StudentID   uuid.UUID `json:"studentId" binding:"required" format:"uuid"`
-	PaidUntil   time.Time `json:"paidUntil" binding:"required" format:"date-time"`
+	DetailsType   string     `json:"detailsType,omitempty"`
+	StudentID     uuid.UUID  `json:"studentId" binding:"required" format:"uuid"`
+	PaidUntil     *time.Time `json:"paidUntil,omitempty" format:"date-time"`
+	SessionsAdded *int64     `json:"sessionsAdded,omitempty" binding:"omitempty,gt=0"`
 }
 
 // @name CreateTransactionRequest
