@@ -46,6 +46,7 @@ func TestToTransaction(t *testing.T) {
 
 func TestStudentPaymentMappers_HybridModes(t *testing.T) {
 	studentID := uuid.New()
+	paidFrom := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
 	paidUntil := time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC)
 	sessions := int64(10)
 	now := time.Now()
@@ -57,12 +58,14 @@ func TestStudentPaymentMappers_HybridModes(t *testing.T) {
 		Type:          db.PaymentsModuleTransactionTypeINCOME,
 		CreatedAt:     now,
 		StudentID:     studentID,
+		PaidFrom:      sql.NullTime{Time: paidFrom, Valid: true},
 		PaidUntil:     sql.NullTime{Time: paidUntil, Valid: true},
 		SessionsAdded: sql.NullInt64{Int64: sessions, Valid: true},
 	}
 
 	singleTx := ToTransactionFromStudentPaymentRow(singleRow)
 	require.NotNil(t, singleTx.PaymentDetails)
+	assert.Equal(t, &paidFrom, singleTx.PaymentDetails.PaidFrom)
 	assert.Equal(t, &paidUntil, singleTx.PaymentDetails.PaidUntil)
 	assert.Equal(t, &sessions, singleTx.PaymentDetails.SessionsAdded)
 
@@ -73,12 +76,14 @@ func TestStudentPaymentMappers_HybridModes(t *testing.T) {
 		Type:          db.PaymentsModuleTransactionTypeINCOME,
 		CreatedAt:     now,
 		StudentID:     studentID,
+		PaidFrom:      sql.NullTime{Time: paidFrom, Valid: true},
 		PaidUntil:     sql.NullTime{Time: paidUntil, Valid: true},
 		SessionsAdded: sql.NullInt64{Int64: sessions, Valid: true},
 	}
 
 	multiTx := ToTransactionFromStudentPaymentsRow(multiRow)
 	require.NotNil(t, multiTx.PaymentDetails)
+	assert.Equal(t, &paidFrom, multiTx.PaymentDetails.PaidFrom)
 	assert.Equal(t, &paidUntil, multiTx.PaymentDetails.PaidUntil)
 	assert.Equal(t, &sessions, multiTx.PaymentDetails.SessionsAdded)
 }

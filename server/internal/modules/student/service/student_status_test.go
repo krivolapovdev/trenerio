@@ -230,6 +230,67 @@ func TestStudentStatus_PaidVsUnpaidAndSessionBalances(t *testing.T) {
 		assert.Equal(t, []studentmodel.StudentStatus{studentmodel.StudentStatusPaid}, statuses)
 	})
 
+	t.Run("DateRangeActive_LessonBetweenPaidFromAndPaidUntil_Paid", func(t *testing.T) {
+		paidFrom := lastLessonDay.AddDate(0, 0, -5)
+		paidUntil := lastLessonDay.AddDate(0, 0, 5)
+		bal := &txmodel.StudentBalance{
+			StudentID:    studentID,
+			PaidFrom:     &paidFrom,
+			PaidUntil:    &paidUntil,
+			SessionsLeft: 0,
+		}
+		statuses := ComputeStudentStatuses(st, visits, bal, lessonsMap, time.Now().UTC())
+		assert.Contains(t, statuses, studentmodel.StudentStatusPaid)
+		assert.NotContains(t, statuses, studentmodel.StudentStatusUnpaid)
+	})
+
+	t.Run("DateRangeBeforePaidFrom_ZeroSessions_Unpaid", func(t *testing.T) {
+		paidFrom := lastLessonDay.AddDate(0, 0, 1)
+		paidUntil := lastLessonDay.AddDate(0, 0, 30)
+		bal := &txmodel.StudentBalance{
+			StudentID:    studentID,
+			PaidFrom:     &paidFrom,
+			PaidUntil:    &paidUntil,
+			SessionsLeft: 0,
+		}
+		statuses := ComputeStudentStatuses(st, visits, bal, lessonsMap, time.Now().UTC())
+		assert.Contains(t, statuses, studentmodel.StudentStatusUnpaid)
+		assert.NotContains(t, statuses, studentmodel.StudentStatusPaid)
+	})
+
+	t.Run("DateRangeBeforePaidFrom_WithSessionsWallet_Paid", func(t *testing.T) {
+		paidFrom := lastLessonDay.AddDate(0, 0, 1)
+		paidUntil := lastLessonDay.AddDate(0, 0, 30)
+		bal := &txmodel.StudentBalance{
+			StudentID:          studentID,
+			PaidFrom:           &paidFrom,
+			PaidUntil:          &paidUntil,
+			SessionsLeft:       1,
+			TotalSessionsAdded: 1,
+		}
+		statuses := ComputeStudentStatuses(st, visits, bal, lessonsMap, time.Now().UTC())
+		assert.Contains(t, statuses, studentmodel.StudentStatusPaid)
+		assert.NotContains(t, statuses, studentmodel.StudentStatusUnpaid)
+	})
+
+	t.Run("MultipleSubscriptions_OneCovers_Paid", func(t *testing.T) {
+		sub1From := lastLessonDay.AddDate(0, -2, 0)
+		sub1Until := lastLessonDay.AddDate(0, -1, 0)
+		sub2From := lastLessonDay.AddDate(0, 0, -2)
+		sub2Until := lastLessonDay.AddDate(0, 0, 10)
+		bal := &txmodel.StudentBalance{
+			StudentID: studentID,
+			Subscriptions: []txmodel.SubscriptionRange{
+				{PaidFrom: &sub1From, PaidUntil: &sub1Until},
+				{PaidFrom: &sub2From, PaidUntil: &sub2Until},
+			},
+			SessionsLeft: 0,
+		}
+		statuses := ComputeStudentStatuses(st, visits, bal, lessonsMap, time.Now().UTC())
+		assert.Contains(t, statuses, studentmodel.StudentStatusPaid)
+		assert.NotContains(t, statuses, studentmodel.StudentStatusUnpaid)
+	})
+
 	t.Run("SubscriptionWithPastPaidUntil_NoVisitsYet_PaidNotUnpaid", func(t *testing.T) {
 		today := time.Date(2026, 11, 7, 15, 30, 0, 0, time.UTC)
 		pastPaidUntil := time.Date(2026, 10, 7, 0, 0, 0, 0, time.UTC)

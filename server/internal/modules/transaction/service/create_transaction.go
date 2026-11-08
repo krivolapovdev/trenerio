@@ -32,7 +32,7 @@ func (s *Service) CreateTransaction(ctx context.Context, txToCreate domain.Trans
 			return domain.Transaction{}, pkgerrors.NewBadRequest("studentId must not be null for student payment")
 		}
 
-		if err := ValidateStudentPaymentFields(txToCreate.PaymentDetails.PaidUntil, txToCreate.PaymentDetails.SessionsAdded); err != nil {
+		if err := ValidateStudentPaymentFieldsWithFrom(txToCreate.PaymentDetails.PaidFrom, txToCreate.PaymentDetails.PaidUntil, txToCreate.PaymentDetails.SessionsAdded); err != nil {
 			logger.WarnContext(ctx, "Invalid student payment details", "student_id", txToCreate.PaymentDetails.StudentID.String(), "error", err, "user_id", ownerID.String())
 			return domain.Transaction{}, err
 		}
@@ -64,9 +64,19 @@ func (s *Service) CreateTransaction(ctx context.Context, txToCreate domain.Trans
 		}
 
 		if txToCreate.PaymentDetails != nil {
+			paidFrom := txToCreate.PaymentDetails.PaidFrom
+			if paidFrom == nil && txToCreate.PaymentDetails.PaidUntil != nil {
+				prevPaidUntil, err := findLatestPaidUntilTx(ctx, qtx, txToCreate.PaymentDetails.StudentID, ownerID)
+				if err == nil && prevPaidUntil.Valid {
+					t := prevPaidUntil.Time
+					paidFrom = &t
+				}
+			}
+
 			sp, err := qtx.CreateStudentPayment(ctx, db.CreateStudentPaymentParams{
 				TransactionID: createdTx.ID,
 				StudentID:     txToCreate.PaymentDetails.StudentID,
+				PaidFrom:      mapper.ToNullTime(paidFrom),
 				PaidUntil:     mapper.ToNullTime(txToCreate.PaymentDetails.PaidUntil),
 				SessionsAdded: mapper.ToNullInt64(txToCreate.PaymentDetails.SessionsAdded),
 			})
@@ -75,17 +85,7 @@ func (s *Service) CreateTransaction(ctx context.Context, txToCreate domain.Trans
 				return err
 			}
 
-			if _, err := qtx.ApplyPaymentToStudentBalance(ctx, db.ApplyPaymentToStudentBalanceParams{
-				OwnerID:       ownerID,
-				StudentID:     sp.StudentID,
-				PaidUntil:     sp.PaidUntil,
-				SessionsAdded: sp.SessionsAdded,
-			}); err != nil {
-				logger.ErrorContext(ctx, "Failed to update student balance on transaction creation", "transaction_id", createdTx.ID.String(), "student_id", sp.StudentID.String(), "error", err, "user_id", ownerID.String())
-				return err
-			}
-
-			details = mapper.ToStudentPaymentDetails(sp.StudentID, sp.PaidUntil, sp.SessionsAdded, nil)
+			details = mapper.ToStudentPaymentDetails(sp.StudentID, sp.PaidFrom, sp.PaidUntil, sp.SessionsAdded, nil)
 		}
 		return nil
 	})

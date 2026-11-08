@@ -11,6 +11,7 @@ import (
 type StudentPaymentDetailsResponse struct {
 	DetailsType   string     `json:"detailsType" binding:"required"`
 	StudentID     uuid.UUID  `json:"studentId" binding:"required" format:"uuid"`
+	PaidFrom      *time.Time `json:"paidFrom,omitempty" format:"date-time"`
 	PaidUntil     *time.Time `json:"paidUntil,omitempty" format:"date-time"`
 	SessionsAdded *int64     `json:"sessionsAdded,omitempty"`
 	StudentName   *string    `json:"studentName,omitempty"`
@@ -65,6 +66,7 @@ func ToStudentPaymentDetailsResponse(d *domain.StudentPaymentDetails) *StudentPa
 	return &StudentPaymentDetailsResponse{
 		DetailsType:   d.DetailsType,
 		StudentID:     d.StudentID,
+		PaidFrom:      d.PaidFrom,
 		PaidUntil:     d.PaidUntil,
 		SessionsAdded: d.SessionsAdded,
 		StudentName:   d.StudentName,

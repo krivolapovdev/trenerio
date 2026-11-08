@@ -14,7 +14,7 @@ import (
 	"github.com/krivolapovdev/trenerio/internal/modules/transaction/mapper"
 )
 
-func (s *Service) CreateStudentPayment(ctx context.Context, studentID uuid.UUID, amount float64, date time.Time, paidUntil *time.Time, sessionsAdded *int64, ownerID uuid.UUID) (domain.Transaction, error) {
+func (s *Service) CreateStudentPayment(ctx context.Context, studentID uuid.UUID, amount float64, date time.Time, paidFrom, paidUntil *time.Time, sessionsAdded *int64, ownerID uuid.UUID) (domain.Transaction, error) {
 	logger.InfoContext(ctx, "Creating student payment transaction", "student_id", studentID.String(), "amount", amount, "user_id", ownerID.String())
 	if amount <= 0 {
 		logger.WarnContext(ctx, "Transaction amount must be greater than 0", "amount", amount, "user_id", ownerID.String())
@@ -26,7 +26,7 @@ func (s *Service) CreateStudentPayment(ctx context.Context, studentID uuid.UUID,
 		return domain.Transaction{}, pkgerrors.NewBadRequest("studentId must not be null for student payment")
 	}
 
-	if err := ValidateStudentPaymentFields(paidUntil, sessionsAdded); err != nil {
+	if err := ValidateStudentPaymentFieldsWithFrom(paidFrom, paidUntil, sessionsAdded); err != nil {
 		logger.WarnContext(ctx, "Invalid student payment fields", "student_id", studentID.String(), "error", err, "user_id", ownerID.String())
 		return domain.Transaction{}, err
 	}
@@ -44,7 +44,7 @@ func (s *Service) CreateStudentPayment(ctx context.Context, studentID uuid.UUID,
 	}
 
 	var createdTx db.PaymentsModuleTransaction
-	var sp db.PaymentsModuleStudentPayment
+	var sp db.CreateStudentPaymentRow
 
 	err := s.withTx(ctx, func(qtx *db.Queries) error {
 		amountStr := strconv.FormatFloat(amount, 'f', 2, 64)
@@ -61,25 +61,25 @@ func (s *Service) CreateStudentPayment(ctx context.Context, studentID uuid.UUID,
 			return err
 		}
 
+		effectivePaidFrom := paidFrom
+		if effectivePaidFrom == nil && paidUntil != nil {
+			prevPaidUntil, err := findLatestPaidUntilTx(ctx, qtx, studentID, ownerID)
+			if err == nil && prevPaidUntil.Valid {
+				t := prevPaidUntil.Time
+				effectivePaidFrom = &t
+			}
+		}
+
 		sp, err = qtx.CreateStudentPayment(ctx, db.CreateStudentPaymentParams{
 			TransactionID: createdTx.ID,
 			StudentID:     studentID,
+			PaidFrom:      mapper.ToNullTime(effectivePaidFrom),
 			PaidUntil:     mapper.ToNullTime(paidUntil),
 			SessionsAdded: mapper.ToNullInt64(sessionsAdded),
 		})
 
 		if err != nil {
 			logger.ErrorContext(ctx, "Failed to create student payment record", "student_id", studentID.String(), "error", err, "user_id", ownerID.String())
-			return err
-		}
-
-		if _, err := qtx.ApplyPaymentToStudentBalance(ctx, db.ApplyPaymentToStudentBalanceParams{
-			OwnerID:       ownerID,
-			StudentID:     sp.StudentID,
-			PaidUntil:     sp.PaidUntil,
-			SessionsAdded: sp.SessionsAdded,
-		}); err != nil {
-			logger.ErrorContext(ctx, "Failed to update student balance for student payment", "student_id", sp.StudentID.String(), "error", err, "user_id", ownerID.String())
 			return err
 		}
 
@@ -92,5 +92,5 @@ func (s *Service) CreateStudentPayment(ctx context.Context, studentID uuid.UUID,
 
 	amt, _ := strconv.ParseFloat(createdTx.Amount, 64)
 	logger.InfoContext(ctx, "Student payment created successfully", "transaction_id", createdTx.ID.String(), "student_id", studentID.String(), "amount", amt, "user_id", ownerID.String())
-	return mapper.ToTransaction(createdTx, mapper.ToStudentPaymentDetails(sp.StudentID, sp.PaidUntil, sp.SessionsAdded, nil)), nil
+	return mapper.ToTransaction(createdTx, mapper.ToStudentPaymentDetails(sp.StudentID, sp.PaidFrom, sp.PaidUntil, sp.SessionsAdded, nil)), nil
 }

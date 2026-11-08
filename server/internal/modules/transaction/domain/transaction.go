@@ -20,6 +20,7 @@ const (
 type StudentPaymentDetails struct {
 	DetailsType   string
 	StudentID     uuid.UUID
+	PaidFrom      *time.Time
 	PaidUntil     *time.Time
 	SessionsAdded *int64
 	StudentName   *string

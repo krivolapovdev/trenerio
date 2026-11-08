@@ -17,6 +17,7 @@ import (
 type CreateStudentPaymentDetailsRequest struct {
 	DetailsType   string     `json:"detailsType,omitempty"`
 	StudentID     uuid.UUID  `json:"studentId" binding:"required" format:"uuid"`
+	PaidFrom      *time.Time `json:"paidFrom,omitempty" format:"date-time"`
 	PaidUntil     *time.Time `json:"paidUntil,omitempty" format:"date-time"`
 	SessionsAdded *int64     `json:"sessionsAdded,omitempty" binding:"omitempty,gt=0"`
 }
@@ -48,7 +49,7 @@ func (h *Handler) CreateTransaction(c *gin.Context) {
 	}
 
 	if req.PaymentDetails != nil {
-		if err := txsvc.ValidateStudentPaymentFields(req.PaymentDetails.PaidUntil, req.PaymentDetails.SessionsAdded); err != nil {
+		if err := txsvc.ValidateStudentPaymentFieldsWithFrom(req.PaymentDetails.PaidFrom, req.PaymentDetails.PaidUntil, req.PaymentDetails.SessionsAdded); err != nil {
 			pkgerrors.HandleError(c, err)
 			return
 		}
@@ -59,6 +60,7 @@ func (h *Handler) CreateTransaction(c *gin.Context) {
 		details = &domain.StudentPaymentDetails{
 			DetailsType:   req.PaymentDetails.DetailsType,
 			StudentID:     req.PaymentDetails.StudentID,
+			PaidFrom:      req.PaymentDetails.PaidFrom,
 			PaidUntil:     req.PaymentDetails.PaidUntil,
 			SessionsAdded: req.PaymentDetails.SessionsAdded,
 		}

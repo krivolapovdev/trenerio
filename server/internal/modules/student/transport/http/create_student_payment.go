@@ -16,6 +16,7 @@ import (
 type CreateStudentPaymentRequest struct {
 	Amount        float64    `json:"amount" binding:"required,gt=0"`
 	Date          time.Time  `json:"date" binding:"required" format:"date-time"`
+	PaidFrom      *time.Time `json:"paidFrom,omitempty" format:"date-time"`
 	PaidUntil     *time.Time `json:"paidUntil,omitempty" format:"date-time"`
 	SessionsAdded *int64     `json:"sessionsAdded,omitempty" binding:"omitempty,gt=0"`
 }
@@ -44,12 +45,12 @@ func (h *Handler) CreateStudentPayment(c *gin.Context) {
 		return
 	}
 
-	if err := txservice.ValidateStudentPaymentFields(req.PaidUntil, req.SessionsAdded); err != nil {
+	if err := txservice.ValidateStudentPaymentFieldsWithFrom(req.PaidFrom, req.PaidUntil, req.SessionsAdded); err != nil {
 		pkgerrors.HandleError(c, err)
 		return
 	}
 
-	payment, err := h.service.CreateStudentPayment(c.Request.Context(), studentID, jwtUser.ID, req.Amount, req.Date, req.PaidUntil, req.SessionsAdded)
+	payment, err := h.service.CreateStudentPayment(c.Request.Context(), studentID, jwtUser.ID, req.Amount, req.Date, req.PaidFrom, req.PaidUntil, req.SessionsAdded)
 	if err != nil {
 		pkgerrors.HandleError(c, err)
 		return

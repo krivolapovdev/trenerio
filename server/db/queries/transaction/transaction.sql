@@ -7,7 +7,7 @@ ORDER BY date DESC;
 -- name: FindTransactionsByOwnerIDPaginated :many
 SELECT
     t.id, t.owner_id, t.type, t.amount, t.date, t.created_at, t.updated_at,
-    sp.student_id, sp.paid_until, sp.sessions_added
+    sp.student_id, sp.paid_from, sp.paid_until, sp.sessions_added
 FROM payments_module.transactions t
 LEFT JOIN payments_module.student_payments sp ON t.id = sp.transaction_id
 WHERE t.owner_id = $1
@@ -22,7 +22,7 @@ WHERE owner_id = $1;
 -- name: FindTransactionByIDAndOwnerID :one
 SELECT
     t.id, t.owner_id, t.type, t.amount, t.date, t.created_at, t.updated_at,
-    sp.student_id, sp.paid_until, sp.sessions_added
+    sp.student_id, sp.paid_from, sp.paid_until, sp.sessions_added
 FROM payments_module.transactions t
 LEFT JOIN payments_module.student_payments sp ON t.id = sp.transaction_id
 WHERE t.id = $1 AND t.owner_id = $2;
@@ -30,7 +30,7 @@ WHERE t.id = $1 AND t.owner_id = $2;
 -- name: FindTransactionsByOwnerIDAndDateBetween :many
 SELECT
     t.id, t.owner_id, t.type, t.amount, t.date, t.created_at, t.updated_at,
-    sp.student_id, sp.paid_until, sp.sessions_added
+    sp.student_id, sp.paid_from, sp.paid_until, sp.sessions_added
 FROM payments_module.transactions t
 LEFT JOIN payments_module.student_payments sp ON t.id = sp.transaction_id
 WHERE t.owner_id = $1 AND t.date BETWEEN $2 AND $3
@@ -53,14 +53,14 @@ DELETE FROM payments_module.transactions
 WHERE id = $1 AND owner_id = $2;
 
 -- name: FindStudentPaymentsByOwnerID :many
-SELECT sp.transaction_id, sp.student_id, sp.paid_until, sp.sessions_added
+SELECT sp.transaction_id, sp.student_id, sp.paid_from, sp.paid_until, sp.sessions_added
 FROM payments_module.student_payments sp
 JOIN payments_module.transactions t ON sp.transaction_id = t.id
 WHERE t.owner_id = $1
 ORDER BY t.date DESC, t.created_at DESC;
 
 -- name: FindStudentPaymentByTransactionIDAndOwnerID :one
-SELECT sp.transaction_id, sp.student_id, sp.paid_until, sp.sessions_added
+SELECT sp.transaction_id, sp.student_id, sp.paid_from, sp.paid_until, sp.sessions_added
 FROM payments_module.student_payments sp
 JOIN payments_module.transactions t ON sp.transaction_id = t.id
 WHERE sp.transaction_id = $1 AND t.owner_id = $2;
@@ -68,7 +68,7 @@ WHERE sp.transaction_id = $1 AND t.owner_id = $2;
 -- name: FindStudentPaymentsByStudentIDAndOwnerID :many
 SELECT
     t.id, t.owner_id, t.type, t.amount, t.date, t.created_at, t.updated_at,
-    sp.student_id, sp.paid_until, sp.sessions_added
+    sp.student_id, sp.paid_from, sp.paid_until, sp.sessions_added
 FROM payments_module.student_payments sp
 JOIN payments_module.transactions t ON sp.transaction_id = t.id
 WHERE sp.student_id = $1 AND t.owner_id = $2
@@ -77,7 +77,7 @@ ORDER BY t.date DESC, t.created_at DESC;
 -- name: FindStudentPaymentsByStudentIDsAndOwnerID :many
 SELECT
     t.id, t.owner_id, t.type, t.amount, t.date, t.created_at, t.updated_at,
-    sp.student_id, sp.paid_until, sp.sessions_added
+    sp.student_id, sp.paid_from, sp.paid_until, sp.sessions_added
 FROM payments_module.student_payments sp
 JOIN payments_module.transactions t ON sp.transaction_id = t.id
 WHERE t.owner_id = $1 AND sp.student_id = ANY($2::uuid[])
@@ -98,16 +98,17 @@ JOIN payments_module.transactions t ON sp.transaction_id = t.id
 WHERE sp.student_id = $1 AND t.owner_id = $2;
 
 -- name: CreateStudentPayment :one
-INSERT INTO payments_module.student_payments (transaction_id, student_id, paid_until, sessions_added)
-VALUES ($1, $2, $3, $4)
-RETURNING transaction_id, student_id, paid_until, sessions_added;
+INSERT INTO payments_module.student_payments (transaction_id, student_id, paid_from, paid_until, sessions_added)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING transaction_id, student_id, paid_from, paid_until, sessions_added;
 
 -- name: UpdateStudentPayment :one
 UPDATE payments_module.student_payments
-SET paid_until = $2,
-    sessions_added = $3
+SET paid_from = $2,
+    paid_until = $3,
+    sessions_added = $4
 WHERE transaction_id = $1
-RETURNING transaction_id, student_id, paid_until, sessions_added;
+RETURNING transaction_id, student_id, paid_from, paid_until, sessions_added;
 
 -- name: DeleteStudentPaymentByTransactionID :exec
 DELETE FROM payments_module.student_payments

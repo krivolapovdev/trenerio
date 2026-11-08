@@ -77,11 +77,9 @@ func ComputeStudentStatusesWithVisitLessons(
 		return statuses
 	}
 
-	var paidUntil *time.Time
 	var totalSessionsAdded int64
 	var sessionsLeft int64
 	if balance != nil {
-		paidUntil = balance.PaidUntil
 		totalSessionsAdded = balance.TotalSessionsAdded
 		sessionsLeft = balance.SessionsLeft
 	}
@@ -98,7 +96,11 @@ func ComputeStudentStatusesWithVisitLessons(
 		if !ok {
 			continue
 		}
-		if !txmodel.IsSubscriptionActive(paidUntil, l.Date) {
+		covered := false
+		if balance != nil {
+			covered = balance.IsCoveredByDateRange(l.Date)
+		}
+		if !covered {
 			uncoveredBillableVisits++
 		}
 	}

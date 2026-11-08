@@ -33,7 +33,7 @@ func TestStudentService_DateAndPaymentValidation(t *testing.T) {
 	t.Run("CreateStudentPayment_FutureDate", func(t *testing.T) {
 		futureDate := time.Now().UTC().Add(24 * time.Hour)
 		paidUntil := futureDate.Add(24 * time.Hour)
-		_, err := svc.CreateStudentPayment(ctx, uuid.New(), ownerID, 1000, futureDate, &paidUntil, nil)
+		_, err := svc.CreateStudentPayment(ctx, uuid.New(), ownerID, 1000, futureDate, nil, &paidUntil, nil)
 		require.Error(t, err)
 		var badReq *pkgerrors.BadRequestError
 		require.ErrorAs(t, err, &badReq)
@@ -42,7 +42,7 @@ func TestStudentService_DateAndPaymentValidation(t *testing.T) {
 
 	t.Run("CreateStudentPayment_MissingPaidUntilAndSessionsAdded", func(t *testing.T) {
 		pastDate := time.Date(2026, 10, 1, 10, 0, 0, 0, time.UTC)
-		_, err := svc.CreateStudentPayment(ctx, uuid.New(), ownerID, 1000, pastDate, nil, nil)
+		_, err := svc.CreateStudentPayment(ctx, uuid.New(), ownerID, 1000, pastDate, nil, nil, nil)
 		require.Error(t, err)
 		var badReq *pkgerrors.BadRequestError
 		require.ErrorAs(t, err, &badReq)

@@ -6,97 +6,17 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
-	"slices"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	pkgerrors "github.com/krivolapovdev/trenerio/internal/core/errors"
-	"github.com/krivolapovdev/trenerio/internal/core/logger"
 	"github.com/krivolapovdev/trenerio/internal/db"
-	"github.com/krivolapovdev/trenerio/internal/modules/transaction/mapper"
 )
 
+// SyncLessonAttendanceBalancesTx is a no-op now that student balances are computed dynamically.
+// Kept for backward compatibility with the lesson service balanceProvider interface.
 func (s *Service) SyncLessonAttendanceBalancesTx(ctx context.Context, qtx *db.Queries, ownerID uuid.UUID, changes []AttendanceBalanceChange) error {
-	relevant := make([]AttendanceBalanceChange, 0, len(changes))
-	for _, ch := range changes {
-		if ch.OldBillable || ch.NewBillable {
-			relevant = append(relevant, ch)
-		}
-	}
-	if len(relevant) == 0 {
-		return nil
-	}
-
-	// Acquire row locks in deterministic student ID order to prevent deadlocks.
-	slices.SortFunc(relevant, func(a, b AttendanceBalanceChange) int {
-		return strings.Compare(a.StudentID.String(), b.StudentID.String())
-	})
-
-	for _, ch := range relevant {
-		bal, err := lockOrInitStudentBalanceTx(ctx, qtx, ownerID, ch.StudentID)
-		if err != nil {
-			logger.ErrorContext(ctx, "Failed to lock student balance during attendance sync", "student_id", ch.StudentID.String(), "error", err, "user_id", ownerID.String())
-			return err
-		}
-
-		paidUntil := mapper.FromNullTime(bal.PaidUntil)
-		oldNeeds := NeedsSessionForAttendance(paidUntil, ch.OldLessonDate, ch.OldBillable)
-		newNeeds := NeedsSessionForAttendance(paidUntil, ch.NewLessonDate, ch.NewBillable)
-		if oldNeeds == newNeeds {
-			continue
-		}
-
-		var totalSessionsAdded int64
-		var remainingUncovered int64
-		if oldNeeds && !newNeeds {
-			totalSessionsAdded, err = qtx.SumSessionsAddedByStudentIDAndOwnerID(ctx, db.SumSessionsAddedByStudentIDAndOwnerIDParams{
-				StudentID: ch.StudentID,
-				OwnerID:   ownerID,
-			})
-			if err != nil {
-				logger.ErrorContext(ctx, "Failed to sum sessions_added during attendance refund check", "student_id", ch.StudentID.String(), "error", err, "user_id", ownerID.String())
-				return err
-			}
-
-			billableDates, err := qtx.FindBillableVisitLessonDatesByStudentIDAndOwnerID(ctx, db.FindBillableVisitLessonDatesByStudentIDAndOwnerIDParams{
-				StudentID: ch.StudentID,
-				OwnerID:   ownerID,
-			})
-			if err != nil {
-				logger.ErrorContext(ctx, "Failed to query remaining billable visits during attendance refund check", "student_id", ch.StudentID.String(), "error", err, "user_id", ownerID.String())
-				return err
-			}
-			for _, d := range billableDates {
-				if !IsSubscriptionActive(paidUntil, d) {
-					remainingUncovered++
-				}
-			}
-		}
-
-		newSessionsLeft, changed := ResolveAttendanceSessionBalance(
-			ch,
-			paidUntil,
-			bal.SessionsLeft,
-			totalSessionsAdded,
-			remainingUncovered,
-		)
-		if !changed {
-			continue
-		}
-
-		if _, err := qtx.UpsertStudentBalance(ctx, db.UpsertStudentBalanceParams{
-			OwnerID:      ownerID,
-			StudentID:    ch.StudentID,
-			PaidUntil:    bal.PaidUntil,
-			SessionsLeft: newSessionsLeft,
-		}); err != nil {
-			logger.ErrorContext(ctx, "Failed to update student balance during attendance sync", "student_id", ch.StudentID.String(), "error", err, "user_id", ownerID.String())
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -114,40 +34,21 @@ func findLatestPaidUntilTx(ctx context.Context, qtx *db.Queries, studentID, owne
 	return pu, nil
 }
 
-func lockOrInitStudentBalanceTx(ctx context.Context, qtx *db.Queries, ownerID, studentID uuid.UUID) (db.PaymentsModuleStudentBalance, error) {
-	bal, err := qtx.FindStudentBalanceForUpdate(ctx, db.FindStudentBalanceForUpdateParams{
-		OwnerID:   ownerID,
-		StudentID: studentID,
-	})
-	if err == nil {
-		return bal, nil
-	}
-	if !errors.Is(err, sql.ErrNoRows) {
-		return db.PaymentsModuleStudentBalance{}, err
-	}
-
-	latestPaidUntil, err := findLatestPaidUntilTx(ctx, qtx, studentID, ownerID)
-	if err != nil {
-		return db.PaymentsModuleStudentBalance{}, err
-	}
-
-	return qtx.UpsertStudentBalance(ctx, db.UpsertStudentBalanceParams{
-		OwnerID:      ownerID,
-		StudentID:    studentID,
-		PaidUntil:    latestPaidUntil,
-		SessionsLeft: 0,
-	})
-}
-
 func extractPaymentUpdateFields(updates map[string]any) map[string]any {
-	merged := make(map[string]any, 2)
+	merged := make(map[string]any, 3)
 	if nested, ok := updates["paymentDetails"].(map[string]any); ok {
+		if v, exists := nested["paidFrom"]; exists {
+			merged["paidFrom"] = v
+		}
 		if v, exists := nested["paidUntil"]; exists {
 			merged["paidUntil"] = v
 		}
 		if v, exists := nested["sessionsAdded"]; exists {
 			merged["sessionsAdded"] = v
 		}
+	}
+	if v, exists := updates["paidFrom"]; exists {
+		merged["paidFrom"] = v
 	}
 	if v, exists := updates["paidUntil"]; exists {
 		merged["paidUntil"] = v

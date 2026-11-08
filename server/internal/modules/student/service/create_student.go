@@ -72,14 +72,6 @@ func (s *Service) CreateStudent(ctx context.Context, studentToCreate studentmode
 			return err
 		}
 
-		if err := qtx.CreateStudentBalance(ctx, db.CreateStudentBalanceParams{
-			OwnerID:   ownerID,
-			StudentID: created.ID,
-		}); err != nil {
-			logger.ErrorContext(ctx, "Failed to initialize student balance record", "student_id", created.ID.String(), "error", err, "user_id", ownerID.String())
-			return err
-		}
-
 		return nil
 	})
 	if err != nil {

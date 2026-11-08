@@ -210,19 +210,11 @@ type LessonsModuleLesson struct {
 	UpdatedAt time.Time     `json:"updated_at"`
 }
 
-type PaymentsModuleStudentBalance struct {
-	OwnerID      uuid.UUID    `json:"owner_id"`
-	StudentID    uuid.UUID    `json:"student_id"`
-	PaidUntil    sql.NullTime `json:"paid_until"`
-	SessionsLeft int64        `json:"sessions_left"`
-	CreatedAt    time.Time    `json:"created_at"`
-	UpdatedAt    time.Time    `json:"updated_at"`
-}
-
 type PaymentsModuleStudentPayment struct {
 	TransactionID uuid.UUID     `json:"transaction_id"`
 	StudentID     uuid.UUID     `json:"student_id"`
 	PaidUntil     sql.NullTime  `json:"paid_until"`
+	PaidFrom      sql.NullTime  `json:"paid_from"`
 	SessionsAdded sql.NullInt64 `json:"sessions_added"`
 }
 

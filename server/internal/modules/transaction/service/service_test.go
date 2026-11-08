@@ -46,7 +46,7 @@ func TestTransactionService_HybridValidation(t *testing.T) {
 
 	t.Run("CreateStudentPayment_ZeroSessionsAdded", func(t *testing.T) {
 		zero := int64(0)
-		_, err := svc.CreateStudentPayment(ctx, studentID, 1000, pastDate, nil, &zero, ownerID)
+		_, err := svc.CreateStudentPayment(ctx, studentID, 1000, pastDate, nil, nil, &zero, ownerID)
 		var badReq *pkgerrors.BadRequestError
 		require.ErrorAs(t, err, &badReq)
 		assert.Contains(t, badReq.Message, "sessionsAdded must be greater than 0")

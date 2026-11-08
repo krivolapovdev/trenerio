@@ -98,6 +98,58 @@ func TestNeedsSessionForAttendance(t *testing.T) {
 	})
 }
 
+func TestIsDateRangeActive_Rule(t *testing.T) {
+	paidFrom := time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
+	paidUntil := time.Date(2026, 3, 31, 0, 0, 0, 0, time.UTC)
+
+	t.Run("WithinRange_Active", func(t *testing.T) {
+		assert.True(t, IsDateRangeActive(&paidFrom, &paidUntil, time.Date(2026, 3, 15, 12, 0, 0, 0, time.UTC)))
+		assert.True(t, IsDateRangeActive(&paidFrom, &paidUntil, time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)))
+		assert.True(t, IsDateRangeActive(&paidFrom, &paidUntil, time.Date(2026, 3, 31, 23, 59, 59, 0, time.UTC)))
+	})
+
+	t.Run("BeforePaidFrom_Inactive", func(t *testing.T) {
+		assert.False(t, IsDateRangeActive(&paidFrom, &paidUntil, time.Date(2026, 2, 28, 23, 59, 59, 0, time.UTC)))
+	})
+
+	t.Run("AfterPaidUntil_Inactive", func(t *testing.T) {
+		assert.False(t, IsDateRangeActive(&paidFrom, &paidUntil, time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC)))
+	})
+
+	t.Run("NilPaidFrom_OnlyChecksPaidUntil", func(t *testing.T) {
+		assert.True(t, IsDateRangeActive(nil, &paidUntil, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)))
+		assert.True(t, IsDateRangeActive(nil, &paidUntil, time.Date(2026, 3, 31, 0, 0, 0, 0, time.UTC)))
+		assert.False(t, IsDateRangeActive(nil, &paidUntil, time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC)))
+	})
+
+	t.Run("NilPaidUntil_Inactive", func(t *testing.T) {
+		assert.False(t, IsDateRangeActive(&paidFrom, nil, time.Date(2026, 3, 15, 0, 0, 0, 0, time.UTC)))
+	})
+
+	t.Run("StudentBalance_IsPaidAt_HybridRule", func(t *testing.T) {
+		lessonCovered := time.Date(2026, 3, 15, 0, 0, 0, 0, time.UTC)
+		lessonUncovered := time.Date(2026, 4, 15, 0, 0, 0, 0, time.UTC)
+
+		balWithRange := &StudentBalance{
+			PaidFrom:     &paidFrom,
+			PaidUntil:    &paidUntil,
+			SessionsLeft: 0,
+		}
+		// lesson_date >= paid_from AND lesson_date <= paid_until subscription is active
+		assert.True(t, balWithRange.IsPaidAt(lessonCovered))
+		// If the lesson is not covered by a date range, checks session wallet (sessions_left > 0)
+		assert.False(t, balWithRange.IsPaidAt(lessonUncovered))
+
+		balWithWallet := &StudentBalance{
+			PaidFrom:     &paidFrom,
+			PaidUntil:    &paidUntil,
+			SessionsLeft: 3,
+		}
+		assert.True(t, balWithWallet.IsPaidAt(lessonCovered))
+		assert.True(t, balWithWallet.IsPaidAt(lessonUncovered))
+	})
+}
+
 func TestResolveAttendanceSessionBalance(t *testing.T) {
 	paidUntil := time.Date(2026, 5, 10, 0, 0, 0, 0, time.UTC)
 	coveredDate := time.Date(2026, 5, 5, 0, 0, 0, 0, time.UTC)

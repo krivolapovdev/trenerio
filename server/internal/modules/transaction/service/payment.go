@@ -18,6 +18,10 @@ func IsSubscriptionActive(maxPaidUntil *time.Time, referenceDate time.Time) bool
 	return domain.IsSubscriptionActive(maxPaidUntil, referenceDate)
 }
 
+func IsDateRangeActive(paidFrom, paidUntil *time.Time, date time.Time) bool {
+	return domain.IsDateRangeActive(paidFrom, paidUntil, date)
+}
+
 type AttendanceBalanceChange struct {
 	StudentID     uuid.UUID
 	OldBillable   bool
@@ -27,11 +31,18 @@ type AttendanceBalanceChange struct {
 }
 
 func ValidateStudentPaymentFields(paidUntil *time.Time, sessionsAdded *int64) error {
+	return ValidateStudentPaymentFieldsWithFrom(nil, paidUntil, sessionsAdded)
+}
+
+func ValidateStudentPaymentFieldsWithFrom(paidFrom, paidUntil *time.Time, sessionsAdded *int64) error {
 	if paidUntil == nil && sessionsAdded == nil {
 		return pkgerrors.NewBadRequest("either paidUntil or sessionsAdded must be provided for student payment")
 	}
 	if sessionsAdded != nil && *sessionsAdded <= 0 {
 		return pkgerrors.NewBadRequest("sessionsAdded must be greater than 0")
+	}
+	if paidFrom != nil && paidUntil != nil && paidFrom.After(*paidUntil) {
+		return pkgerrors.NewBadRequest("paidFrom cannot be after paidUntil")
 	}
 	return nil
 }
@@ -54,24 +65,18 @@ func MaxPaidUntil(payments []domain.Transaction) *time.Time {
 }
 
 func NeedsSessionForAttendance(paidUntil *time.Time, lessonDate time.Time, isBillable bool) bool {
+	return NeedsSessionForAttendanceRange(nil, paidUntil, lessonDate, isBillable)
+}
+
+func NeedsSessionForAttendanceRange(paidFrom, paidUntil *time.Time, lessonDate time.Time, isBillable bool) bool {
 	if !isBillable {
 		return false
 	}
-	if paidUntil == nil {
-		return true
-	}
-	return IsPaidUntilBeforeDate(*paidUntil, lessonDate)
+	return !domain.IsDateRangeActive(paidFrom, paidUntil, lessonDate)
 }
 
 // ResolveAttendanceSessionBalance calculates the updated sessionsLeft balance
 // for a single attendance change (recording, editing, or deleting a visit).
-//
-// When a visit transitions to "needs session" (e.g. marked present on a date
-// not covered by paid_until), 1 session is consumed, floored at 0 (debt visit).
-//
-// When reverting an uncovered billable visit (edit/delete), at most 1 session is refunded,
-// capped at max(0, totalSessionsAdded - remainingUncoveredBillableVisits) so debt visits
-// never fabricate sessions.
 func ResolveAttendanceSessionBalance(
 	change AttendanceBalanceChange,
 	paidUntil *time.Time,

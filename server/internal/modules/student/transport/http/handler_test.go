@@ -30,7 +30,7 @@ type mockStudentService struct {
 	getStudentVisitsFn      func(ctx context.Context, studentID, ownerID uuid.UUID, from, to *time.Time) ([]studentservice.StudentVisitWithLesson, error)
 	getStudentPaymentsFn    func(ctx context.Context, studentID, ownerID uuid.UUID) ([]txmodel.Transaction, error)
 	createStudentFn         func(ctx context.Context, studentToCreate studentmodel.Student, ownerID uuid.UUID) (studentmodel.Student, error)
-	createStudentPaymentFn  func(ctx context.Context, studentID, ownerID uuid.UUID, amount float64, date time.Time, paidUntil *time.Time, sessionsAdded *int64) (txmodel.Transaction, error)
+	createStudentPaymentFn  func(ctx context.Context, studentID, ownerID uuid.UUID, amount float64, date time.Time, paidFrom, paidUntil *time.Time, sessionsAdded *int64) (txmodel.Transaction, error)
 	updateStudentFn         func(ctx context.Context, studentID, ownerID uuid.UUID, updates map[string]any) (studentmodel.Student, error)
 	deleteStudentFn         func(ctx context.Context, studentID, ownerID uuid.UUID) error
 }
@@ -65,9 +65,9 @@ func (m *mockStudentService) CreateStudent(ctx context.Context, studentToCreate 
 	}
 	return studentmodel.Student{}, nil
 }
-func (m *mockStudentService) CreateStudentPayment(ctx context.Context, studentID, ownerID uuid.UUID, amount float64, date time.Time, paidUntil *time.Time, sessionsAdded *int64) (txmodel.Transaction, error) {
+func (m *mockStudentService) CreateStudentPayment(ctx context.Context, studentID, ownerID uuid.UUID, amount float64, date time.Time, paidFrom, paidUntil *time.Time, sessionsAdded *int64) (txmodel.Transaction, error) {
 	if m.createStudentPaymentFn != nil {
-		return m.createStudentPaymentFn(ctx, studentID, ownerID, amount, date, paidUntil, sessionsAdded)
+		return m.createStudentPaymentFn(ctx, studentID, ownerID, amount, date, paidFrom, paidUntil, sessionsAdded)
 	}
 	return txmodel.Transaction{}, nil
 }
@@ -554,7 +554,7 @@ func TestStudentHandler_CreateStudentPayment(t *testing.T) {
 		paidUntil := time.Date(2026, 11, 17, 0, 0, 0, 0, time.UTC)
 
 		mockSvc := &mockStudentService{
-			createStudentPaymentFn: func(ctx context.Context, sID, ownerID uuid.UUID, amount float64, date time.Time, pUntil *time.Time, sessionsAdded *int64) (txmodel.Transaction, error) {
+			createStudentPaymentFn: func(ctx context.Context, sID, ownerID uuid.UUID, amount float64, date time.Time, pFrom, pUntil *time.Time, sessionsAdded *int64) (txmodel.Transaction, error) {
 				assert.Equal(t, studentID, sID)
 				assert.Equal(t, testUser.ID, ownerID)
 				assert.Equal(t, 4500.0, amount)
@@ -577,7 +577,7 @@ func TestStudentHandler_CreateStudentPayment(t *testing.T) {
 		paymentDate := time.Date(2026, 10, 17, 0, 0, 0, 0, time.UTC)
 
 		mockSvc := &mockStudentService{
-			createStudentPaymentFn: func(ctx context.Context, sID, ownerID uuid.UUID, amount float64, date time.Time, pUntil *time.Time, sessionsAdded *int64) (txmodel.Transaction, error) {
+			createStudentPaymentFn: func(ctx context.Context, sID, ownerID uuid.UUID, amount float64, date time.Time, pFrom, pUntil *time.Time, sessionsAdded *int64) (txmodel.Transaction, error) {
 				assert.Equal(t, studentID, sID)
 				assert.Nil(t, pUntil)
 				require.NotNil(t, sessionsAdded)
@@ -620,7 +620,7 @@ func TestStudentHandler_CreateStudentPayment(t *testing.T) {
 
 	t.Run("InternalServerError", func(t *testing.T) {
 		mockSvc := &mockStudentService{
-			createStudentPaymentFn: func(ctx context.Context, sID, ownerID uuid.UUID, amount float64, date time.Time, pUntil *time.Time, sessionsAdded *int64) (txmodel.Transaction, error) {
+			createStudentPaymentFn: func(ctx context.Context, sID, ownerID uuid.UUID, amount float64, date time.Time, pFrom, pUntil *time.Time, sessionsAdded *int64) (txmodel.Transaction, error) {
 				return txmodel.Transaction{}, assert.AnError
 			},
 		}

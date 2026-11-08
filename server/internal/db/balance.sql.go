@@ -8,167 +8,163 @@ package db
 import (
 	"context"
 	"database/sql"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 )
 
-const applyPaymentToStudentBalance = `-- name: ApplyPaymentToStudentBalance :one
-INSERT INTO payments_module.student_balances (owner_id, student_id, paid_until, sessions_left)
-VALUES ($1, $2, $3::timestamptz, COALESCE($4::bigint, 0))
-ON CONFLICT (owner_id, student_id) DO UPDATE
-SET paid_until = CASE
-        WHEN EXCLUDED.paid_until IS NULL THEN payments_module.student_balances.paid_until
-        WHEN payments_module.student_balances.paid_until IS NULL THEN EXCLUDED.paid_until
-        ELSE GREATEST(payments_module.student_balances.paid_until, EXCLUDED.paid_until)
-    END,
-    sessions_left = payments_module.student_balances.sessions_left + EXCLUDED.sessions_left
-RETURNING owner_id, student_id, paid_until, sessions_left, created_at, updated_at
-`
-
-type ApplyPaymentToStudentBalanceParams struct {
-	OwnerID       uuid.UUID     `json:"owner_id"`
-	StudentID     uuid.UUID     `json:"student_id"`
-	PaidUntil     sql.NullTime  `json:"paid_until"`
-	SessionsAdded sql.NullInt64 `json:"sessions_added"`
-}
-
-func (q *Queries) ApplyPaymentToStudentBalance(ctx context.Context, arg ApplyPaymentToStudentBalanceParams) (PaymentsModuleStudentBalance, error) {
-	row := q.db.QueryRowContext(ctx, applyPaymentToStudentBalance,
-		arg.OwnerID,
-		arg.StudentID,
-		arg.PaidUntil,
-		arg.SessionsAdded,
-	)
-	var i PaymentsModuleStudentBalance
-	err := row.Scan(
-		&i.OwnerID,
-		&i.StudentID,
-		&i.PaidUntil,
-		&i.SessionsLeft,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const createStudentBalance = `-- name: CreateStudentBalance :exec
-INSERT INTO payments_module.student_balances (owner_id, student_id, paid_until, sessions_left)
-VALUES ($1, $2, NULL, 0)
-ON CONFLICT (owner_id, student_id) DO NOTHING
-`
-
-type CreateStudentBalanceParams struct {
-	OwnerID   uuid.UUID `json:"owner_id"`
-	StudentID uuid.UUID `json:"student_id"`
-}
-
-func (q *Queries) CreateStudentBalance(ctx context.Context, arg CreateStudentBalanceParams) error {
-	_, err := q.db.ExecContext(ctx, createStudentBalance, arg.OwnerID, arg.StudentID)
-	return err
-}
-
 const findStudentBalanceByStudentIDAndOwnerID = `-- name: FindStudentBalanceByStudentIDAndOwnerID :one
-SELECT b.owner_id,
-       b.student_id,
-       b.paid_until,
-       b.sessions_left,
-       COALESCE(
-           (SELECT SUM(sp.sessions_added)
+SELECT
+    s.id AS student_id,
+    (
+        SELECT sp.paid_from
+        FROM payments_module.student_payments sp
+        JOIN payments_module.transactions t ON t.id = sp.transaction_id
+        WHERE sp.student_id = s.id AND t.owner_id = s.owner_id AND sp.paid_until IS NOT NULL
+        ORDER BY sp.paid_until DESC NULLS LAST
+        LIMIT 1
+    ) AS paid_from,
+    (
+        SELECT sp.paid_until
+        FROM payments_module.student_payments sp
+        JOIN payments_module.transactions t ON t.id = sp.transaction_id
+        WHERE sp.student_id = s.id AND t.owner_id = s.owner_id AND sp.paid_until IS NOT NULL
+        ORDER BY sp.paid_until DESC NULLS LAST
+        LIMIT 1
+    ) AS paid_until,
+    GREATEST(0,
+        COALESCE((
+            SELECT SUM(sp.sessions_added)
             FROM payments_module.student_payments sp
             JOIN payments_module.transactions t ON t.id = sp.transaction_id
-            WHERE sp.student_id = b.student_id AND t.owner_id = b.owner_id),
-           0
-       )::bigint AS total_sessions_added,
-       b.created_at,
-       b.updated_at
-FROM payments_module.student_balances b
-WHERE b.owner_id = $1 AND b.student_id = $2
+            WHERE sp.student_id = s.id AND t.owner_id = s.owner_id
+        ), 0)
+        -
+        CASE
+            WHEN s.free THEN 0
+            ELSE COALESCE((
+                SELECT COUNT(*)
+                FROM visits_module.visits v
+                JOIN lessons_module.lessons l ON l.id = v.lesson_id
+                WHERE v.student_id = s.id
+                  AND v.owner_id = s.owner_id
+                  AND v.type = 'REGULAR'
+                  AND v.status IN ('PRESENT', 'ABSENT')
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM payments_module.student_payments sp
+                      JOIN payments_module.transactions t ON t.id = sp.transaction_id
+                      WHERE sp.student_id = s.id
+                        AND t.owner_id = s.owner_id
+                        AND sp.paid_until IS NOT NULL
+                        AND (sp.paid_from IS NULL OR date_trunc('day', l.date) >= date_trunc('day', sp.paid_from))
+                        AND date_trunc('day', l.date) <= date_trunc('day', sp.paid_until)
+                  )
+            ), 0)
+        END
+    )::bigint AS sessions_left,
+    COALESCE((
+        SELECT SUM(sp.sessions_added)
+        FROM payments_module.student_payments sp
+        JOIN payments_module.transactions t ON t.id = sp.transaction_id
+        WHERE sp.student_id = s.id AND t.owner_id = s.owner_id
+    ), 0)::bigint AS total_sessions_added
+FROM students_module.students s
+WHERE s.owner_id = $1 AND s.id = $2
 `
 
 type FindStudentBalanceByStudentIDAndOwnerIDParams struct {
-	OwnerID   uuid.UUID `json:"owner_id"`
-	StudentID uuid.UUID `json:"student_id"`
+	OwnerID uuid.UUID `json:"owner_id"`
+	ID      uuid.UUID `json:"id"`
 }
 
 type FindStudentBalanceByStudentIDAndOwnerIDRow struct {
-	OwnerID            uuid.UUID    `json:"owner_id"`
 	StudentID          uuid.UUID    `json:"student_id"`
+	PaidFrom           sql.NullTime `json:"paid_from"`
 	PaidUntil          sql.NullTime `json:"paid_until"`
 	SessionsLeft       int64        `json:"sessions_left"`
 	TotalSessionsAdded int64        `json:"total_sessions_added"`
-	CreatedAt          time.Time    `json:"created_at"`
-	UpdatedAt          time.Time    `json:"updated_at"`
 }
 
 func (q *Queries) FindStudentBalanceByStudentIDAndOwnerID(ctx context.Context, arg FindStudentBalanceByStudentIDAndOwnerIDParams) (FindStudentBalanceByStudentIDAndOwnerIDRow, error) {
-	row := q.db.QueryRowContext(ctx, findStudentBalanceByStudentIDAndOwnerID, arg.OwnerID, arg.StudentID)
+	row := q.db.QueryRowContext(ctx, findStudentBalanceByStudentIDAndOwnerID, arg.OwnerID, arg.ID)
 	var i FindStudentBalanceByStudentIDAndOwnerIDRow
 	err := row.Scan(
-		&i.OwnerID,
 		&i.StudentID,
+		&i.PaidFrom,
 		&i.PaidUntil,
 		&i.SessionsLeft,
 		&i.TotalSessionsAdded,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const findStudentBalanceForUpdate = `-- name: FindStudentBalanceForUpdate :one
-SELECT owner_id, student_id, paid_until, sessions_left, created_at, updated_at
-FROM payments_module.student_balances
-WHERE owner_id = $1 AND student_id = $2
-FOR UPDATE
-`
-
-type FindStudentBalanceForUpdateParams struct {
-	OwnerID   uuid.UUID `json:"owner_id"`
-	StudentID uuid.UUID `json:"student_id"`
-}
-
-func (q *Queries) FindStudentBalanceForUpdate(ctx context.Context, arg FindStudentBalanceForUpdateParams) (PaymentsModuleStudentBalance, error) {
-	row := q.db.QueryRowContext(ctx, findStudentBalanceForUpdate, arg.OwnerID, arg.StudentID)
-	var i PaymentsModuleStudentBalance
-	err := row.Scan(
-		&i.OwnerID,
-		&i.StudentID,
-		&i.PaidUntil,
-		&i.SessionsLeft,
-		&i.CreatedAt,
-		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const findStudentBalancesByOwnerID = `-- name: FindStudentBalancesByOwnerID :many
-SELECT b.owner_id,
-       b.student_id,
-       b.paid_until,
-       b.sessions_left,
-       COALESCE(
-           (SELECT SUM(sp.sessions_added)
+SELECT
+    s.id AS student_id,
+    (
+        SELECT sp.paid_from
+        FROM payments_module.student_payments sp
+        JOIN payments_module.transactions t ON t.id = sp.transaction_id
+        WHERE sp.student_id = s.id AND t.owner_id = s.owner_id AND sp.paid_until IS NOT NULL
+        ORDER BY sp.paid_until DESC NULLS LAST
+        LIMIT 1
+    ) AS paid_from,
+    (
+        SELECT sp.paid_until
+        FROM payments_module.student_payments sp
+        JOIN payments_module.transactions t ON t.id = sp.transaction_id
+        WHERE sp.student_id = s.id AND t.owner_id = s.owner_id AND sp.paid_until IS NOT NULL
+        ORDER BY sp.paid_until DESC NULLS LAST
+        LIMIT 1
+    ) AS paid_until,
+    GREATEST(0,
+        COALESCE((
+            SELECT SUM(sp.sessions_added)
             FROM payments_module.student_payments sp
             JOIN payments_module.transactions t ON t.id = sp.transaction_id
-            WHERE sp.student_id = b.student_id AND t.owner_id = b.owner_id),
-           0
-       )::bigint AS total_sessions_added,
-       b.created_at,
-       b.updated_at
-FROM payments_module.student_balances b
-WHERE b.owner_id = $1
+            WHERE sp.student_id = s.id AND t.owner_id = s.owner_id
+        ), 0)
+        -
+        CASE
+            WHEN s.free THEN 0
+            ELSE COALESCE((
+                SELECT COUNT(*)
+                FROM visits_module.visits v
+                JOIN lessons_module.lessons l ON l.id = v.lesson_id
+                WHERE v.student_id = s.id
+                  AND v.owner_id = s.owner_id
+                  AND v.type = 'REGULAR'
+                  AND v.status IN ('PRESENT', 'ABSENT')
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM payments_module.student_payments sp
+                      JOIN payments_module.transactions t ON t.id = sp.transaction_id
+                      WHERE sp.student_id = s.id
+                        AND t.owner_id = s.owner_id
+                        AND sp.paid_until IS NOT NULL
+                        AND (sp.paid_from IS NULL OR date_trunc('day', l.date) >= date_trunc('day', sp.paid_from))
+                        AND date_trunc('day', l.date) <= date_trunc('day', sp.paid_until)
+                  )
+            ), 0)
+        END
+    )::bigint AS sessions_left,
+    COALESCE((
+        SELECT SUM(sp.sessions_added)
+        FROM payments_module.student_payments sp
+        JOIN payments_module.transactions t ON t.id = sp.transaction_id
+        WHERE sp.student_id = s.id AND t.owner_id = s.owner_id
+    ), 0)::bigint AS total_sessions_added
+FROM students_module.students s
+WHERE s.owner_id = $1
 `
 
 type FindStudentBalancesByOwnerIDRow struct {
-	OwnerID            uuid.UUID    `json:"owner_id"`
 	StudentID          uuid.UUID    `json:"student_id"`
+	PaidFrom           sql.NullTime `json:"paid_from"`
 	PaidUntil          sql.NullTime `json:"paid_until"`
 	SessionsLeft       int64        `json:"sessions_left"`
 	TotalSessionsAdded int64        `json:"total_sessions_added"`
-	CreatedAt          time.Time    `json:"created_at"`
-	UpdatedAt          time.Time    `json:"updated_at"`
 }
 
 func (q *Queries) FindStudentBalancesByOwnerID(ctx context.Context, ownerID uuid.UUID) ([]FindStudentBalancesByOwnerIDRow, error) {
@@ -181,13 +177,11 @@ func (q *Queries) FindStudentBalancesByOwnerID(ctx context.Context, ownerID uuid
 	for rows.Next() {
 		var i FindStudentBalancesByOwnerIDRow
 		if err := rows.Scan(
-			&i.OwnerID,
 			&i.StudentID,
+			&i.PaidFrom,
 			&i.PaidUntil,
 			&i.SessionsLeft,
 			&i.TotalSessionsAdded,
-			&i.CreatedAt,
-			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -203,21 +197,63 @@ func (q *Queries) FindStudentBalancesByOwnerID(ctx context.Context, ownerID uuid
 }
 
 const findStudentBalancesByStudentIDsAndOwnerID = `-- name: FindStudentBalancesByStudentIDsAndOwnerID :many
-SELECT b.owner_id,
-       b.student_id,
-       b.paid_until,
-       b.sessions_left,
-       COALESCE(
-           (SELECT SUM(sp.sessions_added)
+SELECT
+    s.id AS student_id,
+    (
+        SELECT sp.paid_from
+        FROM payments_module.student_payments sp
+        JOIN payments_module.transactions t ON t.id = sp.transaction_id
+        WHERE sp.student_id = s.id AND t.owner_id = s.owner_id AND sp.paid_until IS NOT NULL
+        ORDER BY sp.paid_until DESC NULLS LAST
+        LIMIT 1
+    ) AS paid_from,
+    (
+        SELECT sp.paid_until
+        FROM payments_module.student_payments sp
+        JOIN payments_module.transactions t ON t.id = sp.transaction_id
+        WHERE sp.student_id = s.id AND t.owner_id = s.owner_id AND sp.paid_until IS NOT NULL
+        ORDER BY sp.paid_until DESC NULLS LAST
+        LIMIT 1
+    ) AS paid_until,
+    GREATEST(0,
+        COALESCE((
+            SELECT SUM(sp.sessions_added)
             FROM payments_module.student_payments sp
             JOIN payments_module.transactions t ON t.id = sp.transaction_id
-            WHERE sp.student_id = b.student_id AND t.owner_id = b.owner_id),
-           0
-       )::bigint AS total_sessions_added,
-       b.created_at,
-       b.updated_at
-FROM payments_module.student_balances b
-WHERE b.owner_id = $1 AND b.student_id = ANY($2::uuid[])
+            WHERE sp.student_id = s.id AND t.owner_id = s.owner_id
+        ), 0)
+        -
+        CASE
+            WHEN s.free THEN 0
+            ELSE COALESCE((
+                SELECT COUNT(*)
+                FROM visits_module.visits v
+                JOIN lessons_module.lessons l ON l.id = v.lesson_id
+                WHERE v.student_id = s.id
+                  AND v.owner_id = s.owner_id
+                  AND v.type = 'REGULAR'
+                  AND v.status IN ('PRESENT', 'ABSENT')
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM payments_module.student_payments sp
+                      JOIN payments_module.transactions t ON t.id = sp.transaction_id
+                      WHERE sp.student_id = s.id
+                        AND t.owner_id = s.owner_id
+                        AND sp.paid_until IS NOT NULL
+                        AND (sp.paid_from IS NULL OR date_trunc('day', l.date) >= date_trunc('day', sp.paid_from))
+                        AND date_trunc('day', l.date) <= date_trunc('day', sp.paid_until)
+                  )
+            ), 0)
+        END
+    )::bigint AS sessions_left,
+    COALESCE((
+        SELECT SUM(sp.sessions_added)
+        FROM payments_module.student_payments sp
+        JOIN payments_module.transactions t ON t.id = sp.transaction_id
+        WHERE sp.student_id = s.id AND t.owner_id = s.owner_id
+    ), 0)::bigint AS total_sessions_added
+FROM students_module.students s
+WHERE s.owner_id = $1 AND s.id = ANY($2::uuid[])
 `
 
 type FindStudentBalancesByStudentIDsAndOwnerIDParams struct {
@@ -226,13 +262,11 @@ type FindStudentBalancesByStudentIDsAndOwnerIDParams struct {
 }
 
 type FindStudentBalancesByStudentIDsAndOwnerIDRow struct {
-	OwnerID            uuid.UUID    `json:"owner_id"`
 	StudentID          uuid.UUID    `json:"student_id"`
+	PaidFrom           sql.NullTime `json:"paid_from"`
 	PaidUntil          sql.NullTime `json:"paid_until"`
 	SessionsLeft       int64        `json:"sessions_left"`
 	TotalSessionsAdded int64        `json:"total_sessions_added"`
-	CreatedAt          time.Time    `json:"created_at"`
-	UpdatedAt          time.Time    `json:"updated_at"`
 }
 
 func (q *Queries) FindStudentBalancesByStudentIDsAndOwnerID(ctx context.Context, arg FindStudentBalancesByStudentIDsAndOwnerIDParams) ([]FindStudentBalancesByStudentIDsAndOwnerIDRow, error) {
@@ -245,13 +279,11 @@ func (q *Queries) FindStudentBalancesByStudentIDsAndOwnerID(ctx context.Context,
 	for rows.Next() {
 		var i FindStudentBalancesByStudentIDsAndOwnerIDRow
 		if err := rows.Scan(
-			&i.OwnerID,
 			&i.StudentID,
+			&i.PaidFrom,
 			&i.PaidUntil,
 			&i.SessionsLeft,
 			&i.TotalSessionsAdded,
-			&i.CreatedAt,
-			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -264,39 +296,4 @@ func (q *Queries) FindStudentBalancesByStudentIDsAndOwnerID(ctx context.Context,
 		return nil, err
 	}
 	return items, nil
-}
-
-const upsertStudentBalance = `-- name: UpsertStudentBalance :one
-INSERT INTO payments_module.student_balances (owner_id, student_id, paid_until, sessions_left)
-VALUES ($1, $2, $3, $4)
-ON CONFLICT (owner_id, student_id) DO UPDATE
-SET paid_until = EXCLUDED.paid_until,
-    sessions_left = EXCLUDED.sessions_left
-RETURNING owner_id, student_id, paid_until, sessions_left, created_at, updated_at
-`
-
-type UpsertStudentBalanceParams struct {
-	OwnerID      uuid.UUID    `json:"owner_id"`
-	StudentID    uuid.UUID    `json:"student_id"`
-	PaidUntil    sql.NullTime `json:"paid_until"`
-	SessionsLeft int64        `json:"sessions_left"`
-}
-
-func (q *Queries) UpsertStudentBalance(ctx context.Context, arg UpsertStudentBalanceParams) (PaymentsModuleStudentBalance, error) {
-	row := q.db.QueryRowContext(ctx, upsertStudentBalance,
-		arg.OwnerID,
-		arg.StudentID,
-		arg.PaidUntil,
-		arg.SessionsLeft,
-	)
-	var i PaymentsModuleStudentBalance
-	err := row.Scan(
-		&i.OwnerID,
-		&i.StudentID,
-		&i.PaidUntil,
-		&i.SessionsLeft,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
 }

@@ -17,7 +17,7 @@ type studentService interface {
 	GetStudentPayments(ctx context.Context, studentID, ownerID uuid.UUID) ([]txmodel.Transaction, error)
 	GetStudentDetailsByID(ctx context.Context, studentID, ownerID uuid.UUID) (studentmodel.Student, error)
 	CreateStudent(ctx context.Context, studentToCreate studentmodel.Student, ownerID uuid.UUID) (studentmodel.Student, error)
-	CreateStudentPayment(ctx context.Context, studentID, ownerID uuid.UUID, amount float64, date time.Time, paidUntil *time.Time, sessionsAdded *int64) (txmodel.Transaction, error)
+	CreateStudentPayment(ctx context.Context, studentID, ownerID uuid.UUID, amount float64, date time.Time, paidFrom, paidUntil *time.Time, sessionsAdded *int64) (txmodel.Transaction, error)
 	UpdateStudent(ctx context.Context, studentID, ownerID uuid.UUID, updates map[string]any) (studentmodel.Student, error)
 	DeleteStudent(ctx context.Context, studentID, ownerID uuid.UUID) error
 }

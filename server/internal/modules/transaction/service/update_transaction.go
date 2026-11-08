@@ -46,6 +46,19 @@ func (s *Service) UpdateTransaction(ctx context.Context, transactionID, ownerID 
 
 	paymentUpdates := extractPaymentUpdateFields(updates)
 
+	hasPaidFromUpdate := false
+	var patchedPaidFrom sql.NullTime
+	if rawPF, ok := paymentUpdates["paidFrom"]; ok {
+		hasPaidFromUpdate = true
+		if rawPF != nil {
+			d, err := parseTime(rawPF)
+			if err != nil {
+				return domain.Transaction{}, pkgerrors.NewBadRequest("invalid paidFrom format")
+			}
+			patchedPaidFrom = sql.NullTime{Time: d, Valid: true}
+		}
+	}
+
 	hasPaidUntilUpdate := false
 	var patchedPaidUntil sql.NullTime
 	if rawPU, ok := paymentUpdates["paidUntil"]; ok {
@@ -100,6 +113,11 @@ func (s *Service) UpdateTransaction(ctx context.Context, transactionID, ownerID 
 			txDate = *patchedDate
 		}
 
+		newPaidFrom := existing.PaidFrom
+		if hasPaidFromUpdate {
+			newPaidFrom = patchedPaidFrom
+		}
+
 		newPaidUntil := existing.PaidUntil
 		if hasPaidUntilUpdate {
 			newPaidUntil = patchedPaidUntil
@@ -110,9 +128,13 @@ func (s *Service) UpdateTransaction(ctx context.Context, transactionID, ownerID 
 			newSessionsAdded = patchedSessionsAdded
 		}
 
-		patchesPayment := hasPaidUntilUpdate || hasSessionsAddedUpdate
+		patchesPayment := hasPaidFromUpdate || hasPaidUntilUpdate || hasSessionsAddedUpdate
 		if existing.StudentID.Valid && patchesPayment && !newPaidUntil.Valid && !newSessionsAdded.Valid {
 			return pkgerrors.NewBadRequest("either paidUntil or sessionsAdded must be provided for student payment")
+		}
+
+		if newPaidFrom.Valid && newPaidUntil.Valid && newPaidFrom.Time.After(newPaidUntil.Time) {
+			return pkgerrors.NewBadRequest("paidFrom cannot be after paidUntil")
 		}
 
 		updatedTx, err = qtx.UpdateTransaction(ctx, db.UpdateTransactionParams{
@@ -128,14 +150,9 @@ func (s *Service) UpdateTransaction(ctx context.Context, transactionID, ownerID 
 		}
 
 		if patchesPayment && existing.StudentID.Valid {
-			currentBal, err := lockOrInitStudentBalanceTx(ctx, qtx, ownerID, existing.StudentID.UUID)
-			if err != nil {
-				logger.ErrorContext(ctx, "Failed to lock student balance for payment update", "student_id", existing.StudentID.UUID.String(), "error", err, "user_id", ownerID.String())
-				return err
-			}
-
 			sp, err := qtx.UpdateStudentPayment(ctx, db.UpdateStudentPaymentParams{
 				TransactionID: transactionID,
+				PaidFrom:      newPaidFrom,
 				PaidUntil:     newPaidUntil,
 				SessionsAdded: newSessionsAdded,
 			})
@@ -144,39 +161,9 @@ func (s *Service) UpdateTransaction(ctx context.Context, transactionID, ownerID 
 				return err
 			}
 
-			latestPaidUntil, err := findLatestPaidUntilTx(ctx, qtx, sp.StudentID, ownerID)
-			if err != nil {
-				logger.ErrorContext(ctx, "Failed to recalculate latest paid_until on payment update", "student_id", sp.StudentID.String(), "error", err, "user_id", ownerID.String())
-				return err
-			}
-
-			var oldSessions int64
-			if existing.SessionsAdded.Valid {
-				oldSessions = existing.SessionsAdded.Int64
-			}
-			var newSessions int64
-			if sp.SessionsAdded.Valid {
-				newSessions = sp.SessionsAdded.Int64
-			}
-
-			updatedSessionsLeft := currentBal.SessionsLeft + newSessions - oldSessions
-			if updatedSessionsLeft < 0 {
-				updatedSessionsLeft = 0
-			}
-
-			if _, err := qtx.UpsertStudentBalance(ctx, db.UpsertStudentBalanceParams{
-				OwnerID:      ownerID,
-				StudentID:    sp.StudentID,
-				PaidUntil:    latestPaidUntil,
-				SessionsLeft: updatedSessionsLeft,
-			}); err != nil {
-				logger.ErrorContext(ctx, "Failed to upsert student balance on payment update", "student_id", sp.StudentID.String(), "error", err, "user_id", ownerID.String())
-				return err
-			}
-
-			details = mapper.ToStudentPaymentDetails(sp.StudentID, sp.PaidUntil, sp.SessionsAdded, nil)
+			details = mapper.ToStudentPaymentDetails(sp.StudentID, sp.PaidFrom, sp.PaidUntil, sp.SessionsAdded, nil)
 		} else if existing.StudentID.Valid {
-			details = mapper.ToStudentPaymentDetails(existing.StudentID.UUID, existing.PaidUntil, existing.SessionsAdded, nil)
+			details = mapper.ToStudentPaymentDetails(existing.StudentID.UUID, existing.PaidFrom, existing.PaidUntil, existing.SessionsAdded, nil)
 		}
 
 		return nil

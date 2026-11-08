@@ -23,7 +23,7 @@ type VisitProvider interface {
 type TransactionProvider interface {
 	GetStudentBalancesByOwnerID(ctx context.Context, ownerID uuid.UUID) (map[uuid.UUID]txmodel.StudentBalance, error)
 	GetTransactionsByStudentID(ctx context.Context, studentID, ownerID uuid.UUID) ([]txmodel.Transaction, error)
-	CreateStudentPayment(ctx context.Context, studentID uuid.UUID, amount float64, date time.Time, paidUntil *time.Time, sessionsAdded *int64, ownerID uuid.UUID) (txmodel.Transaction, error)
+	CreateStudentPayment(ctx context.Context, studentID uuid.UUID, amount float64, date time.Time, paidFrom, paidUntil *time.Time, sessionsAdded *int64, ownerID uuid.UUID) (txmodel.Transaction, error)
 }
 
 type GroupProvider interface {

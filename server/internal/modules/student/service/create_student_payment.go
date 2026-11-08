@@ -11,9 +11,9 @@ import (
 	txservice "github.com/krivolapovdev/trenerio/internal/modules/transaction/service"
 )
 
-func (s *Service) CreateStudentPayment(ctx context.Context, studentID, ownerID uuid.UUID, amount float64, date time.Time, paidUntil *time.Time, sessionsAdded *int64) (txmodel.Transaction, error) {
+func (s *Service) CreateStudentPayment(ctx context.Context, studentID, ownerID uuid.UUID, amount float64, date time.Time, paidFrom, paidUntil *time.Time, sessionsAdded *int64) (txmodel.Transaction, error) {
 	logger.InfoContext(ctx, "Creating payment for student", "student_id", studentID.String(), "amount", amount, "user_id", ownerID.String())
-	if err := txservice.ValidateStudentPaymentFields(paidUntil, sessionsAdded); err != nil {
+	if err := txservice.ValidateStudentPaymentFieldsWithFrom(paidFrom, paidUntil, sessionsAdded); err != nil {
 		logger.WarnContext(ctx, "Invalid student payment fields", "student_id", studentID.String(), "error", err, "user_id", ownerID.String())
 		return txmodel.Transaction{}, err
 	}
@@ -31,7 +31,7 @@ func (s *Service) CreateStudentPayment(ctx context.Context, studentID, ownerID u
 	var payment txmodel.Transaction
 	if s.transactionProvider != nil {
 		var err error
-		payment, err = s.transactionProvider.CreateStudentPayment(ctx, studentID, amount, date, paidUntil, sessionsAdded, ownerID)
+		payment, err = s.transactionProvider.CreateStudentPayment(ctx, studentID, amount, date, paidFrom, paidUntil, sessionsAdded, ownerID)
 		if err != nil {
 			logger.ErrorContext(ctx, "Failed to create payment for student", "student_id", studentID.String(), "error", err, "user_id", ownerID.String())
 			return txmodel.Transaction{}, err

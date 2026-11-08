@@ -40,10 +40,11 @@ func FromNullInt64(ni sql.NullInt64) *int64 {
 	return &v
 }
 
-func ToStudentPaymentDetails(studentID uuid.UUID, paidUntil sql.NullTime, sessionsAdded sql.NullInt64, studentName *string) *domain.StudentPaymentDetails {
+func ToStudentPaymentDetails(studentID uuid.UUID, paidFrom, paidUntil sql.NullTime, sessionsAdded sql.NullInt64, studentName *string) *domain.StudentPaymentDetails {
 	return &domain.StudentPaymentDetails{
 		DetailsType:   domain.DetailsTypeStudent,
 		StudentID:     studentID,
+		PaidFrom:      FromNullTime(paidFrom),
 		PaidUntil:     FromNullTime(paidUntil),
 		SessionsAdded: FromNullInt64(sessionsAdded),
 		StudentName:   studentName,
@@ -53,6 +54,7 @@ func ToStudentPaymentDetails(studentID uuid.UUID, paidUntil sql.NullTime, sessio
 func ToStudentBalanceFromOwnerRow(b db.FindStudentBalancesByOwnerIDRow) domain.StudentBalance {
 	return domain.StudentBalance{
 		StudentID:          b.StudentID,
+		PaidFrom:           FromNullTime(b.PaidFrom),
 		PaidUntil:          FromNullTime(b.PaidUntil),
 		SessionsLeft:       b.SessionsLeft,
 		TotalSessionsAdded: b.TotalSessionsAdded,
@@ -62,6 +64,7 @@ func ToStudentBalanceFromOwnerRow(b db.FindStudentBalancesByOwnerIDRow) domain.S
 func ToStudentBalanceFromIDsRow(b db.FindStudentBalancesByStudentIDsAndOwnerIDRow) domain.StudentBalance {
 	return domain.StudentBalance{
 		StudentID:          b.StudentID,
+		PaidFrom:           FromNullTime(b.PaidFrom),
 		PaidUntil:          FromNullTime(b.PaidUntil),
 		SessionsLeft:       b.SessionsLeft,
 		TotalSessionsAdded: b.TotalSessionsAdded,
@@ -95,8 +98,8 @@ func ToTransactionFromPaginatedRow(r db.FindTransactionsByOwnerIDPaginatedRow, d
 func ToTransactionFromDateBetweenRow(r db.FindTransactionsByOwnerIDAndDateBetweenRow) domain.Transaction {
 	amt, _ := strconv.ParseFloat(r.Amount, 64)
 	var details *domain.StudentPaymentDetails
-	if r.StudentID.Valid && (r.PaidUntil.Valid || r.SessionsAdded.Valid) {
-		details = ToStudentPaymentDetails(r.StudentID.UUID, r.PaidUntil, r.SessionsAdded, nil)
+	if r.StudentID.Valid && (r.PaidUntil.Valid || r.PaidFrom.Valid || r.SessionsAdded.Valid) {
+		details = ToStudentPaymentDetails(r.StudentID.UUID, r.PaidFrom, r.PaidUntil, r.SessionsAdded, nil)
 	}
 	return domain.Transaction{
 		ID:             r.ID,
@@ -116,7 +119,7 @@ func ToTransactionFromStudentPaymentRow(r db.FindStudentPaymentsByStudentIDAndOw
 		Date:           r.Date,
 		Type:           domain.TransactionType(r.Type),
 		CreatedAt:      r.CreatedAt,
-		PaymentDetails: ToStudentPaymentDetails(r.StudentID, r.PaidUntil, r.SessionsAdded, nil),
+		PaymentDetails: ToStudentPaymentDetails(r.StudentID, r.PaidFrom, r.PaidUntil, r.SessionsAdded, nil),
 	}
 }
 
@@ -128,6 +131,6 @@ func ToTransactionFromStudentPaymentsRow(r db.FindStudentPaymentsByStudentIDsAnd
 		Date:           r.Date,
 		Type:           domain.TransactionType(r.Type),
 		CreatedAt:      r.CreatedAt,
-		PaymentDetails: ToStudentPaymentDetails(r.StudentID, r.PaidUntil, r.SessionsAdded, nil),
+		PaymentDetails: ToStudentPaymentDetails(r.StudentID, r.PaidFrom, r.PaidUntil, r.SessionsAdded, nil),
 	}
 }

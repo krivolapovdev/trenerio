@@ -65,12 +65,12 @@ func (s *Service) GetPaginatedTransactions(ctx context.Context, page, size int, 
 	transactions := make([]domain.Transaction, 0, len(rows))
 	for _, r := range rows {
 		var details *domain.StudentPaymentDetails
-		if r.StudentID.Valid && (r.PaidUntil.Valid || r.SessionsAdded.Valid) {
+		if r.StudentID.Valid && (r.PaidUntil.Valid || r.PaidFrom.Valid || r.SessionsAdded.Valid) {
 			var studentName *string
 			if name, ok := studentNames[r.StudentID.UUID]; ok {
 				studentName = &name
 			}
-			details = mapper.ToStudentPaymentDetails(r.StudentID.UUID, r.PaidUntil, r.SessionsAdded, studentName)
+			details = mapper.ToStudentPaymentDetails(r.StudentID.UUID, r.PaidFrom, r.PaidUntil, r.SessionsAdded, studentName)
 		}
 
 		transactions = append(transactions, mapper.ToTransactionFromPaginatedRow(r, details))
