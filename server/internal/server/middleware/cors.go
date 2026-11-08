@@ -6,7 +6,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/krivolapovdev/trenerio/internal/shared/web"
+	"github.com/krivolapovdev/trenerio/internal/core/web"
 )
 
 func CorsMiddleware(allowedOrigins []string) gin.HandlerFunc {

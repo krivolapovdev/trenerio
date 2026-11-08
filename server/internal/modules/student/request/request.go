@@ -1,0 +1,24 @@
+package request
+
+import (
+	"time"
+
+	"github.com/krivolapovdev/trenerio/internal/core/types"
+)
+
+// @name CreateStudentRequest
+type CreateStudentRequest struct {
+	FullName  string      `json:"fullName" binding:"required,max=255"`
+	Birthdate *types.Date `json:"birthdate,omitempty" swaggertype:"string" format:"date"`
+	Phone     *string     `json:"phone,omitempty" binding:"omitempty,max=255"`
+	Note      *string     `json:"note,omitempty" binding:"omitempty,max=255"`
+	Free      bool        `json:"free"`
+}
+
+// @name CreateStudentPaymentRequest
+type CreateStudentPaymentRequest struct {
+	Amount        float64    `json:"amount" binding:"required,gt=0"`
+	Date          time.Time  `json:"date" binding:"required" format:"date-time"`
+	PaidUntil     *time.Time `json:"paidUntil,omitempty" format:"date-time"`
+	SessionsAdded *int64     `json:"sessionsAdded,omitempty" binding:"omitempty,gt=0"`
+}

@@ -1,0 +1,39 @@
+package model
+
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
+
+// @name VisitResponse
+type VisitResponse struct {
+	ID        uuid.UUID   `json:"id" binding:"required" format:"uuid"`
+	Status    VisitStatus `json:"status" binding:"required"`
+	Type      VisitType   `json:"type" binding:"required"`
+	LessonID  uuid.UUID   `json:"lessonId" binding:"required" format:"uuid"`
+	StudentID uuid.UUID   `json:"studentId" binding:"required" format:"uuid"`
+	CreatedAt time.Time   `json:"createdAt" binding:"required" format:"date-time"`
+}
+
+// FindVisitByLessonID finds a visit associated with the given lesson ID.
+func FindVisitByLessonID(visits []VisitResponse, lessonID uuid.UUID) *VisitResponse {
+	for i := range visits {
+		if visits[i].LessonID == lessonID {
+			return &visits[i]
+		}
+	}
+	return nil
+}
+
+// IsBillableVisit returns true when an attendance mark counts toward paid sessions:
+// student is not free, visit type is REGULAR, and status is PRESENT or ABSENT.
+func IsBillableVisit(status VisitStatus, visitType VisitType, isStudentFree bool) bool {
+	if isStudentFree {
+		return false
+	}
+	if visitType != VisitTypeRegular {
+		return false
+	}
+	return status == VisitStatusPresent || status == VisitStatusAbsent
+}

@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"github.com/gin-gonic/gin"
-	pkgerrors "github.com/krivolapovdev/trenerio/internal/shared/errors"
+	pkgerrors "github.com/krivolapovdev/trenerio/internal/core/errors"
 )
 
 func ErrorHandlerMiddleware() gin.HandlerFunc {

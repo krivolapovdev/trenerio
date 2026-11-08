@@ -7,9 +7,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/krivolapovdev/trenerio/internal/modules/auth"
-	"github.com/krivolapovdev/trenerio/internal/shared/logger"
-	"github.com/krivolapovdev/trenerio/internal/shared/web"
+	"github.com/krivolapovdev/trenerio/internal/core/logger"
+	"github.com/krivolapovdev/trenerio/internal/core/web"
+	authmodel "github.com/krivolapovdev/trenerio/internal/modules/auth/model"
+	authhttp "github.com/krivolapovdev/trenerio/internal/modules/auth/transport/http"
 )
 
 func SlogMiddleware() gin.HandlerFunc {
@@ -49,8 +50,8 @@ func SlogMiddleware() gin.HandlerFunc {
 			attrs = append(attrs, "query", query)
 		}
 
-		if userVal, exists := c.Get(auth.ContextKeyJWTUser); exists {
-			if u, ok := userVal.(auth.JwtUser); ok {
+		if userVal, exists := c.Get(authhttp.ContextKeyJWTUser); exists {
+			if u, ok := userVal.(authmodel.JwtUser); ok {
 				attrs = append(attrs, "user_id", u.ID.String(), "user_email", u.Email)
 			}
 		}

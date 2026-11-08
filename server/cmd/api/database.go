@@ -9,7 +9,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/pressly/goose/v3"
 
-	"github.com/krivolapovdev/trenerio/internal/shared/logger"
+	"github.com/krivolapovdev/trenerio/internal/core/logger"
 )
 
 func initDatabase(cfg Config) (*sql.DB, error) {

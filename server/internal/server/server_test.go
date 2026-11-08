@@ -10,11 +10,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	pkgerrors "github.com/krivolapovdev/trenerio/internal/core/errors"
+	"github.com/krivolapovdev/trenerio/internal/core/response"
 	"github.com/krivolapovdev/trenerio/internal/db"
-	"github.com/krivolapovdev/trenerio/internal/modules/auth"
-	"github.com/krivolapovdev/trenerio/internal/modules/user"
-	pkgerrors "github.com/krivolapovdev/trenerio/internal/shared/errors"
-	"github.com/krivolapovdev/trenerio/internal/shared/response"
+	authmodel "github.com/krivolapovdev/trenerio/internal/modules/auth/model"
+	authsvc "github.com/krivolapovdev/trenerio/internal/modules/auth/service"
+	authhttp "github.com/krivolapovdev/trenerio/internal/modules/auth/transport/http"
+	userhttp "github.com/krivolapovdev/trenerio/internal/modules/user/transport/http"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -24,7 +26,7 @@ func init() {
 }
 
 func TestSwaggerEndpoint(t *testing.T) {
-	tokenProvider := auth.NewTokenProvider("super-secret-key-32-bytes-long!", time.Hour, 24*time.Hour, "reviewer-key")
+	tokenProvider := authsvc.NewTokenProvider("super-secret-key-32-bytes-long!", time.Hour, 24*time.Hour, "reviewer-key")
 	srv := NewServer(tokenProvider, []string{"*"}, nil, nil, nil, nil, nil, nil, nil, nil)
 
 	w := httptest.NewRecorder()
@@ -37,7 +39,7 @@ func TestSwaggerEndpoint(t *testing.T) {
 }
 
 func TestHealthEndpoint(t *testing.T) {
-	tokenProvider := auth.NewTokenProvider("super-secret-key-32-bytes-long!", time.Hour, 24*time.Hour, "reviewer-key")
+	tokenProvider := authsvc.NewTokenProvider("super-secret-key-32-bytes-long!", time.Hour, 24*time.Hour, "reviewer-key")
 	srv := NewServer(tokenProvider, []string{"*"}, nil, nil, nil, nil, nil, nil, nil, nil)
 
 	w := httptest.NewRecorder()
@@ -49,7 +51,7 @@ func TestHealthEndpoint(t *testing.T) {
 }
 
 func TestNoRouteAndNoMethod(t *testing.T) {
-	tokenProvider := auth.NewTokenProvider("super-secret-key-32-bytes-long!", time.Hour, 24*time.Hour, "reviewer-key")
+	tokenProvider := authsvc.NewTokenProvider("super-secret-key-32-bytes-long!", time.Hour, 24*time.Hour, "reviewer-key")
 	srv := NewServer(tokenProvider, []string{"*"}, nil, nil, nil, nil, nil, nil, nil, nil)
 
 	t.Run("NotFoundRoute", func(t *testing.T) {
@@ -99,7 +101,7 @@ func (m *testAuthService) LoginReviewer(ctx context.Context, reviewerKey string)
 }
 
 type testUserService struct {
-	deleteUserFn func(ctx context.Context, jwtUser auth.JwtUser) error
+	deleteUserFn func(ctx context.Context, jwtUser authmodel.JwtUser) error
 }
 
 func (m *testUserService) GetOrCreateUserFromOAuth2(ctx context.Context, provider db.UsersModuleOauth2Provider, providerID, email string) (response.UserResponse, error) {
@@ -110,7 +112,7 @@ func (m *testUserService) ExistsByID(ctx context.Context, id uuid.UUID) (bool, e
 	return true, nil
 }
 
-func (m *testUserService) DeleteUser(ctx context.Context, jwtUser auth.JwtUser) error {
+func (m *testUserService) DeleteUser(ctx context.Context, jwtUser authmodel.JwtUser) error {
 	if m.deleteUserFn != nil {
 		return m.deleteUserFn(ctx, jwtUser)
 	}
@@ -118,10 +120,10 @@ func (m *testUserService) DeleteUser(ctx context.Context, jwtUser auth.JwtUser) 
 }
 
 func TestServer_AuthAndProtectedRoutes(t *testing.T) {
-	tokenProvider := auth.NewTokenProvider("super-secret-key-32-bytes-long!", time.Hour, 24*time.Hour, "reviewer-key")
-	testUser := auth.JwtUser{ID: uuid.New(), Email: "test@trenerio.ru"}
+	tokenProvider := authsvc.NewTokenProvider("super-secret-key-32-bytes-long!", time.Hour, 24*time.Hour, "reviewer-key")
+	testUser := authmodel.JwtUser{ID: uuid.New(), Email: "test@trenerio.ru"}
 
-	authHandler := auth.NewHandler(&testAuthService{
+	authHandler := authhttp.NewHandler(&testAuthService{
 		loginReviewerFn: func(ctx context.Context, reviewerKey string) (response.LoginResponse, error) {
 			if reviewerKey == "valid-key" {
 				acc, ref, err := tokenProvider.GenerateTokenPair(testUser)
@@ -140,14 +142,14 @@ func TestServer_AuthAndProtectedRoutes(t *testing.T) {
 		},
 	})
 
-	userHandler := user.NewHandler(&testUserService{
-		deleteUserFn: func(ctx context.Context, u auth.JwtUser) error {
+	userHandler := userhttp.NewHandler(&testUserService{
+		deleteUserFn: func(ctx context.Context, u authmodel.JwtUser) error {
 			assert.Equal(t, testUser.ID, u.ID)
 			return nil
 		},
 	})
 
-	srv := NewServer(tokenProvider, []string{"https://trenerio.ru"}, auth.NewRouter(authHandler), user.NewRouter(userHandler), nil, nil, nil, nil, nil, nil)
+	srv := NewServer(tokenProvider, []string{"https://trenerio.ru"}, authHandler, userHandler, nil, nil, nil, nil, nil, nil)
 
 	t.Run("PublicRoute_ReviewerLogin_Success", func(t *testing.T) {
 		w := httptest.NewRecorder()
@@ -207,7 +209,7 @@ func TestServer_AuthAndProtectedRoutes(t *testing.T) {
 }
 
 func TestServer_MiddlewareIntegration(t *testing.T) {
-	tokenProvider := auth.NewTokenProvider("super-secret-key-32-bytes-long!", time.Hour, 24*time.Hour, "reviewer-key")
+	tokenProvider := authsvc.NewTokenProvider("super-secret-key-32-bytes-long!", time.Hour, 24*time.Hour, "reviewer-key")
 	srv := NewServer(tokenProvider, []string{"https://app.trenerio.ru"}, nil, nil, nil, nil, nil, nil, nil, nil)
 
 	t.Run("RequestIDMiddleware_PreservesCustomID", func(t *testing.T) {

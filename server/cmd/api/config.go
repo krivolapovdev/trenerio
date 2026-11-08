@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/krivolapovdev/trenerio/internal/shared/env"
+	"github.com/krivolapovdev/trenerio/internal/core/env"
 )
 
 const (

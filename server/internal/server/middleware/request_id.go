@@ -3,8 +3,8 @@ package middleware
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/krivolapovdev/trenerio/internal/shared/logger"
-	"github.com/krivolapovdev/trenerio/internal/shared/web"
+	"github.com/krivolapovdev/trenerio/internal/core/logger"
+	"github.com/krivolapovdev/trenerio/internal/core/web"
 )
 
 func RequestIDMiddleware() gin.HandlerFunc {

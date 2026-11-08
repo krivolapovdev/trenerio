@@ -6,8 +6,8 @@ import (
 	"runtime/debug"
 
 	"github.com/gin-gonic/gin"
-	pkgerrors "github.com/krivolapovdev/trenerio/internal/shared/errors"
-	"github.com/krivolapovdev/trenerio/internal/shared/logger"
+	pkgerrors "github.com/krivolapovdev/trenerio/internal/core/errors"
+	"github.com/krivolapovdev/trenerio/internal/core/logger"
 )
 
 func RecoveryMiddleware() gin.HandlerFunc {

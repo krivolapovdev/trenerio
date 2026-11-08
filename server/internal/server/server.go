@@ -4,10 +4,10 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/krivolapovdev/trenerio/internal/modules/auth"
+	pkgerrors "github.com/krivolapovdev/trenerio/internal/core/errors"
+	authsvc "github.com/krivolapovdev/trenerio/internal/modules/auth/service"
 	"github.com/krivolapovdev/trenerio/internal/server/middleware"
 	"github.com/krivolapovdev/trenerio/internal/server/swagger"
-	pkgerrors "github.com/krivolapovdev/trenerio/internal/shared/errors"
 )
 
 // RouteRegistrar defines a component capable of registering its routes onto a gin router group.
@@ -17,14 +17,14 @@ type RouteRegistrar interface {
 
 type Server struct {
 	engine        *gin.Engine
-	tokenProvider *auth.TokenProvider
+	tokenProvider *authsvc.TokenProvider
 
 	authRouter       RouteRegistrar
 	protectedRouters []RouteRegistrar
 }
 
 func NewServer(
-	tokenProvider *auth.TokenProvider,
+	tokenProvider *authsvc.TokenProvider,
 	allowedOrigins []string,
 	authRouter RouteRegistrar,
 	protectedRouters ...RouteRegistrar,

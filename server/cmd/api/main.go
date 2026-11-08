@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/krivolapovdev/trenerio/internal/shared/logger"
+	"github.com/krivolapovdev/trenerio/internal/core/logger"
 )
 
 // @title                       Trenerio API
