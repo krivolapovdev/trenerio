@@ -224,6 +224,19 @@ func TestAuthHandler_RefreshTokens(t *testing.T) {
 		assert.Equal(t, "new-refresh-token", resp.RefreshToken)
 	})
 
+	t.Run("InvalidJSON", func(t *testing.T) {
+		svc := &mockAuthService{}
+		r := setupAuthRouter(svc)
+
+		req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/jwt/refresh", bytes.NewBufferString("{invalid-json"))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
+	})
+
 	t.Run("InvalidRefreshToken", func(t *testing.T) {
 		svc := &mockAuthService{
 			refreshTokensFn: func(ctx context.Context, refreshToken string) (authmodel.Tokens, error) {
@@ -240,5 +253,23 @@ func TestAuthHandler_RefreshTokens(t *testing.T) {
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
+	})
+
+	t.Run("InternalServerError", func(t *testing.T) {
+		svc := &mockAuthService{
+			refreshTokensFn: func(ctx context.Context, refreshToken string) (authmodel.Tokens, error) {
+				return authmodel.Tokens{}, assert.AnError
+			},
+		}
+
+		r := setupAuthRouter(svc)
+		body, _ := json.Marshal(map[string]string{"refreshToken": "any-token"})
+		req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/jwt/refresh", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusInternalServerError, w.Code)
 	})
 }

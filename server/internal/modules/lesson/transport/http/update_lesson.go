@@ -24,7 +24,7 @@ type UpdateLessonRequest struct {
 // @Param        lessonId  path      string               true  "Lesson ID"  Format(uuid)
 // @Param        body      body      UpdateLessonRequest  true  "Update lesson request"
 // @Success      200       {object}  LessonResponse
-// @Router       /api/v1/lessons/{lessonId} [put]
+// @Router       /api/v1/lessons/{lessonId} [patch]
 func (h *Handler) UpdateLesson(c *gin.Context) {
 	jwtUser, ok := authhttp.GetUserFromContext(c)
 	if !ok {

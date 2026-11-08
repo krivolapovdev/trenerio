@@ -85,4 +85,20 @@ func TestCorsMiddleware_WildcardAndDisallowedPreflight(t *testing.T) {
 		assert.Equal(t, http.StatusForbidden, w.Code)
 		assert.Empty(t, w.Header().Get("Access-Control-Allow-Origin"))
 	})
+
+	t.Run("EmptyAllowedOriginsAllowsAll", func(t *testing.T) {
+		r := gin.New()
+		r.Use(CorsMiddleware(nil))
+		r.GET("/api/test", func(c *gin.Context) {
+			c.String(http.StatusOK, "ok")
+		})
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/api/test", nil)
+		req.Header.Set("Origin", "https://any-domain.com")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, "https://any-domain.com", w.Header().Get("Access-Control-Allow-Origin"))
+	})
 }

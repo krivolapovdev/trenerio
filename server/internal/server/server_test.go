@@ -277,3 +277,12 @@ func TestServer_MiddlewareIntegration(t *testing.T) {
 		assert.Equal(t, "invalid test parameter", pd.Detail)
 	})
 }
+
+func TestServer_Run(t *testing.T) {
+	tokenProvider := authsvc.NewTokenProvider("super-secret-key-32-bytes-long!", time.Hour, 24*time.Hour, "reviewer-key")
+	srv := NewServer(tokenProvider, []string{"*"}, nil)
+
+	// An invalid address should immediately return an error without blocking
+	err := srv.Run("999.999.999.999:99999")
+	assert.Error(t, err)
+}

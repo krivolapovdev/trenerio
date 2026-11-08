@@ -27,16 +27,34 @@ func TestTransactionHandler_GetPaginatedTransactions(t *testing.T) {
 	})
 
 	t.Run("SuccessWithDefaults", func(t *testing.T) {
+		txID := uuid.New()
+		studentID := uuid.New()
+		studentName := "John Doe"
 		mockSvc := &mockTxService{
 			getPaginatedTransactionsFn: func(ctx context.Context, page, size int, ownerID uuid.UUID) (txmodel.PageTransaction, error) {
 				assert.Equal(t, 1, page)
 				assert.Equal(t, 20, size)
 				assert.Equal(t, testUser.ID, ownerID)
 				return txmodel.PageTransaction{
-					Number:        page,
-					Size:          size,
-					TotalElements: 1,
-					TotalPages:    1,
+					Number:           0,
+					Size:             size,
+					TotalElements:    25,
+					TotalPages:       2,
+					First:            true,
+					Last:             false,
+					NumberOfElements: 1,
+					Empty:            false,
+					Content: []txmodel.Transaction{
+						{
+							ID:     txID,
+							Amount: 1500,
+							Type:   txmodel.TransactionTypeIncome,
+							PaymentDetails: &txmodel.StudentPaymentDetails{
+								StudentID:   studentID,
+								StudentName: &studentName,
+							},
+						},
+					},
 				}, nil
 			},
 		}
@@ -50,7 +68,21 @@ func TestTransactionHandler_GetPaginatedTransactions(t *testing.T) {
 		var actual PageTransactionResponse
 		err := json.Unmarshal(w.Body.Bytes(), &actual)
 		require.NoError(t, err)
-		assert.Equal(t, 1, actual.Number)
+		assert.Equal(t, 0, actual.Number)
+		assert.Equal(t, 2, actual.TotalPages)
+		assert.Equal(t, int64(25), actual.TotalElements)
+		assert.True(t, actual.First)
+		assert.False(t, actual.Last)
+		assert.Len(t, actual.Content, 1)
+		assert.Equal(t, txID, actual.Content[0].ID)
+		assert.Equal(t, 1500.0, actual.Content[0].Amount)
+		require.NotNil(t, actual.Content[0].PaymentDetails)
+		assert.Equal(t, &studentName, actual.Content[0].PaymentDetails.StudentName)
+		require.NotNil(t, actual.Pageable)
+		assert.Equal(t, 20, actual.Pageable.PageSize)
+		assert.True(t, actual.Pageable.Paged)
+		require.NotNil(t, actual.Sort)
+		assert.True(t, actual.Sort.Sorted)
 	})
 
 	t.Run("SuccessWithQueryParams", func(t *testing.T) {

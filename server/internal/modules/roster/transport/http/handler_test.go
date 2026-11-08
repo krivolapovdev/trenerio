@@ -137,6 +137,21 @@ func TestRosterHandler_GetAllRosters(t *testing.T) {
 		assert.Equal(t, "Competition A", actual[0].Name)
 		assert.Equal(t, int64(3), actual[0].CountOfStudents)
 	})
+
+	t.Run("ServiceError", func(t *testing.T) {
+		mockSvc := &mockRosterService{
+			getAllRostersFn: func(ctx context.Context, ownerID uuid.UUID) ([]domain.Roster, error) {
+				return nil, assert.AnError
+			},
+		}
+
+		r := setupRosterRouter(mockSvc, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/rosters", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusInternalServerError, w.Code)
+	})
 }
 
 func TestRosterHandler_GetRosterByID(t *testing.T) {
@@ -174,6 +189,24 @@ func TestRosterHandler_GetRosterByID(t *testing.T) {
 		assert.Len(t, actual.Students, 1)
 	})
 
+	t.Run("Unauthorized", func(t *testing.T) {
+		r := setupRosterRouter(&mockRosterService{}, authmodel.JwtUser{})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/rosters/"+rosterID.String(), nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("InvalidRosterID", func(t *testing.T) {
+		r := setupRosterRouter(&mockRosterService{}, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/rosters/not-a-uuid", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
+	})
+
 	t.Run("NotFound", func(t *testing.T) {
 		mockSvc := &mockRosterService{
 			getRosterByIDFn: func(ctx context.Context, rID, ownerID uuid.UUID) (domain.Roster, error) {
@@ -187,6 +220,100 @@ func TestRosterHandler_GetRosterByID(t *testing.T) {
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, nethttp.StatusNotFound, w.Code)
+	})
+
+	t.Run("InternalServerError", func(t *testing.T) {
+		mockSvc := &mockRosterService{
+			getRosterByIDFn: func(ctx context.Context, rID, ownerID uuid.UUID) (domain.Roster, error) {
+				return domain.Roster{}, assert.AnError
+			},
+		}
+
+		r := setupRosterRouter(mockSvc, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/rosters/"+rosterID.String(), nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusInternalServerError, w.Code)
+	})
+}
+
+func TestRosterHandler_GetRosterStudents(t *testing.T) {
+	testUser := authmodel.JwtUser{ID: uuid.New(), Email: "coach@example.com"}
+	rosterID := uuid.New()
+
+	t.Run("Unauthorized", func(t *testing.T) {
+		r := setupRosterRouter(&mockRosterService{}, authmodel.JwtUser{})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/rosters/"+rosterID.String()+"/students", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("InvalidRosterID", func(t *testing.T) {
+		r := setupRosterRouter(&mockRosterService{}, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/rosters/invalid-id/students", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
+	})
+
+	t.Run("Success", func(t *testing.T) {
+		expectedStudents := []studentmodel.Student{
+			{ID: uuid.New(), FullName: "Alice Smith"},
+			{ID: uuid.New(), FullName: "Bob Jones"},
+		}
+		mockSvc := &mockRosterService{
+			getRosterStudentsFn: func(ctx context.Context, rID, ownerID uuid.UUID) ([]studentmodel.Student, error) {
+				assert.Equal(t, rosterID, rID)
+				assert.Equal(t, testUser.ID, ownerID)
+				return expectedStudents, nil
+			},
+		}
+
+		r := setupRosterRouter(mockSvc, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/rosters/"+rosterID.String()+"/students", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusOK, w.Code)
+		var actual []StudentResponse
+		err := json.Unmarshal(w.Body.Bytes(), &actual)
+		require.NoError(t, err)
+		assert.Len(t, actual, 2)
+		assert.Equal(t, expectedStudents[0].FullName, actual[0].FullName)
+	})
+
+	t.Run("NotFound", func(t *testing.T) {
+		mockSvc := &mockRosterService{
+			getRosterStudentsFn: func(ctx context.Context, rID, ownerID uuid.UUID) ([]studentmodel.Student, error) {
+				return nil, pkgerrors.NewNotFound("Roster", rID, ownerID)
+			},
+		}
+
+		r := setupRosterRouter(mockSvc, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/rosters/"+rosterID.String()+"/students", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusNotFound, w.Code)
+	})
+
+	t.Run("InternalServerError", func(t *testing.T) {
+		mockSvc := &mockRosterService{
+			getRosterStudentsFn: func(ctx context.Context, rID, ownerID uuid.UUID) ([]studentmodel.Student, error) {
+				return nil, assert.AnError
+			},
+		}
+
+		r := setupRosterRouter(mockSvc, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/rosters/"+rosterID.String()+"/students", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusInternalServerError, w.Code)
 	})
 }
 
@@ -226,6 +353,16 @@ func TestRosterHandler_CreateRoster(t *testing.T) {
 		assert.Equal(t, nethttp.StatusCreated, w.Code)
 	})
 
+	t.Run("Unauthorized", func(t *testing.T) {
+		r := setupRosterRouter(&mockRosterService{}, authmodel.JwtUser{})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/rosters", bytes.NewBufferString(`{"name":"A"}`))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusUnauthorized, w.Code)
+	})
+
 	t.Run("Validation_BlankName", func(t *testing.T) {
 		reqBody := map[string]any{
 			"name": "   ",
@@ -239,11 +376,67 @@ func TestRosterHandler_CreateRoster(t *testing.T) {
 
 		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
 	})
+
+	t.Run("ServiceError", func(t *testing.T) {
+		mockSvc := &mockRosterService{
+			createRosterFn: func(ctx context.Context, rosterToCreate domain.Roster, studentIDs []uuid.UUID, ownerID uuid.UUID) (domain.Roster, error) {
+				return domain.Roster{}, assert.AnError
+			},
+		}
+
+		r := setupRosterRouter(mockSvc, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/rosters", bytes.NewBufferString(`{"name":"Valid Name"}`))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusInternalServerError, w.Code)
+	})
 }
 
 func TestRosterHandler_UpdateRoster(t *testing.T) {
 	testUser := authmodel.JwtUser{ID: uuid.New(), Email: "coach@example.com"}
 	rosterID := uuid.New()
+
+	t.Run("Unauthorized", func(t *testing.T) {
+		r := setupRosterRouter(&mockRosterService{}, authmodel.JwtUser{})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodPatch, "/api/v1/rosters/"+rosterID.String(), bytes.NewBufferString(`{"name":"Updated"}`))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("InvalidRosterID", func(t *testing.T) {
+		r := setupRosterRouter(&mockRosterService{}, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodPatch, "/api/v1/rosters/bad-id", bytes.NewBufferString(`{"name":"Updated"}`))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
+	})
+
+	t.Run("InvalidJSON", func(t *testing.T) {
+		r := setupRosterRouter(&mockRosterService{}, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodPatch, "/api/v1/rosters/"+rosterID.String(), bytes.NewBufferString(`{bad-json`))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
+	})
+
+	t.Run("Validation_BlankName", func(t *testing.T) {
+		r := setupRosterRouter(&mockRosterService{}, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodPatch, "/api/v1/rosters/"+rosterID.String(), bytes.NewBufferString(`{"name":"   "}`))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
+	})
 
 	t.Run("Success", func(t *testing.T) {
 		mockSvc := &mockRosterService{
@@ -267,11 +460,61 @@ func TestRosterHandler_UpdateRoster(t *testing.T) {
 
 		assert.Equal(t, nethttp.StatusOK, w.Code)
 	})
+
+	t.Run("NotFound", func(t *testing.T) {
+		mockSvc := &mockRosterService{
+			updateRosterFn: func(ctx context.Context, rID, ownerID uuid.UUID, updates map[string]any) (domain.Roster, error) {
+				return domain.Roster{}, pkgerrors.NewNotFound("Roster", rID, ownerID)
+			},
+		}
+
+		r := setupRosterRouter(mockSvc, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodPatch, "/api/v1/rosters/"+rosterID.String(), bytes.NewBufferString(`{"name":"Valid Name"}`))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusNotFound, w.Code)
+	})
+
+	t.Run("InternalServerError", func(t *testing.T) {
+		mockSvc := &mockRosterService{
+			updateRosterFn: func(ctx context.Context, rID, ownerID uuid.UUID, updates map[string]any) (domain.Roster, error) {
+				return domain.Roster{}, assert.AnError
+			},
+		}
+
+		r := setupRosterRouter(mockSvc, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodPatch, "/api/v1/rosters/"+rosterID.String(), bytes.NewBufferString(`{"name":"Valid Name"}`))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusInternalServerError, w.Code)
+	})
 }
 
 func TestRosterHandler_DeleteRoster(t *testing.T) {
 	testUser := authmodel.JwtUser{ID: uuid.New(), Email: "coach@example.com"}
 	rosterID := uuid.New()
+
+	t.Run("Unauthorized", func(t *testing.T) {
+		r := setupRosterRouter(&mockRosterService{}, authmodel.JwtUser{})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodDelete, "/api/v1/rosters/"+rosterID.String(), nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("InvalidRosterID", func(t *testing.T) {
+		r := setupRosterRouter(&mockRosterService{}, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodDelete, "/api/v1/rosters/invalid-id", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
+	})
 
 	t.Run("Success", func(t *testing.T) {
 		mockSvc := &mockRosterService{
@@ -288,12 +531,92 @@ func TestRosterHandler_DeleteRoster(t *testing.T) {
 
 		assert.Equal(t, nethttp.StatusNoContent, w.Code)
 	})
+
+	t.Run("NotFound", func(t *testing.T) {
+		mockSvc := &mockRosterService{
+			deleteRosterFn: func(ctx context.Context, rID, ownerID uuid.UUID) error {
+				return pkgerrors.NewNotFound("Roster", rID, ownerID)
+			},
+		}
+
+		r := setupRosterRouter(mockSvc, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodDelete, "/api/v1/rosters/"+rosterID.String(), nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusNotFound, w.Code)
+	})
+
+	t.Run("InternalServerError", func(t *testing.T) {
+		mockSvc := &mockRosterService{
+			deleteRosterFn: func(ctx context.Context, rID, ownerID uuid.UUID) error {
+				return assert.AnError
+			},
+		}
+
+		r := setupRosterRouter(mockSvc, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodDelete, "/api/v1/rosters/"+rosterID.String(), nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusInternalServerError, w.Code)
+	})
 }
 
 func TestRosterHandler_AddAndRemoveStudents(t *testing.T) {
 	testUser := authmodel.JwtUser{ID: uuid.New(), Email: "coach@example.com"}
 	rosterID := uuid.New()
 	studentID := uuid.New()
+
+	t.Run("AddStudents_Unauthorized", func(t *testing.T) {
+		r := setupRosterRouter(&mockRosterService{}, authmodel.JwtUser{})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/rosters/"+rosterID.String()+"/students", bytes.NewBufferString(`{"studentIds":["`+studentID.String()+`"]}`))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("AddStudents_InvalidRosterID", func(t *testing.T) {
+		r := setupRosterRouter(&mockRosterService{}, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/rosters/bad-id/students", bytes.NewBufferString(`{"studentIds":["`+studentID.String()+`"]}`))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
+	})
+
+	t.Run("AddStudents_InvalidJSON", func(t *testing.T) {
+		r := setupRosterRouter(&mockRosterService{}, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/rosters/"+rosterID.String()+"/students", bytes.NewBufferString(`{bad`))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
+	})
+
+	t.Run("AddStudents_ServiceError", func(t *testing.T) {
+		mockSvc := &mockRosterService{
+			addStudentsFn: func(ctx context.Context, rID, ownerID uuid.UUID, studentIDs []uuid.UUID, note *string) (domain.Roster, error) {
+				return domain.Roster{}, assert.AnError
+			},
+		}
+
+		reqBody := AddRosterStudentsRequest{
+			StudentIds: []uuid.UUID{studentID},
+		}
+		bodyBytes, _ := json.Marshal(reqBody)
+		r := setupRosterRouter(mockSvc, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/rosters/"+rosterID.String()+"/students", bytes.NewReader(bodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusInternalServerError, w.Code)
+	})
 
 	t.Run("AddStudents_Success", func(t *testing.T) {
 		mockSvc := &mockRosterService{
@@ -321,6 +644,48 @@ func TestRosterHandler_AddAndRemoveStudents(t *testing.T) {
 		assert.Equal(t, nethttp.StatusOK, w.Code)
 	})
 
+	t.Run("RemoveStudent_Unauthorized", func(t *testing.T) {
+		r := setupRosterRouter(&mockRosterService{}, authmodel.JwtUser{})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodDelete, "/api/v1/rosters/"+rosterID.String()+"/students/"+studentID.String(), nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("RemoveStudent_InvalidRosterID", func(t *testing.T) {
+		r := setupRosterRouter(&mockRosterService{}, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodDelete, "/api/v1/rosters/bad-id/students/"+studentID.String(), nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
+	})
+
+	t.Run("RemoveStudent_InvalidStudentID", func(t *testing.T) {
+		r := setupRosterRouter(&mockRosterService{}, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodDelete, "/api/v1/rosters/"+rosterID.String()+"/students/bad-id", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
+	})
+
+	t.Run("RemoveStudent_ServiceError", func(t *testing.T) {
+		mockSvc := &mockRosterService{
+			removeStudentFn: func(ctx context.Context, rID, sID, ownerID uuid.UUID) error {
+				return assert.AnError
+			},
+		}
+
+		r := setupRosterRouter(mockSvc, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodDelete, "/api/v1/rosters/"+rosterID.String()+"/students/"+studentID.String(), nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusInternalServerError, w.Code)
+	})
+
 	t.Run("RemoveStudent_Success", func(t *testing.T) {
 		mockSvc := &mockRosterService{
 			removeStudentFn: func(ctx context.Context, rID, sID, ownerID uuid.UUID) error {
@@ -336,6 +701,62 @@ func TestRosterHandler_AddAndRemoveStudents(t *testing.T) {
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, nethttp.StatusNoContent, w.Code)
+	})
+
+	t.Run("UpdateStudentNote_Unauthorized", func(t *testing.T) {
+		r := setupRosterRouter(&mockRosterService{}, authmodel.JwtUser{})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodPatch, "/api/v1/rosters/"+rosterID.String()+"/students/"+studentID.String(), bytes.NewBufferString(`{"note":"new"}`))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("UpdateStudentNote_InvalidRosterID", func(t *testing.T) {
+		r := setupRosterRouter(&mockRosterService{}, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodPatch, "/api/v1/rosters/bad-id/students/"+studentID.String(), bytes.NewBufferString(`{"note":"new"}`))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
+	})
+
+	t.Run("UpdateStudentNote_InvalidStudentID", func(t *testing.T) {
+		r := setupRosterRouter(&mockRosterService{}, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodPatch, "/api/v1/rosters/"+rosterID.String()+"/students/bad-id", bytes.NewBufferString(`{"note":"new"}`))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
+	})
+
+	t.Run("UpdateStudentNote_InvalidJSON", func(t *testing.T) {
+		r := setupRosterRouter(&mockRosterService{}, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodPatch, "/api/v1/rosters/"+rosterID.String()+"/students/"+studentID.String(), bytes.NewBufferString(`{bad`))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
+	})
+
+	t.Run("UpdateStudentNote_ServiceError", func(t *testing.T) {
+		mockSvc := &mockRosterService{
+			updateParticipantNoteFn: func(ctx context.Context, rID, sID, ownerID uuid.UUID, note *string) error {
+				return assert.AnError
+			},
+		}
+
+		r := setupRosterRouter(mockSvc, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodPatch, "/api/v1/rosters/"+rosterID.String()+"/students/"+studentID.String(), bytes.NewBufferString(`{"note":"new"}`))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusInternalServerError, w.Code)
 	})
 
 	t.Run("UpdateStudentNote_Success", func(t *testing.T) {

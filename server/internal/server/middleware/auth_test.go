@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	pkgerrors "github.com/krivolapovdev/trenerio/internal/core/errors"
 	authmodel "github.com/krivolapovdev/trenerio/internal/modules/auth/domain"
@@ -43,6 +44,34 @@ func TestAuthMiddleware(t *testing.T) {
 			"id":    u.ID.String(),
 			"email": u.Email,
 		})
+	})
+
+	t.Run("EmptyBearerToken", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+		req.Header.Set("Authorization", "Bearer    ")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("ValidTokenWithInvalidSubjectUUID", func(t *testing.T) {
+		claims := jwt.MapClaims{
+			"sub":   "not-a-valid-uuid",
+			"type":  "ACCESS",
+			"email": "teacher@trenerio.ru",
+			"exp":   time.Now().Add(time.Hour).Unix(),
+		}
+		rawToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+		signedToken, err := rawToken.SignedString([]byte("super-secret-key-32-bytes-long!"))
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+		req.Header.Set("Authorization", "Bearer "+signedToken)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 
 	t.Run("MissingAuthorizationHeader", func(t *testing.T) {

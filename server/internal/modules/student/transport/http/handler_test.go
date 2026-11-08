@@ -149,6 +149,16 @@ func TestStudentHandler_GetAllStudentsSummary(t *testing.T) {
 func TestStudentHandler_CreateStudent(t *testing.T) {
 	testUser := authmodel.JwtUser{ID: uuid.New(), Email: "coach@trenerio.ru"}
 
+	t.Run("Unauthorized", func(t *testing.T) {
+		r := setupStudentRouter(&mockStudentService{}, authmodel.JwtUser{})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/students", bytes.NewBufferString(`{"fullName":"Anna Smith"}`))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusUnauthorized, w.Code)
+	})
+
 	t.Run("Success", func(t *testing.T) {
 		expectedID := uuid.New()
 		mockSvc := &mockStudentService{
@@ -190,6 +200,17 @@ func TestStudentHandler_CreateStudent(t *testing.T) {
 		r := setupStudentRouter(&mockStudentService{}, testUser)
 		w := httptest.NewRecorder()
 		req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/students", bytes.NewBufferString(`{"fullName":"   "}`))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
+	})
+
+	t.Run("FullNameExceeds255", func(t *testing.T) {
+		r := setupStudentRouter(&mockStudentService{}, testUser)
+		w := httptest.NewRecorder()
+		longName := strings.Repeat("A", 256)
+		req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/students", bytes.NewBufferString(`{"fullName":"`+longName+`"}`))
 		req.Header.Set("Content-Type", "application/json")
 		r.ServeHTTP(w, req)
 
@@ -266,6 +287,15 @@ func TestStudentHandler_CreateStudent(t *testing.T) {
 func TestStudentHandler_DeleteStudent(t *testing.T) {
 	testUser := authmodel.JwtUser{ID: uuid.New(), Email: "coach@trenerio.ru"}
 
+	t.Run("Unauthorized", func(t *testing.T) {
+		r := setupStudentRouter(&mockStudentService{}, authmodel.JwtUser{})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodDelete, "/api/v1/students/"+uuid.New().String(), nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusUnauthorized, w.Code)
+	})
+
 	t.Run("InvalidUUID", func(t *testing.T) {
 		r := setupStudentRouter(&mockStudentService{}, testUser)
 		w := httptest.NewRecorder()
@@ -330,6 +360,15 @@ func TestStudentHandler_GetStudentVisits(t *testing.T) {
 	testUser := authmodel.JwtUser{ID: uuid.New(), Email: "coach@trenerio.ru"}
 	studentID := uuid.New()
 
+	t.Run("Unauthorized", func(t *testing.T) {
+		r := setupStudentRouter(&mockStudentService{}, authmodel.JwtUser{})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/students/"+studentID.String()+"/visits", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusUnauthorized, w.Code)
+	})
+
 	t.Run("InvalidStudentID", func(t *testing.T) {
 		r := setupStudentRouter(&mockStudentService{}, testUser)
 		w := httptest.NewRecorder()
@@ -343,6 +382,15 @@ func TestStudentHandler_GetStudentVisits(t *testing.T) {
 		r := setupStudentRouter(&mockStudentService{}, testUser)
 		w := httptest.NewRecorder()
 		req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/students/"+studentID.String()+"/visits?from=not-a-date", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
+	})
+
+	t.Run("InvalidToDateFormat", func(t *testing.T) {
+		r := setupStudentRouter(&mockStudentService{}, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/students/"+studentID.String()+"/visits?to=not-a-date", nil)
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
@@ -415,6 +463,15 @@ func TestStudentHandler_GetStudentPayments(t *testing.T) {
 	testUser := authmodel.JwtUser{ID: uuid.New(), Email: "coach@trenerio.ru"}
 	studentID := uuid.New()
 
+	t.Run("Unauthorized", func(t *testing.T) {
+		r := setupStudentRouter(&mockStudentService{}, authmodel.JwtUser{})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/students/"+studentID.String()+"/payments", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusUnauthorized, w.Code)
+	})
+
 	t.Run("InvalidStudentID", func(t *testing.T) {
 		r := setupStudentRouter(&mockStudentService{}, testUser)
 		w := httptest.NewRecorder()
@@ -460,6 +517,16 @@ func TestStudentHandler_GetStudentPayments(t *testing.T) {
 func TestStudentHandler_CreateStudentPayment(t *testing.T) {
 	testUser := authmodel.JwtUser{ID: uuid.New(), Email: "coach@trenerio.ru"}
 	studentID := uuid.New()
+
+	t.Run("Unauthorized", func(t *testing.T) {
+		r := setupStudentRouter(&mockStudentService{}, authmodel.JwtUser{})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/students/"+studentID.String()+"/payments", bytes.NewBufferString(`{}`))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusUnauthorized, w.Code)
+	})
 
 	t.Run("InvalidStudentID", func(t *testing.T) {
 		r := setupStudentRouter(&mockStudentService{}, testUser)
@@ -573,6 +640,16 @@ func TestStudentHandler_UpdateStudent(t *testing.T) {
 	testUser := authmodel.JwtUser{ID: uuid.New(), Email: "coach@trenerio.ru"}
 	studentID := uuid.New()
 
+	t.Run("Unauthorized", func(t *testing.T) {
+		r := setupStudentRouter(&mockStudentService{}, authmodel.JwtUser{})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodPatch, "/api/v1/students/"+studentID.String(), bytes.NewBufferString(`{"fullName":"Boris"}`))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusUnauthorized, w.Code)
+	})
+
 	t.Run("InvalidStudentID", func(t *testing.T) {
 		r := setupStudentRouter(&mockStudentService{}, testUser)
 		w := httptest.NewRecorder()
@@ -597,6 +674,17 @@ func TestStudentHandler_UpdateStudent(t *testing.T) {
 		r := setupStudentRouter(&mockStudentService{}, testUser)
 		w := httptest.NewRecorder()
 		req := httptest.NewRequest(nethttp.MethodPatch, "/api/v1/students/"+studentID.String(), bytes.NewBufferString(`{"fullName":"   "}`))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
+	})
+
+	t.Run("FullNameExceeds255", func(t *testing.T) {
+		r := setupStudentRouter(&mockStudentService{}, testUser)
+		w := httptest.NewRecorder()
+		longName := strings.Repeat("B", 256)
+		req := httptest.NewRequest(nethttp.MethodPatch, "/api/v1/students/"+studentID.String(), bytes.NewBufferString(`{"fullName":"`+longName+`"}`))
 		req.Header.Set("Content-Type", "application/json")
 		r.ServeHTTP(w, req)
 

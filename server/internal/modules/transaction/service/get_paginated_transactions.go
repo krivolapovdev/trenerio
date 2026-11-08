@@ -77,9 +77,12 @@ func (s *Service) GetPaginatedTransactions(ctx context.Context, page, size int, 
 	}
 
 	totalPages := 0
+	if size > 0 {
+		totalPages = int((totalElements + int64(size) - 1) / int64(size))
+	}
 	numberOfElements := len(transactions)
 	isFirst := pageIndex == 0
-	isLast := true
+	isLast := pageIndex >= totalPages-1 || totalPages == 0
 
 	logger.InfoContext(ctx, "Retrieved paginated transactions",
 		"page", page,

@@ -149,10 +149,32 @@ func TestLessonHandler_GetLessonDetails(t *testing.T) {
 func TestLessonHandler_CreateLesson(t *testing.T) {
 	testUser := authmodel.JwtUser{ID: uuid.New(), Email: "coach@example.com"}
 
+	t.Run("Unauthorized", func(t *testing.T) {
+		r := setupLessonRouter(&mockLessonService{}, authmodel.JwtUser{})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/lessons", bytes.NewBufferString(`{"date":"2026-10-17T10:00:00Z"}`))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusUnauthorized, w.Code)
+	})
+
 	t.Run("InvalidJSON", func(t *testing.T) {
 		r := setupLessonRouter(&mockLessonService{}, testUser)
 		w := httptest.NewRecorder()
 		req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/lessons", bytes.NewBufferString(`{invalid`))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
+	})
+
+	t.Run("FutureDate", func(t *testing.T) {
+		futureDate := time.Now().UTC().Add(48 * time.Hour)
+		r := setupLessonRouter(&mockLessonService{}, testUser)
+		w := httptest.NewRecorder()
+		payload := `{"date":"` + futureDate.Format(time.RFC3339) + `"}`
+		req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/lessons", bytes.NewBufferString(payload))
 		req.Header.Set("Content-Type", "application/json")
 		r.ServeHTTP(w, req)
 
@@ -214,6 +236,16 @@ func TestLessonHandler_UpdateLesson(t *testing.T) {
 	testUser := authmodel.JwtUser{ID: uuid.New(), Email: "coach@example.com"}
 	lessonID := uuid.New()
 
+	t.Run("Unauthorized", func(t *testing.T) {
+		r := setupLessonRouter(&mockLessonService{}, authmodel.JwtUser{})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodPatch, "/api/v1/lessons/"+lessonID.String(), bytes.NewBufferString(`{}`))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusUnauthorized, w.Code)
+	})
+
 	t.Run("InvalidLessonID", func(t *testing.T) {
 		r := setupLessonRouter(&mockLessonService{}, testUser)
 		w := httptest.NewRecorder()
@@ -232,6 +264,37 @@ func TestLessonHandler_UpdateLesson(t *testing.T) {
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
+	})
+
+	t.Run("FutureDate", func(t *testing.T) {
+		futureDate := time.Now().UTC().Add(48 * time.Hour)
+		r := setupLessonRouter(&mockLessonService{}, testUser)
+		w := httptest.NewRecorder()
+		payload := `{"date":"` + futureDate.Format(time.RFC3339) + `"}`
+		req := httptest.NewRequest(nethttp.MethodPatch, "/api/v1/lessons/"+lessonID.String(), bytes.NewBufferString(payload))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
+	})
+
+	t.Run("Success_WithoutDate", func(t *testing.T) {
+		mockSvc := &mockLessonService{
+			updateLessonFn: func(ctx context.Context, lID, ownerID uuid.UUID, date *time.Time, studentVisits []visitmodel.StudentVisit) (domain.Lesson, error) {
+				assert.Equal(t, lessonID, lID)
+				assert.Equal(t, testUser.ID, ownerID)
+				assert.Nil(t, date)
+				return domain.Lesson{ID: lessonID}, nil
+			},
+		}
+
+		r := setupLessonRouter(mockSvc, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodPatch, "/api/v1/lessons/"+lessonID.String(), bytes.NewBufferString(`{"students":[]}`))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusOK, w.Code)
 	})
 
 	t.Run("Success", func(t *testing.T) {
@@ -292,6 +355,15 @@ func TestLessonHandler_UpdateLesson(t *testing.T) {
 func TestLessonHandler_DeleteLesson(t *testing.T) {
 	testUser := authmodel.JwtUser{ID: uuid.New(), Email: "coach@example.com"}
 	lessonID := uuid.New()
+
+	t.Run("Unauthorized", func(t *testing.T) {
+		r := setupLessonRouter(&mockLessonService{}, authmodel.JwtUser{})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodDelete, "/api/v1/lessons/"+lessonID.String(), nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusUnauthorized, w.Code)
+	})
 
 	t.Run("InvalidLessonID", func(t *testing.T) {
 		r := setupLessonRouter(&mockLessonService{}, testUser)

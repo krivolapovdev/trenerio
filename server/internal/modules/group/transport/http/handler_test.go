@@ -159,6 +159,15 @@ func TestGroupHandler_GetGroupStudents(t *testing.T) {
 	testUser := authmodel.JwtUser{ID: uuid.New(), Email: "coach@example.com"}
 	groupID := uuid.New()
 
+	t.Run("Unauthorized", func(t *testing.T) {
+		r := setupGroupRouter(&mockGroupService{}, authmodel.JwtUser{})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/groups/"+groupID.String()+"/students", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusUnauthorized, w.Code)
+	})
+
 	t.Run("InvalidGroupID", func(t *testing.T) {
 		r := setupGroupRouter(&mockGroupService{}, testUser)
 		w := httptest.NewRecorder()
@@ -222,6 +231,24 @@ func TestGroupHandler_GetGroupLessons(t *testing.T) {
 	testUser := authmodel.JwtUser{ID: uuid.New(), Email: "coach@example.com"}
 	groupID := uuid.New()
 
+	t.Run("Unauthorized", func(t *testing.T) {
+		r := setupGroupRouter(&mockGroupService{}, authmodel.JwtUser{})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/groups/"+groupID.String()+"/lessons?from=2026-01-01T00:00:00Z&to=2026-01-31T23:59:59Z", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("InvalidGroupID", func(t *testing.T) {
+		r := setupGroupRouter(&mockGroupService{}, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/groups/invalid-uuid/lessons?from=2026-01-01T00:00:00Z&to=2026-01-31T23:59:59Z", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
+	})
+
 	t.Run("MissingQueryParams", func(t *testing.T) {
 		r := setupGroupRouter(&mockGroupService{}, testUser)
 		w := httptest.NewRecorder()
@@ -281,6 +308,24 @@ func TestGroupHandler_GetGroupLessons(t *testing.T) {
 func TestGroupHandler_GetGroupReport(t *testing.T) {
 	testUser := authmodel.JwtUser{ID: uuid.New(), Email: "coach@example.com"}
 	groupID := uuid.New()
+
+	t.Run("Unauthorized", func(t *testing.T) {
+		r := setupGroupRouter(&mockGroupService{}, authmodel.JwtUser{})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/groups/"+groupID.String()+"/report?year=2026&month=10", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("InvalidGroupID", func(t *testing.T) {
+		r := setupGroupRouter(&mockGroupService{}, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/groups/bad-uuid/report?year=2026&month=10", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
+	})
 
 	t.Run("MissingParams", func(t *testing.T) {
 		r := setupGroupRouter(&mockGroupService{}, testUser)
@@ -354,6 +399,16 @@ func TestGroupHandler_GetGroupReport(t *testing.T) {
 func TestGroupHandler_CreateGroup(t *testing.T) {
 	testUser := authmodel.JwtUser{ID: uuid.New(), Email: "coach@example.com"}
 
+	t.Run("Unauthorized", func(t *testing.T) {
+		r := setupGroupRouter(&mockGroupService{}, authmodel.JwtUser{})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/groups", bytes.NewBufferString(`{"name":"Advanced"}`))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusUnauthorized, w.Code)
+	})
+
 	t.Run("InvalidJSON", func(t *testing.T) {
 		r := setupGroupRouter(&mockGroupService{}, testUser)
 		w := httptest.NewRecorder()
@@ -402,6 +457,17 @@ func TestGroupHandler_CreateGroup(t *testing.T) {
 		r := setupGroupRouter(&mockGroupService{}, testUser)
 		w := httptest.NewRecorder()
 		req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/groups", bytes.NewBufferString(`{"name":"   "}`))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
+	})
+
+	t.Run("NameExceeds255", func(t *testing.T) {
+		r := setupGroupRouter(&mockGroupService{}, testUser)
+		w := httptest.NewRecorder()
+		body, _ := json.Marshal(map[string]string{"name": string(bytes.Repeat([]byte("a"), 256))})
+		req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/groups", bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
 		r.ServeHTTP(w, req)
 
@@ -502,6 +568,16 @@ func TestGroupHandler_UpdateGroup(t *testing.T) {
 	testUser := authmodel.JwtUser{ID: uuid.New(), Email: "coach@example.com"}
 	groupID := uuid.New()
 
+	t.Run("Unauthorized", func(t *testing.T) {
+		r := setupGroupRouter(&mockGroupService{}, authmodel.JwtUser{})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodPatch, "/api/v1/groups/"+groupID.String(), bytes.NewBufferString(`{"name":"New"}`))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusUnauthorized, w.Code)
+	})
+
 	t.Run("InvalidGroupID", func(t *testing.T) {
 		r := setupGroupRouter(&mockGroupService{}, testUser)
 		w := httptest.NewRecorder()
@@ -550,6 +626,17 @@ func TestGroupHandler_UpdateGroup(t *testing.T) {
 		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
 	})
 
+	t.Run("NameExceeds255", func(t *testing.T) {
+		r := setupGroupRouter(&mockGroupService{}, testUser)
+		w := httptest.NewRecorder()
+		body, _ := json.Marshal(map[string]string{"name": string(bytes.Repeat([]byte("a"), 256))})
+		req := httptest.NewRequest(nethttp.MethodPatch, "/api/v1/groups/"+groupID.String(), bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
+	})
+
 	t.Run("TrimmedData", func(t *testing.T) {
 		mockSvc := &mockGroupService{
 			updateGroupFn: func(ctx context.Context, gID, ownerID uuid.UUID, updates map[string]any) (groupmodel.Group, error) {
@@ -589,6 +676,15 @@ func TestGroupHandler_UpdateGroup(t *testing.T) {
 func TestGroupHandler_DeleteGroup(t *testing.T) {
 	testUser := authmodel.JwtUser{ID: uuid.New(), Email: "coach@example.com"}
 	groupID := uuid.New()
+
+	t.Run("Unauthorized", func(t *testing.T) {
+		r := setupGroupRouter(&mockGroupService{}, authmodel.JwtUser{})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodDelete, "/api/v1/groups/"+groupID.String(), nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusUnauthorized, w.Code)
+	})
 
 	t.Run("InvalidGroupID", func(t *testing.T) {
 		r := setupGroupRouter(&mockGroupService{}, testUser)

@@ -18,6 +18,16 @@ func TestTransactionHandler_UpdateTransaction(t *testing.T) {
 	testUser := authmodel.JwtUser{ID: uuid.New(), Email: "coach@example.com"}
 	txID := uuid.New()
 
+	t.Run("Unauthorized", func(t *testing.T) {
+		r := setupTxRouter(&mockTxService{}, authmodel.JwtUser{})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodPatch, "/api/v1/transactions/"+txID.String(), bytes.NewBufferString(`{"amount":3000.0}`))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusUnauthorized, w.Code)
+	})
+
 	t.Run("InvalidTxID", func(t *testing.T) {
 		r := setupTxRouter(&mockTxService{}, testUser)
 		w := httptest.NewRecorder()
