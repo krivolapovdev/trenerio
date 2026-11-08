@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	authmodel "github.com/krivolapovdev/trenerio/internal/modules/auth/model"
-	txmodel "github.com/krivolapovdev/trenerio/internal/modules/transaction/model"
+	authmodel "github.com/krivolapovdev/trenerio/internal/modules/auth/domain"
+	txmodel "github.com/krivolapovdev/trenerio/internal/modules/transaction/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -34,10 +34,10 @@ func TestTransactionHandler_CreateTransaction(t *testing.T) {
 		expectedID := uuid.New()
 
 		mockSvc := &mockTxService{
-			createTransactionFn: func(ctx context.Context, req CreateTransactionRequest, ownerID uuid.UUID) (TransactionResponse, error) {
+			createTransactionFn: func(ctx context.Context, txToCreate txmodel.Transaction, ownerID uuid.UUID) (txmodel.Transaction, error) {
 				assert.Equal(t, testUser.ID, ownerID)
-				assert.Equal(t, 2500.0, req.Amount)
-				return TransactionResponse{ID: expectedID, Amount: req.Amount}, nil
+				assert.Equal(t, 2500.0, txToCreate.Amount)
+				return txmodel.Transaction{ID: expectedID, Amount: txToCreate.Amount}, nil
 			},
 		}
 
@@ -61,19 +61,18 @@ func TestTransactionHandler_CreateTransaction(t *testing.T) {
 		expectedID := uuid.New()
 
 		mockSvc := &mockTxService{
-			createTransactionFn: func(ctx context.Context, req CreateTransactionRequest, ownerID uuid.UUID) (TransactionResponse, error) {
-				require.NotNil(t, req.PaymentDetails)
-				assert.Equal(t, studentID, req.PaymentDetails.StudentID)
-				assert.Nil(t, req.PaymentDetails.PaidUntil)
-				require.NotNil(t, req.PaymentDetails.SessionsAdded)
-				assert.Equal(t, int64(8), *req.PaymentDetails.SessionsAdded)
-				return TransactionResponse{
+			createTransactionFn: func(ctx context.Context, txToCreate txmodel.Transaction, ownerID uuid.UUID) (txmodel.Transaction, error) {
+				require.NotNil(t, txToCreate.PaymentDetails)
+				assert.Equal(t, studentID, txToCreate.PaymentDetails.StudentID)
+				assert.Nil(t, txToCreate.PaymentDetails.PaidUntil)
+				require.NotNil(t, txToCreate.PaymentDetails.SessionsAdded)
+				assert.Equal(t, int64(8), *txToCreate.PaymentDetails.SessionsAdded)
+				return txmodel.Transaction{
 					ID:     expectedID,
-					Amount: req.Amount,
-					PaymentDetails: &StudentPaymentDetailsResponse{
-						DetailsType:   txmodel.DetailsTypeStudent,
+					Amount: txToCreate.Amount,
+					PaymentDetails: &txmodel.StudentPaymentDetails{
 						StudentID:     studentID,
-						SessionsAdded: req.PaymentDetails.SessionsAdded,
+						SessionsAdded: txToCreate.PaymentDetails.SessionsAdded,
 					},
 				}, nil
 			},
@@ -96,19 +95,18 @@ func TestTransactionHandler_CreateTransaction(t *testing.T) {
 		expectedID := uuid.New()
 
 		mockSvc := &mockTxService{
-			createTransactionFn: func(ctx context.Context, req CreateTransactionRequest, ownerID uuid.UUID) (TransactionResponse, error) {
-				require.NotNil(t, req.PaymentDetails)
-				require.NotNil(t, req.PaymentDetails.PaidUntil)
-				require.NotNil(t, req.PaymentDetails.SessionsAdded)
-				assert.Equal(t, int64(4), *req.PaymentDetails.SessionsAdded)
-				return TransactionResponse{
+			createTransactionFn: func(ctx context.Context, txToCreate txmodel.Transaction, ownerID uuid.UUID) (txmodel.Transaction, error) {
+				require.NotNil(t, txToCreate.PaymentDetails)
+				require.NotNil(t, txToCreate.PaymentDetails.PaidUntil)
+				require.NotNil(t, txToCreate.PaymentDetails.SessionsAdded)
+				assert.Equal(t, int64(4), *txToCreate.PaymentDetails.SessionsAdded)
+				return txmodel.Transaction{
 					ID:     expectedID,
-					Amount: req.Amount,
-					PaymentDetails: &StudentPaymentDetailsResponse{
-						DetailsType:   txmodel.DetailsTypeStudent,
+					Amount: txToCreate.Amount,
+					PaymentDetails: &txmodel.StudentPaymentDetails{
 						StudentID:     studentID,
-						PaidUntil:     req.PaymentDetails.PaidUntil,
-						SessionsAdded: req.PaymentDetails.SessionsAdded,
+						PaidUntil:     txToCreate.PaymentDetails.PaidUntil,
+						SessionsAdded: txToCreate.PaymentDetails.SessionsAdded,
 					},
 				}, nil
 			},
@@ -150,8 +148,8 @@ func TestTransactionHandler_CreateTransaction(t *testing.T) {
 
 	t.Run("InternalServerError", func(t *testing.T) {
 		mockSvc := &mockTxService{
-			createTransactionFn: func(ctx context.Context, req CreateTransactionRequest, ownerID uuid.UUID) (TransactionResponse, error) {
-				return TransactionResponse{}, assert.AnError
+			createTransactionFn: func(ctx context.Context, txToCreate txmodel.Transaction, ownerID uuid.UUID) (txmodel.Transaction, error) {
+				return txmodel.Transaction{}, assert.AnError
 			},
 		}
 

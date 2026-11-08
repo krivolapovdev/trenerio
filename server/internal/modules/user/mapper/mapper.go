@@ -1,12 +1,12 @@
 package mapper
 
 import (
-	"github.com/krivolapovdev/trenerio/internal/core/response"
 	"github.com/krivolapovdev/trenerio/internal/db"
+	"github.com/krivolapovdev/trenerio/internal/modules/user/domain"
 )
 
-func ToUserResponse(u db.UsersModuleOauth2User) response.UserResponse {
-	return response.UserResponse{
+func ToUserModel(u db.UsersModuleOauth2User) domain.User {
+	return domain.User{
 		ID:    u.ID,
 		Email: u.Email,
 	}

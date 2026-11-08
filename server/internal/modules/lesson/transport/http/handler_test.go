@@ -13,47 +13,47 @@ import (
 	"github.com/google/uuid"
 	pkgerrors "github.com/krivolapovdev/trenerio/internal/core/errors"
 	"github.com/krivolapovdev/trenerio/internal/core/harness"
-	"github.com/krivolapovdev/trenerio/internal/core/response"
-	authmodel "github.com/krivolapovdev/trenerio/internal/modules/auth/model"
-	"github.com/krivolapovdev/trenerio/internal/modules/lesson/request"
+	authmodel "github.com/krivolapovdev/trenerio/internal/modules/auth/domain"
+	"github.com/krivolapovdev/trenerio/internal/modules/lesson/domain"
+	visitmodel "github.com/krivolapovdev/trenerio/internal/modules/visit/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 type mockLessonService struct {
-	getLessonByIDFn        func(ctx context.Context, lessonID, ownerID uuid.UUID) (response.LessonResponse, error)
-	getLessonDetailsByIDFn func(ctx context.Context, lessonID, ownerID uuid.UUID) (response.LessonDetailsResponse, error)
-	createLessonFn         func(ctx context.Context, req request.CreateLessonRequest, ownerID uuid.UUID) (response.LessonResponse, error)
-	updateLessonFn         func(ctx context.Context, lessonID, ownerID uuid.UUID, req request.UpdateLessonRequest) (response.LessonResponse, error)
+	getLessonByIDFn        func(ctx context.Context, lessonID, ownerID uuid.UUID) (domain.Lesson, error)
+	getLessonDetailsByIDFn func(ctx context.Context, lessonID, ownerID uuid.UUID) (domain.LessonDetails, error)
+	createLessonFn         func(ctx context.Context, groupID *uuid.UUID, date time.Time, studentVisits []visitmodel.StudentVisit, ownerID uuid.UUID) (domain.Lesson, error)
+	updateLessonFn         func(ctx context.Context, lessonID, ownerID uuid.UUID, date *time.Time, studentVisits []visitmodel.StudentVisit) (domain.Lesson, error)
 	deleteLessonFn         func(ctx context.Context, lessonID, ownerID uuid.UUID) error
 }
 
-func (m *mockLessonService) GetLessonByID(ctx context.Context, lessonID, ownerID uuid.UUID) (response.LessonResponse, error) {
+func (m *mockLessonService) GetLessonByID(ctx context.Context, lessonID, ownerID uuid.UUID) (domain.Lesson, error) {
 	if m.getLessonByIDFn != nil {
 		return m.getLessonByIDFn(ctx, lessonID, ownerID)
 	}
-	return response.LessonResponse{}, nil
+	return domain.Lesson{}, nil
 }
 
-func (m *mockLessonService) GetLessonDetailsByID(ctx context.Context, lessonID, ownerID uuid.UUID) (response.LessonDetailsResponse, error) {
+func (m *mockLessonService) GetLessonDetailsByID(ctx context.Context, lessonID, ownerID uuid.UUID) (domain.LessonDetails, error) {
 	if m.getLessonDetailsByIDFn != nil {
 		return m.getLessonDetailsByIDFn(ctx, lessonID, ownerID)
 	}
-	return response.LessonDetailsResponse{}, nil
+	return domain.LessonDetails{}, nil
 }
 
-func (m *mockLessonService) CreateLesson(ctx context.Context, req request.CreateLessonRequest, ownerID uuid.UUID) (response.LessonResponse, error) {
+func (m *mockLessonService) CreateLesson(ctx context.Context, groupID *uuid.UUID, date time.Time, studentVisits []visitmodel.StudentVisit, ownerID uuid.UUID) (domain.Lesson, error) {
 	if m.createLessonFn != nil {
-		return m.createLessonFn(ctx, req, ownerID)
+		return m.createLessonFn(ctx, groupID, date, studentVisits, ownerID)
 	}
-	return response.LessonResponse{}, nil
+	return domain.Lesson{}, nil
 }
 
-func (m *mockLessonService) UpdateLesson(ctx context.Context, lessonID, ownerID uuid.UUID, req request.UpdateLessonRequest) (response.LessonResponse, error) {
+func (m *mockLessonService) UpdateLesson(ctx context.Context, lessonID, ownerID uuid.UUID, date *time.Time, studentVisits []visitmodel.StudentVisit) (domain.Lesson, error) {
 	if m.updateLessonFn != nil {
-		return m.updateLessonFn(ctx, lessonID, ownerID, req)
+		return m.updateLessonFn(ctx, lessonID, ownerID, date, studentVisits)
 	}
-	return response.LessonResponse{}, nil
+	return domain.Lesson{}, nil
 }
 
 func (m *mockLessonService) DeleteLesson(ctx context.Context, lessonID, ownerID uuid.UUID) error {
@@ -61,14 +61,6 @@ func (m *mockLessonService) DeleteLesson(ctx context.Context, lessonID, ownerID 
 		return m.deleteLessonFn(ctx, lessonID, ownerID)
 	}
 	return nil
-}
-
-func (m *mockLessonService) GetLessonsByGroupIDAndDateRange(ctx context.Context, groupID, ownerID uuid.UUID, from, to time.Time) ([]response.LessonResponse, error) {
-	return nil, nil
-}
-
-func (m *mockLessonService) GetLessonsByIDs(ctx context.Context, lessonIDs []uuid.UUID, ownerID uuid.UUID) ([]response.LessonResponse, error) {
-	return nil, nil
 }
 
 func setupLessonRouter(svc lessonService, user authmodel.JwtUser) *gin.Engine {
@@ -101,8 +93,8 @@ func TestLessonHandler_GetLessonDetails(t *testing.T) {
 
 	t.Run("NotFound", func(t *testing.T) {
 		mockSvc := &mockLessonService{
-			getLessonDetailsByIDFn: func(ctx context.Context, lID, ownerID uuid.UUID) (response.LessonDetailsResponse, error) {
-				return response.LessonDetailsResponse{}, pkgerrors.NewNotFound("Lesson", lID, ownerID)
+			getLessonDetailsByIDFn: func(ctx context.Context, lID, ownerID uuid.UUID) (domain.LessonDetails, error) {
+				return domain.LessonDetails{}, pkgerrors.NewNotFound("Lesson", lID, ownerID)
 			},
 		}
 
@@ -116,10 +108,10 @@ func TestLessonHandler_GetLessonDetails(t *testing.T) {
 
 	t.Run("Success", func(t *testing.T) {
 		mockSvc := &mockLessonService{
-			getLessonDetailsByIDFn: func(ctx context.Context, lID, ownerID uuid.UUID) (response.LessonDetailsResponse, error) {
+			getLessonDetailsByIDFn: func(ctx context.Context, lID, ownerID uuid.UUID) (domain.LessonDetails, error) {
 				assert.Equal(t, lessonID, lID)
 				assert.Equal(t, testUser.ID, ownerID)
-				return response.LessonDetailsResponse{
+				return domain.LessonDetails{
 					ID:   lessonID,
 					Date: time.Date(2026, 10, 17, 10, 0, 0, 0, time.UTC),
 				}, nil
@@ -132,7 +124,7 @@ func TestLessonHandler_GetLessonDetails(t *testing.T) {
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, nethttp.StatusOK, w.Code)
-		var res response.LessonDetailsResponse
+		var res LessonDetailsResponse
 		err := json.Unmarshal(w.Body.Bytes(), &res)
 		require.NoError(t, err)
 		assert.Equal(t, lessonID, res.ID)
@@ -140,8 +132,8 @@ func TestLessonHandler_GetLessonDetails(t *testing.T) {
 
 	t.Run("InternalServerError", func(t *testing.T) {
 		mockSvc := &mockLessonService{
-			getLessonDetailsByIDFn: func(ctx context.Context, lID, ownerID uuid.UUID) (response.LessonDetailsResponse, error) {
-				return response.LessonDetailsResponse{}, assert.AnError
+			getLessonDetailsByIDFn: func(ctx context.Context, lID, ownerID uuid.UUID) (domain.LessonDetails, error) {
+				return domain.LessonDetails{}, assert.AnError
 			},
 		}
 
@@ -182,10 +174,10 @@ func TestLessonHandler_CreateLesson(t *testing.T) {
 		expectedID := uuid.New()
 
 		mockSvc := &mockLessonService{
-			createLessonFn: func(ctx context.Context, req request.CreateLessonRequest, ownerID uuid.UUID) (response.LessonResponse, error) {
+			createLessonFn: func(ctx context.Context, groupID *uuid.UUID, date time.Time, studentVisits []visitmodel.StudentVisit, ownerID uuid.UUID) (domain.Lesson, error) {
 				assert.Equal(t, testUser.ID, ownerID)
-				assert.True(t, lessonDate.Equal(req.Date))
-				return response.LessonResponse{ID: expectedID, Date: req.Date}, nil
+				assert.True(t, lessonDate.Equal(date))
+				return domain.Lesson{ID: expectedID, Date: date}, nil
 			},
 		}
 
@@ -202,8 +194,8 @@ func TestLessonHandler_CreateLesson(t *testing.T) {
 	t.Run("InternalServerError", func(t *testing.T) {
 		lessonDate := time.Date(2026, 10, 17, 10, 0, 0, 0, time.UTC)
 		mockSvc := &mockLessonService{
-			createLessonFn: func(ctx context.Context, req request.CreateLessonRequest, ownerID uuid.UUID) (response.LessonResponse, error) {
-				return response.LessonResponse{}, assert.AnError
+			createLessonFn: func(ctx context.Context, groupID *uuid.UUID, date time.Time, studentVisits []visitmodel.StudentVisit, ownerID uuid.UUID) (domain.Lesson, error) {
+				return domain.Lesson{}, assert.AnError
 			},
 		}
 
@@ -245,12 +237,12 @@ func TestLessonHandler_UpdateLesson(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		newDate := time.Date(2026, 10, 20, 15, 0, 0, 0, time.UTC)
 		mockSvc := &mockLessonService{
-			updateLessonFn: func(ctx context.Context, lID, ownerID uuid.UUID, req request.UpdateLessonRequest) (response.LessonResponse, error) {
+			updateLessonFn: func(ctx context.Context, lID, ownerID uuid.UUID, date *time.Time, studentVisits []visitmodel.StudentVisit) (domain.Lesson, error) {
 				assert.Equal(t, lessonID, lID)
 				assert.Equal(t, testUser.ID, ownerID)
-				require.NotNil(t, req.Date)
-				assert.True(t, newDate.Equal(*req.Date))
-				return response.LessonResponse{ID: lessonID, Date: *req.Date}, nil
+				require.NotNil(t, date)
+				assert.True(t, newDate.Equal(*date))
+				return domain.Lesson{ID: lessonID, Date: *date}, nil
 			},
 		}
 
@@ -266,8 +258,8 @@ func TestLessonHandler_UpdateLesson(t *testing.T) {
 
 	t.Run("NotFound", func(t *testing.T) {
 		mockSvc := &mockLessonService{
-			updateLessonFn: func(ctx context.Context, lID, ownerID uuid.UUID, req request.UpdateLessonRequest) (response.LessonResponse, error) {
-				return response.LessonResponse{}, pkgerrors.NewNotFound("Lesson", lID, ownerID)
+			updateLessonFn: func(ctx context.Context, lID, ownerID uuid.UUID, date *time.Time, studentVisits []visitmodel.StudentVisit) (domain.Lesson, error) {
+				return domain.Lesson{}, pkgerrors.NewNotFound("Lesson", lID, ownerID)
 			},
 		}
 
@@ -282,8 +274,8 @@ func TestLessonHandler_UpdateLesson(t *testing.T) {
 
 	t.Run("InternalServerError", func(t *testing.T) {
 		mockSvc := &mockLessonService{
-			updateLessonFn: func(ctx context.Context, lID, ownerID uuid.UUID, req request.UpdateLessonRequest) (response.LessonResponse, error) {
-				return response.LessonResponse{}, assert.AnError
+			updateLessonFn: func(ctx context.Context, lID, ownerID uuid.UUID, date *time.Time, studentVisits []visitmodel.StudentVisit) (domain.Lesson, error) {
+				return domain.Lesson{}, assert.AnError
 			},
 		}
 

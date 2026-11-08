@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	pkgerrors "github.com/krivolapovdev/trenerio/internal/core/errors"
-	authmodel "github.com/krivolapovdev/trenerio/internal/modules/auth/model"
+	authmodel "github.com/krivolapovdev/trenerio/internal/modules/auth/domain"
 	authsvc "github.com/krivolapovdev/trenerio/internal/modules/auth/service"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

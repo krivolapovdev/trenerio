@@ -15,7 +15,7 @@ import (
 // @Security     BearerAuth
 // @Param        transactionId  path      string             true  "Transaction ID"    Format(uuid)
 // @Param        body           body      map[string]object  true  "Fields to update"
-// @Success      200            {object}  response.TransactionResponse
+// @Success      200            {object}  TransactionResponse
 // @Router       /api/v1/transactions/{transactionId} [patch]
 func (h *Handler) UpdateTransaction(c *gin.Context) {
 	jwtUser, ok := authhttp.GetUserFromContext(c)
@@ -39,5 +39,5 @@ func (h *Handler) UpdateTransaction(c *gin.Context) {
 		return
 	}
 
-	c.JSON(nethttp.StatusOK, updatedTx)
+	c.JSON(nethttp.StatusOK, ToTransactionResponse(updatedTx))
 }

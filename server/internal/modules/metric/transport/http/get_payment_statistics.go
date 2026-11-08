@@ -17,7 +17,7 @@ import (
 // @Param        scope      query     string  false  "Aggregation scope"      Enums(WEEK, MONTH, YEAR)  default(MONTH)
 // @Param        startDate  query     string  true   "Start date (RFC3339)"   Format(date-time)
 // @Param        endDate    query     string  true   "End date (RFC3339)"     Format(date-time)
-// @Success      200        {array}   response.PaymentMetricResponse
+// @Success      200        {array}   PaymentMetricResponse
 // @Router       /api/v1/metrics/payments [get]
 func (h *Handler) GetPaymentStatistics(c *gin.Context) {
 	jwtUser, ok := authhttp.GetUserFromContext(c)

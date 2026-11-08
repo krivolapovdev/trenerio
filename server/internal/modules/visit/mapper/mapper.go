@@ -2,16 +2,20 @@ package mapper
 
 import (
 	"github.com/krivolapovdev/trenerio/internal/db"
-	"github.com/krivolapovdev/trenerio/internal/modules/visit/model"
+	"github.com/krivolapovdev/trenerio/internal/modules/visit/domain"
 )
 
-func ToVisitResponse(v db.VisitsModuleVisit) model.VisitResponse {
-	return model.VisitResponse{
+func ToVisit(v db.VisitsModuleVisit) domain.Visit {
+	return domain.Visit{
 		ID:        v.ID,
-		Status:    model.VisitStatus(v.Status),
-		Type:      model.VisitType(v.Type),
+		Status:    domain.VisitStatus(v.Status),
+		Type:      domain.VisitType(v.Type),
 		LessonID:  v.LessonID,
 		StudentID: v.StudentID,
 		CreatedAt: v.CreatedAt,
 	}
+}
+
+func ToVisitResponse(v db.VisitsModuleVisit) domain.VisitResponse {
+	return ToVisit(v)
 }

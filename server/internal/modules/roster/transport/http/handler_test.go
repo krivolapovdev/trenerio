@@ -13,58 +13,58 @@ import (
 	"github.com/google/uuid"
 	pkgerrors "github.com/krivolapovdev/trenerio/internal/core/errors"
 	"github.com/krivolapovdev/trenerio/internal/core/harness"
-	"github.com/krivolapovdev/trenerio/internal/core/response"
-	authmodel "github.com/krivolapovdev/trenerio/internal/modules/auth/model"
-	"github.com/krivolapovdev/trenerio/internal/modules/roster/request"
+	authmodel "github.com/krivolapovdev/trenerio/internal/modules/auth/domain"
+	"github.com/krivolapovdev/trenerio/internal/modules/roster/domain"
+	studentmodel "github.com/krivolapovdev/trenerio/internal/modules/student/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 type mockRosterService struct {
-	getAllRostersFn         func(ctx context.Context, ownerID uuid.UUID) ([]response.RosterResponse, error)
-	getRosterByIDFn         func(ctx context.Context, rosterID, ownerID uuid.UUID) (response.RosterResponse, error)
-	getRosterStudentsFn     func(ctx context.Context, rosterID, ownerID uuid.UUID) ([]response.StudentResponse, error)
-	createRosterFn          func(ctx context.Context, req request.CreateRosterRequest, ownerID uuid.UUID) (response.RosterResponse, error)
-	updateRosterFn          func(ctx context.Context, rosterID, ownerID uuid.UUID, updates map[string]any) (response.RosterResponse, error)
+	getAllRostersFn         func(ctx context.Context, ownerID uuid.UUID) ([]domain.Roster, error)
+	getRosterByIDFn         func(ctx context.Context, rosterID, ownerID uuid.UUID) (domain.Roster, error)
+	getRosterStudentsFn     func(ctx context.Context, rosterID, ownerID uuid.UUID) ([]studentmodel.Student, error)
+	createRosterFn          func(ctx context.Context, rosterToCreate domain.Roster, studentIDs []uuid.UUID, ownerID uuid.UUID) (domain.Roster, error)
+	updateRosterFn          func(ctx context.Context, rosterID, ownerID uuid.UUID, updates map[string]any) (domain.Roster, error)
 	deleteRosterFn          func(ctx context.Context, rosterID, ownerID uuid.UUID) error
-	addStudentsFn           func(ctx context.Context, rosterID, ownerID uuid.UUID, studentIDs []uuid.UUID, note *string) (response.RosterResponse, error)
+	addStudentsFn           func(ctx context.Context, rosterID, ownerID uuid.UUID, studentIDs []uuid.UUID, note *string) (domain.Roster, error)
 	updateParticipantNoteFn func(ctx context.Context, rosterID, studentID, ownerID uuid.UUID, note *string) error
 	removeStudentFn         func(ctx context.Context, rosterID, studentID, ownerID uuid.UUID) error
 }
 
-func (m *mockRosterService) GetAllRosters(ctx context.Context, ownerID uuid.UUID) ([]response.RosterResponse, error) {
+func (m *mockRosterService) GetAllRosters(ctx context.Context, ownerID uuid.UUID) ([]domain.Roster, error) {
 	if m.getAllRostersFn != nil {
 		return m.getAllRostersFn(ctx, ownerID)
 	}
 	return nil, nil
 }
 
-func (m *mockRosterService) GetRosterByID(ctx context.Context, rosterID, ownerID uuid.UUID) (response.RosterResponse, error) {
+func (m *mockRosterService) GetRosterByID(ctx context.Context, rosterID, ownerID uuid.UUID) (domain.Roster, error) {
 	if m.getRosterByIDFn != nil {
 		return m.getRosterByIDFn(ctx, rosterID, ownerID)
 	}
-	return response.RosterResponse{}, nil
+	return domain.Roster{}, nil
 }
 
-func (m *mockRosterService) GetRosterStudents(ctx context.Context, rosterID, ownerID uuid.UUID) ([]response.StudentResponse, error) {
+func (m *mockRosterService) GetRosterStudents(ctx context.Context, rosterID, ownerID uuid.UUID) ([]studentmodel.Student, error) {
 	if m.getRosterStudentsFn != nil {
 		return m.getRosterStudentsFn(ctx, rosterID, ownerID)
 	}
 	return nil, nil
 }
 
-func (m *mockRosterService) CreateRoster(ctx context.Context, req request.CreateRosterRequest, ownerID uuid.UUID) (response.RosterResponse, error) {
+func (m *mockRosterService) CreateRoster(ctx context.Context, rosterToCreate domain.Roster, studentIDs []uuid.UUID, ownerID uuid.UUID) (domain.Roster, error) {
 	if m.createRosterFn != nil {
-		return m.createRosterFn(ctx, req, ownerID)
+		return m.createRosterFn(ctx, rosterToCreate, studentIDs, ownerID)
 	}
-	return response.RosterResponse{}, nil
+	return domain.Roster{}, nil
 }
 
-func (m *mockRosterService) UpdateRoster(ctx context.Context, rosterID, ownerID uuid.UUID, updates map[string]any) (response.RosterResponse, error) {
+func (m *mockRosterService) UpdateRoster(ctx context.Context, rosterID, ownerID uuid.UUID, updates map[string]any) (domain.Roster, error) {
 	if m.updateRosterFn != nil {
 		return m.updateRosterFn(ctx, rosterID, ownerID, updates)
 	}
-	return response.RosterResponse{}, nil
+	return domain.Roster{}, nil
 }
 
 func (m *mockRosterService) DeleteRoster(ctx context.Context, rosterID, ownerID uuid.UUID) error {
@@ -74,11 +74,11 @@ func (m *mockRosterService) DeleteRoster(ctx context.Context, rosterID, ownerID 
 	return nil
 }
 
-func (m *mockRosterService) AddStudents(ctx context.Context, rosterID, ownerID uuid.UUID, studentIDs []uuid.UUID, note *string) (response.RosterResponse, error) {
+func (m *mockRosterService) AddStudents(ctx context.Context, rosterID, ownerID uuid.UUID, studentIDs []uuid.UUID, note *string) (domain.Roster, error) {
 	if m.addStudentsFn != nil {
 		return m.addStudentsFn(ctx, rosterID, ownerID, studentIDs, note)
 	}
-	return response.RosterResponse{}, nil
+	return domain.Roster{}, nil
 }
 
 func (m *mockRosterService) UpdateParticipantNote(ctx context.Context, rosterID, studentID, ownerID uuid.UUID, note *string) error {
@@ -114,11 +114,11 @@ func TestRosterHandler_GetAllRosters(t *testing.T) {
 	})
 
 	t.Run("Success", func(t *testing.T) {
-		expected := []response.RosterResponse{
+		expected := []domain.Roster{
 			{ID: uuid.New(), Name: "Competition A", CountOfStudents: 3},
 		}
 		mockSvc := &mockRosterService{
-			getAllRostersFn: func(ctx context.Context, ownerID uuid.UUID) ([]response.RosterResponse, error) {
+			getAllRostersFn: func(ctx context.Context, ownerID uuid.UUID) ([]domain.Roster, error) {
 				assert.Equal(t, testUser.ID, ownerID)
 				return expected, nil
 			},
@@ -130,7 +130,7 @@ func TestRosterHandler_GetAllRosters(t *testing.T) {
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, nethttp.StatusOK, w.Code)
-		var actual []response.RosterResponse
+		var actual []domain.Roster
 		err := json.Unmarshal(w.Body.Bytes(), &actual)
 		require.NoError(t, err)
 		assert.Equal(t, expected[0].ID, actual[0].ID)
@@ -144,16 +144,16 @@ func TestRosterHandler_GetRosterByID(t *testing.T) {
 	rosterID := uuid.New()
 
 	t.Run("Success", func(t *testing.T) {
-		expected := response.RosterResponse{
+		expected := domain.Roster{
 			ID:              rosterID,
 			Name:            "Competition A",
 			CountOfStudents: 1,
-			Students: []response.StudentResponse{
+			Students: []studentmodel.Student{
 				{ID: uuid.New(), FullName: "John Doe"},
 			},
 		}
 		mockSvc := &mockRosterService{
-			getRosterByIDFn: func(ctx context.Context, rID, ownerID uuid.UUID) (response.RosterResponse, error) {
+			getRosterByIDFn: func(ctx context.Context, rID, ownerID uuid.UUID) (domain.Roster, error) {
 				assert.Equal(t, rosterID, rID)
 				assert.Equal(t, testUser.ID, ownerID)
 				return expected, nil
@@ -166,7 +166,7 @@ func TestRosterHandler_GetRosterByID(t *testing.T) {
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, nethttp.StatusOK, w.Code)
-		var actual response.RosterResponse
+		var actual domain.Roster
 		err := json.Unmarshal(w.Body.Bytes(), &actual)
 		require.NoError(t, err)
 		assert.Equal(t, rosterID, actual.ID)
@@ -176,8 +176,8 @@ func TestRosterHandler_GetRosterByID(t *testing.T) {
 
 	t.Run("NotFound", func(t *testing.T) {
 		mockSvc := &mockRosterService{
-			getRosterByIDFn: func(ctx context.Context, rID, ownerID uuid.UUID) (response.RosterResponse, error) {
-				return response.RosterResponse{}, pkgerrors.NewNotFound("Roster", rID, ownerID)
+			getRosterByIDFn: func(ctx context.Context, rID, ownerID uuid.UUID) (domain.Roster, error) {
+				return domain.Roster{}, pkgerrors.NewNotFound("Roster", rID, ownerID)
 			},
 		}
 
@@ -196,22 +196,22 @@ func TestRosterHandler_CreateRoster(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		now := time.Now().UTC()
 		note := "Championship"
-		reqBody := request.CreateRosterRequest{
+		reqBody := CreateRosterRequest{
 			Name: "Competition A",
 			Date: &now,
 			Note: &note,
 		}
 
 		mockSvc := &mockRosterService{
-			createRosterFn: func(ctx context.Context, req request.CreateRosterRequest, ownerID uuid.UUID) (response.RosterResponse, error) {
-				assert.Equal(t, "Competition A", req.Name)
-				assert.Equal(t, &note, req.Note)
+			createRosterFn: func(ctx context.Context, rosterToCreate domain.Roster, studentIDs []uuid.UUID, ownerID uuid.UUID) (domain.Roster, error) {
+				assert.Equal(t, "Competition A", rosterToCreate.Name)
+				assert.Equal(t, &note, rosterToCreate.Note)
 				assert.Equal(t, testUser.ID, ownerID)
-				return response.RosterResponse{
+				return domain.Roster{
 					ID:   uuid.New(),
-					Name: req.Name,
-					Date: req.Date,
-					Note: req.Note,
+					Name: rosterToCreate.Name,
+					Date: rosterToCreate.Date,
+					Note: rosterToCreate.Note,
 				}, nil
 			},
 		}
@@ -247,10 +247,10 @@ func TestRosterHandler_UpdateRoster(t *testing.T) {
 
 	t.Run("Success", func(t *testing.T) {
 		mockSvc := &mockRosterService{
-			updateRosterFn: func(ctx context.Context, rID, ownerID uuid.UUID, updates map[string]any) (response.RosterResponse, error) {
+			updateRosterFn: func(ctx context.Context, rID, ownerID uuid.UUID, updates map[string]any) (domain.Roster, error) {
 				assert.Equal(t, rosterID, rID)
 				assert.Equal(t, "Competition B", updates["name"])
-				return response.RosterResponse{
+				return domain.Roster{
 					ID:   rID,
 					Name: "Competition B",
 				}, nil
@@ -297,10 +297,10 @@ func TestRosterHandler_AddAndRemoveStudents(t *testing.T) {
 
 	t.Run("AddStudents_Success", func(t *testing.T) {
 		mockSvc := &mockRosterService{
-			addStudentsFn: func(ctx context.Context, rID, ownerID uuid.UUID, studentIDs []uuid.UUID, note *string) (response.RosterResponse, error) {
+			addStudentsFn: func(ctx context.Context, rID, ownerID uuid.UUID, studentIDs []uuid.UUID, note *string) (domain.Roster, error) {
 				assert.Equal(t, rosterID, rID)
 				assert.Equal(t, []uuid.UUID{studentID}, studentIDs)
-				return response.RosterResponse{
+				return domain.Roster{
 					ID:              rID,
 					Name:            "Competition A",
 					CountOfStudents: 1,
@@ -308,7 +308,7 @@ func TestRosterHandler_AddAndRemoveStudents(t *testing.T) {
 			},
 		}
 
-		reqBody := request.AddRosterStudentsRequest{
+		reqBody := AddRosterStudentsRequest{
 			StudentIds: []uuid.UUID{studentID},
 		}
 		bodyBytes, _ := json.Marshal(reqBody)
@@ -349,7 +349,7 @@ func TestRosterHandler_AddAndRemoveStudents(t *testing.T) {
 			},
 		}
 
-		reqBody := request.UpdateRosterStudentNoteRequest{
+		reqBody := UpdateRosterStudentNoteRequest{
 			Note: &noteVal,
 		}
 		bodyBytes, _ := json.Marshal(reqBody)

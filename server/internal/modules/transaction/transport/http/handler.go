@@ -5,13 +5,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	_ "github.com/krivolapovdev/trenerio/internal/modules/transaction/service"
+	"github.com/krivolapovdev/trenerio/internal/modules/transaction/domain"
 )
 
 type transactionService interface {
-	GetPaginatedTransactions(ctx context.Context, page, size int, ownerID uuid.UUID) (PageTransactionResponse, error)
-	CreateTransaction(ctx context.Context, req CreateTransactionRequest, ownerID uuid.UUID) (TransactionResponse, error)
-	UpdateTransaction(ctx context.Context, transactionID, ownerID uuid.UUID, updates map[string]any) (TransactionResponse, error)
+	GetPaginatedTransactions(ctx context.Context, page, size int, ownerID uuid.UUID) (domain.PageTransaction, error)
+	CreateTransaction(ctx context.Context, txToCreate domain.Transaction, ownerID uuid.UUID) (domain.Transaction, error)
+	UpdateTransaction(ctx context.Context, transactionID, ownerID uuid.UUID, updates map[string]any) (domain.Transaction, error)
 	DeleteTransaction(ctx context.Context, transactionID, ownerID uuid.UUID) error
 }
 

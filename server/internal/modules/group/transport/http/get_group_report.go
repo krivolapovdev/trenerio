@@ -17,7 +17,7 @@ import (
 // @Param        groupId  path      string  true  "Group ID"  Format(uuid)
 // @Param        year     query     int     true  "Year"
 // @Param        month    query     int     true  "Month"
-// @Success      200      {object}  service.GroupReportResponse
+// @Success      200      {object}  GroupReportResponse
 // @Router       /api/v1/groups/{groupId}/report [get]
 func (h *Handler) GetGroupReport(c *gin.Context) {
 	jwtUser, ok := authhttp.GetUserFromContext(c)

@@ -16,7 +16,7 @@ import (
 // @Security     BearerAuth
 // @Param        groupId  path      string             true  "Group ID"          Format(uuid)
 // @Param        body     body      map[string]object  true  "Fields to update"
-// @Success      200      {object}  response.GroupResponse
+// @Success      200      {object}  GroupResponse
 // @Router       /api/v1/groups/{groupId} [patch]
 func (h *Handler) UpdateGroup(c *gin.Context) {
 	jwtUser, ok := authhttp.GetUserFromContext(c)

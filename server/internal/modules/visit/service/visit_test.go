@@ -6,8 +6,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/krivolapovdev/trenerio/internal/db"
+	"github.com/krivolapovdev/trenerio/internal/modules/visit/domain"
 	"github.com/krivolapovdev/trenerio/internal/modules/visit/mapper"
-	"github.com/krivolapovdev/trenerio/internal/modules/visit/model"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -28,8 +28,8 @@ func TestToVisitResponse(t *testing.T) {
 
 	resp := mapper.ToVisitResponse(dbVisit)
 	assert.Equal(t, visitID, resp.ID)
-	assert.Equal(t, model.VisitStatusPresent, resp.Status)
-	assert.Equal(t, model.VisitTypeRegular, resp.Type)
+	assert.Equal(t, domain.VisitStatusPresent, resp.Status)
+	assert.Equal(t, domain.VisitTypeRegular, resp.Type)
 	assert.Equal(t, lessonID, resp.LessonID)
 	assert.Equal(t, studentID, resp.StudentID)
 	assert.Equal(t, now, resp.CreatedAt)
@@ -40,29 +40,29 @@ func TestToVisitResponse_Variants(t *testing.T) {
 		name       string
 		dbStatus   db.VisitsModuleVisitStatus
 		dbType     db.VisitsModuleVisitType
-		wantStatus model.VisitStatus
-		wantType   model.VisitType
+		wantStatus domain.VisitStatus
+		wantType   domain.VisitType
 	}{
 		{
 			name:       "Absent",
 			dbStatus:   db.VisitsModuleVisitStatusABSENT,
 			dbType:     db.VisitsModuleVisitTypeREGULAR,
-			wantStatus: model.VisitStatusAbsent,
-			wantType:   model.VisitTypeRegular,
+			wantStatus: domain.VisitStatusAbsent,
+			wantType:   domain.VisitTypeRegular,
 		},
 		{
 			name:       "Excused",
 			dbStatus:   db.VisitsModuleVisitStatusEXCUSED,
 			dbType:     db.VisitsModuleVisitTypeREGULAR,
-			wantStatus: model.VisitStatusExcused,
-			wantType:   model.VisitTypeRegular,
+			wantStatus: domain.VisitStatusExcused,
+			wantType:   domain.VisitTypeRegular,
 		},
 		{
 			name:       "Free",
 			dbStatus:   db.VisitsModuleVisitStatusPRESENT,
 			dbType:     db.VisitsModuleVisitTypeFREE,
-			wantStatus: model.VisitStatusPresent,
-			wantType:   model.VisitTypeFree,
+			wantStatus: domain.VisitStatusPresent,
+			wantType:   domain.VisitTypeFree,
 		},
 	}
 
@@ -106,35 +106,35 @@ func TestVisitService_EmptyIDQueries(t *testing.T) {
 }
 
 func TestVisitStatus_IsPresent(t *testing.T) {
-	assert.True(t, model.VisitStatusPresent.IsPresent())
-	assert.False(t, model.VisitStatusAbsent.IsPresent())
-	assert.False(t, model.VisitStatusExcused.IsPresent())
+	assert.True(t, domain.VisitStatusPresent.IsPresent())
+	assert.False(t, domain.VisitStatusAbsent.IsPresent())
+	assert.False(t, domain.VisitStatusExcused.IsPresent())
 }
 
 func TestFindVisitByLessonID(t *testing.T) {
 	lesson1 := uuid.New()
 	lesson2 := uuid.New()
-	visits := []model.VisitResponse{
-		{ID: uuid.New(), LessonID: lesson1, Status: model.VisitStatusPresent},
-		{ID: uuid.New(), LessonID: lesson2, Status: model.VisitStatusAbsent},
+	visits := []domain.VisitResponse{
+		{ID: uuid.New(), LessonID: lesson1, Status: domain.VisitStatusPresent},
+		{ID: uuid.New(), LessonID: lesson2, Status: domain.VisitStatusAbsent},
 	}
 
-	found := model.FindVisitByLessonID(visits, lesson1)
+	found := domain.FindVisitByLessonID(visits, lesson1)
 	assert.NotNil(t, found)
 	assert.Equal(t, lesson1, found.LessonID)
 	assert.True(t, found.Status.IsPresent())
 
-	notFound := model.FindVisitByLessonID(visits, uuid.New())
+	notFound := domain.FindVisitByLessonID(visits, uuid.New())
 	assert.Nil(t, notFound)
 }
 
 func TestIsBillableVisit(t *testing.T) {
-	assert.True(t, model.IsBillableVisit(model.VisitStatusPresent, model.VisitTypeRegular, false))
-	assert.True(t, model.IsBillableVisit(model.VisitStatusAbsent, model.VisitTypeRegular, false))
+	assert.True(t, domain.IsBillableVisit(domain.VisitStatusPresent, domain.VisitTypeRegular, false))
+	assert.True(t, domain.IsBillableVisit(domain.VisitStatusAbsent, domain.VisitTypeRegular, false))
 
-	assert.False(t, model.IsBillableVisit(model.VisitStatusExcused, model.VisitTypeRegular, false))
-	assert.False(t, model.IsBillableVisit(model.VisitStatusPresent, model.VisitTypeFree, false))
-	assert.False(t, model.IsBillableVisit(model.VisitStatusAbsent, model.VisitTypeFree, false))
-	assert.False(t, model.IsBillableVisit(model.VisitStatusPresent, model.VisitTypeRegular, true))
-	assert.False(t, model.IsBillableVisit(model.VisitStatusAbsent, model.VisitTypeRegular, true))
+	assert.False(t, domain.IsBillableVisit(domain.VisitStatusExcused, domain.VisitTypeRegular, false))
+	assert.False(t, domain.IsBillableVisit(domain.VisitStatusPresent, domain.VisitTypeFree, false))
+	assert.False(t, domain.IsBillableVisit(domain.VisitStatusAbsent, domain.VisitTypeFree, false))
+	assert.False(t, domain.IsBillableVisit(domain.VisitStatusPresent, domain.VisitTypeRegular, true))
+	assert.False(t, domain.IsBillableVisit(domain.VisitStatusAbsent, domain.VisitTypeRegular, true))
 }

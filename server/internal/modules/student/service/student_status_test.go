@@ -5,10 +5,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/krivolapovdev/trenerio/internal/core/response"
-	studentmodel "github.com/krivolapovdev/trenerio/internal/modules/student/model"
-	txmodel "github.com/krivolapovdev/trenerio/internal/modules/transaction/model"
-	visitmodel "github.com/krivolapovdev/trenerio/internal/modules/visit/model"
+	lessonmodel "github.com/krivolapovdev/trenerio/internal/modules/lesson/domain"
+	studentmodel "github.com/krivolapovdev/trenerio/internal/modules/student/domain"
+	txmodel "github.com/krivolapovdev/trenerio/internal/modules/transaction/domain"
+	visitmodel "github.com/krivolapovdev/trenerio/internal/modules/visit/domain"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -19,19 +19,19 @@ func TestStudentStatus_IndividualLessonLast(t *testing.T) {
 	individualLessonID := uuid.New()
 	createdAt := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
 
-	st := response.StudentResponse{
+	st := studentmodel.Student{
 		ID:        studentID,
 		FullName:  "Test Student",
 		Free:      false,
 		CreatedAt: createdAt,
 	}
 
-	visits := []response.VisitResponse{
+	visits := []visitmodel.Visit{
 		{ID: uuid.New(), LessonID: groupLessonID, StudentID: studentID, Status: visitmodel.VisitStatusAbsent},
 		{ID: uuid.New(), LessonID: individualLessonID, StudentID: studentID, Status: visitmodel.VisitStatusPresent},
 	}
 
-	lessonsMap := map[uuid.UUID]response.LessonResponse{
+	lessonsMap := map[uuid.UUID]lessonmodel.Lesson{
 		groupLessonID: {
 			ID:        groupLessonID,
 			GroupID:   &groupID,
@@ -59,19 +59,19 @@ func TestStudentStatus_GroupLessonLast(t *testing.T) {
 	individualLessonID := uuid.New()
 	createdAt := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
 
-	st := response.StudentResponse{
+	st := studentmodel.Student{
 		ID:        studentID,
 		FullName:  "Test Student",
 		Free:      false,
 		CreatedAt: createdAt,
 	}
 
-	visits := []response.VisitResponse{
+	visits := []visitmodel.Visit{
 		{ID: uuid.New(), LessonID: individualLessonID, StudentID: studentID, Status: visitmodel.VisitStatusPresent},
 		{ID: uuid.New(), LessonID: groupLessonID, StudentID: studentID, Status: visitmodel.VisitStatusAbsent},
 	}
 
-	lessonsMap := map[uuid.UUID]response.LessonResponse{
+	lessonsMap := map[uuid.UUID]lessonmodel.Lesson{
 		individualLessonID: {
 			ID:        individualLessonID,
 			GroupID:   nil,
@@ -100,19 +100,19 @@ func TestStudentStatus_PrefersLessonCreatedLastOnSameDay(t *testing.T) {
 	createdAt := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
 	day := time.Date(2026, 10, 8, 10, 0, 0, 0, time.UTC)
 
-	st := response.StudentResponse{
+	st := studentmodel.Student{
 		ID:        studentID,
 		FullName:  "Test Student",
 		Free:      false,
 		CreatedAt: createdAt,
 	}
 
-	visits := []response.VisitResponse{
+	visits := []visitmodel.Visit{
 		{ID: uuid.New(), LessonID: groupLessonID, StudentID: studentID, Status: visitmodel.VisitStatusAbsent},
 		{ID: uuid.New(), LessonID: individualLessonID, StudentID: studentID, Status: visitmodel.VisitStatusPresent},
 	}
 
-	lessonsMap := map[uuid.UUID]response.LessonResponse{
+	lessonsMap := map[uuid.UUID]lessonmodel.Lesson{
 		groupLessonID: {
 			ID:        groupLessonID,
 			GroupID:   &groupID,
@@ -137,7 +137,7 @@ func TestStudentStatus_InactiveWhenNoVisitsAndNoBalanceActivity(t *testing.T) {
 	studentID := uuid.New()
 	createdAt := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
 
-	stNotFree := response.StudentResponse{
+	stNotFree := studentmodel.Student{
 		ID:        studentID,
 		FullName:  "Inactive Student",
 		Free:      false,
@@ -150,7 +150,7 @@ func TestStudentStatus_InactiveWhenNoVisitsAndNoBalanceActivity(t *testing.T) {
 	zeroStatuses := ComputeStudentStatuses(stNotFree, nil, zeroBalance, nil, time.Now().UTC())
 	assert.Equal(t, []studentmodel.StudentStatus{studentmodel.StudentStatusInactive}, zeroStatuses)
 
-	stFree := response.StudentResponse{
+	stFree := studentmodel.Student{
 		ID:        studentID,
 		FullName:  "Free Student",
 		Free:      true,
@@ -166,18 +166,18 @@ func TestStudentStatus_PaidVsUnpaidAndSessionBalances(t *testing.T) {
 	createdAt := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
 	lastLessonDay := time.Date(2026, 10, 8, 10, 0, 0, 0, time.UTC)
 
-	st := response.StudentResponse{
+	st := studentmodel.Student{
 		ID:        studentID,
 		FullName:  "Paying Student",
 		Free:      false,
 		CreatedAt: createdAt,
 	}
 
-	visits := []response.VisitResponse{
+	visits := []visitmodel.Visit{
 		{ID: uuid.New(), LessonID: lessonID, StudentID: studentID, Status: visitmodel.VisitStatusPresent},
 	}
 
-	lessonsMap := map[uuid.UUID]response.LessonResponse{
+	lessonsMap := map[uuid.UUID]lessonmodel.Lesson{
 		lessonID: {
 			ID:        lessonID,
 			Date:      lastLessonDay,
@@ -277,7 +277,7 @@ func TestStudentStatus_PaidVsUnpaidAndSessionBalances(t *testing.T) {
 
 	t.Run("SingleSessionPurchased_TwoLessonsAttended_Unpaid", func(t *testing.T) {
 		lesson2ID := uuid.New()
-		twoVisits := []response.VisitResponse{
+		twoVisits := []visitmodel.Visit{
 			visits[0],
 			{
 				ID:        uuid.New(),
@@ -287,7 +287,7 @@ func TestStudentStatus_PaidVsUnpaidAndSessionBalances(t *testing.T) {
 				Type:      visitmodel.VisitTypeRegular,
 			},
 		}
-		twoLessonsMap := map[uuid.UUID]response.LessonResponse{
+		twoLessonsMap := map[uuid.UUID]lessonmodel.Lesson{
 			lessonID: lessonsMap[lessonID],
 			lesson2ID: {
 				ID:        lesson2ID,
@@ -308,7 +308,7 @@ func TestStudentStatus_PaidVsUnpaidAndSessionBalances(t *testing.T) {
 	t.Run("FreeLessonOnly_NoBalance_PaidNotUnpaid", func(t *testing.T) {
 		freeLessonID := uuid.New()
 		freeLessonDay := time.Date(2026, 11, 5, 10, 0, 0, 0, time.UTC)
-		freeVisits := []response.VisitResponse{
+		freeVisits := []visitmodel.Visit{
 			{
 				ID:        uuid.New(),
 				LessonID:  freeLessonID,
@@ -317,7 +317,7 @@ func TestStudentStatus_PaidVsUnpaidAndSessionBalances(t *testing.T) {
 				Type:      visitmodel.VisitTypeFree,
 			},
 		}
-		freeLessonsMap := map[uuid.UUID]response.LessonResponse{
+		freeLessonsMap := map[uuid.UUID]lessonmodel.Lesson{
 			freeLessonID: {
 				ID:        freeLessonID,
 				Date:      freeLessonDay,
@@ -335,7 +335,7 @@ func TestStudentStatus_PaidVsUnpaidAndSessionBalances(t *testing.T) {
 		freeDay := time.Date(2026, 11, 5, 10, 0, 0, 0, time.UTC)
 		paidUntil := time.Date(2026, 11, 3, 0, 0, 0, 0, time.UTC)
 
-		twoVisits := []response.VisitResponse{
+		twoVisits := []visitmodel.Visit{
 			{
 				ID:        uuid.New(),
 				LessonID:  regularLessonID,
@@ -351,7 +351,7 @@ func TestStudentStatus_PaidVsUnpaidAndSessionBalances(t *testing.T) {
 				Type:      visitmodel.VisitTypeFree,
 			},
 		}
-		mixedLessonsMap := map[uuid.UUID]response.LessonResponse{
+		mixedLessonsMap := map[uuid.UUID]lessonmodel.Lesson{
 			regularLessonID: {
 				ID:        regularLessonID,
 				Date:      regularDay,
@@ -379,7 +379,7 @@ func TestStudentStatus_PaidVsUnpaidAndSessionBalances(t *testing.T) {
 		freeDay := time.Date(2026, 11, 5, 10, 0, 0, 0, time.UTC)
 		expiredPaidUntil := time.Date(2026, 10, 15, 0, 0, 0, 0, time.UTC)
 
-		twoVisits := []response.VisitResponse{
+		twoVisits := []visitmodel.Visit{
 			{
 				ID:        uuid.New(),
 				LessonID:  regularLessonID,
@@ -395,7 +395,7 @@ func TestStudentStatus_PaidVsUnpaidAndSessionBalances(t *testing.T) {
 				Type:      visitmodel.VisitTypeFree,
 			},
 		}
-		mixedLessonsMap := map[uuid.UUID]response.LessonResponse{
+		mixedLessonsMap := map[uuid.UUID]lessonmodel.Lesson{
 			regularLessonID: {
 				ID:        regularLessonID,
 				Date:      regularDay,
@@ -423,18 +423,18 @@ func TestStudentStatus_FreeStudent(t *testing.T) {
 	createdAt := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
 	lastLessonDay := time.Date(2026, 10, 8, 10, 0, 0, 0, time.UTC)
 
-	st := response.StudentResponse{
+	st := studentmodel.Student{
 		ID:        studentID,
 		FullName:  "Free Student",
 		Free:      true,
 		CreatedAt: createdAt,
 	}
 
-	visits := []response.VisitResponse{
+	visits := []visitmodel.Visit{
 		{ID: uuid.New(), LessonID: lessonID, StudentID: studentID, Status: visitmodel.VisitStatusPresent},
 	}
 
-	lessonsMap := map[uuid.UUID]response.LessonResponse{
+	lessonsMap := map[uuid.UUID]lessonmodel.Lesson{
 		lessonID: {
 			ID:        lessonID,
 			Date:      lastLessonDay,
@@ -458,19 +458,19 @@ func TestStudentStatus_GroupScopedVisits(t *testing.T) {
 	groupLessonDay := time.Date(2026, 9, 1, 10, 0, 0, 0, time.UTC)
 	individualLessonDay := time.Date(2026, 10, 8, 10, 0, 0, 0, time.UTC)
 
-	st := response.StudentResponse{
+	st := studentmodel.Student{
 		ID:        studentID,
 		FullName:  "Student",
 		Free:      false,
 		CreatedAt: createdAt,
 	}
 
-	visits := []response.VisitResponse{
+	visits := []visitmodel.Visit{
 		{ID: uuid.New(), LessonID: groupLessonID, StudentID: studentID, Status: visitmodel.VisitStatusAbsent},
 		{ID: uuid.New(), LessonID: individualLessonID, StudentID: studentID, Status: visitmodel.VisitStatusPresent},
 	}
 
-	everyLessonMap := map[uuid.UUID]response.LessonResponse{
+	everyLessonMap := map[uuid.UUID]lessonmodel.Lesson{
 		groupLessonID: {
 			ID:        groupLessonID,
 			GroupID:   &groupID,
@@ -485,7 +485,7 @@ func TestStudentStatus_GroupScopedVisits(t *testing.T) {
 		},
 	}
 
-	groupLessonsMap := map[uuid.UUID]response.LessonResponse{
+	groupLessonsMap := map[uuid.UUID]lessonmodel.Lesson{
 		groupLessonID: {
 			ID:        groupLessonID,
 			GroupID:   &groupID,
@@ -514,18 +514,18 @@ func TestStudentStatus_IgnoresLessonsForOtherStudents(t *testing.T) {
 	lesson2ID := uuid.New()
 	createdAt := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
 
-	st1 := response.StudentResponse{
+	st1 := studentmodel.Student{
 		ID:        student1ID,
 		FullName:  "Student 1",
 		Free:      false,
 		CreatedAt: createdAt,
 	}
 
-	visits1 := []response.VisitResponse{
+	visits1 := []visitmodel.Visit{
 		{ID: uuid.New(), LessonID: lesson1ID, StudentID: student1ID, Status: visitmodel.VisitStatusAbsent},
 	}
 
-	lessonsMap := map[uuid.UUID]response.LessonResponse{
+	lessonsMap := map[uuid.UUID]lessonmodel.Lesson{
 		lesson1ID: {
 			ID:        lesson1ID,
 			Date:      time.Date(2026, 10, 22, 10, 0, 0, 0, time.UTC),

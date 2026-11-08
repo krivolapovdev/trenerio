@@ -1,6 +1,8 @@
 package service
 
+type TokenType string
+
 const (
-	TokenTypeAccess  = "ACCESS"
-	TokenTypeRefresh = "REFRESH"
+	TokenTypeAccess  TokenType = "ACCESS"
+	TokenTypeRefresh TokenType = "REFRESH"
 )

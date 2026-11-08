@@ -6,24 +6,26 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/krivolapovdev/trenerio/internal/core/response"
-	txmodel "github.com/krivolapovdev/trenerio/internal/modules/transaction/model"
-	visitmodel "github.com/krivolapovdev/trenerio/internal/modules/visit/model"
+	"github.com/krivolapovdev/trenerio/internal/modules/group/domain"
+	lessonmodel "github.com/krivolapovdev/trenerio/internal/modules/lesson/domain"
+	studentmodel "github.com/krivolapovdev/trenerio/internal/modules/student/domain"
+	txmodel "github.com/krivolapovdev/trenerio/internal/modules/transaction/domain"
+	visitmodel "github.com/krivolapovdev/trenerio/internal/modules/visit/domain"
 )
 
 func BuildGroupReport(
-	grp response.GroupResponse,
+	grp domain.Group,
 	year, month int,
-	students []response.StudentResponse,
-	lessons []response.LessonResponse,
-	visitsByStudentID map[uuid.UUID][]visitmodel.VisitResponse,
+	students []studentmodel.Student,
+	lessons []lessonmodel.Lesson,
+	visitsByStudentID map[uuid.UUID][]visitmodel.Visit,
 	balancesByStudentID map[uuid.UUID]txmodel.StudentBalance,
 	today time.Time,
-) GroupReportResponse {
+) domain.GroupReport {
 	lastDay := time.Date(year, time.Month(month)+1, 0, 0, 0, 0, 0, time.UTC)
 	dayCount := lastDay.Day()
 
-	sortedLessons := make([]response.LessonResponse, len(lessons))
+	sortedLessons := make([]lessonmodel.Lesson, len(lessons))
 	copy(sortedLessons, lessons)
 	sort.Slice(sortedLessons, func(i, j int) bool {
 		return sortedLessons[i].Date.Before(sortedLessons[j].Date)
@@ -54,20 +56,20 @@ func BuildGroupReport(
 		statusesByStudentID[sid] = byLesson
 	}
 
-	sortedStudents := make([]response.StudentResponse, len(students))
+	sortedStudents := make([]studentmodel.Student, len(students))
 	copy(sortedStudents, students)
 	sort.Slice(sortedStudents, func(i, j int) bool {
 		return strings.ToLower(sortedStudents[i].FullName) < strings.ToLower(sortedStudents[j].FullName)
 	})
 
-	rows := make([]GroupReportStudentResponse, 0, len(sortedStudents))
+	rows := make([]domain.GroupReportStudent, 0, len(sortedStudents))
 	totalPresent := 0
 	totalLessons := 0
 
 	for _, student := range sortedStudents {
 		statusesByLessonID := statusesByStudentID[student.ID]
 		presentDays := make([]int, 0)
-		dayMarks := make([]GroupReportDayMarkResponse, 0, len(lessonDays))
+		dayMarks := make([]domain.GroupReportDayMark, 0, len(lessonDays))
 		studentPresentCount := 0
 
 		for _, day := range lessonDays {
@@ -88,7 +90,7 @@ func BuildGroupReport(
 					studentPresentCount++
 				}
 			}
-			dayMarks = append(dayMarks, GroupReportDayMarkResponse{
+			dayMarks = append(dayMarks, domain.GroupReportDayMark{
 				Day:   day,
 				Marks: marks,
 			})
@@ -103,7 +105,7 @@ func BuildGroupReport(
 		totalPresent += studentPresentCount
 		totalLessons += totalLessonsInMonth
 
-		rows = append(rows, GroupReportStudentResponse{
+		rows = append(rows, domain.GroupReportStudent{
 			StudentID:    student.ID,
 			FullName:     student.FullName,
 			Paid:         paid,
@@ -114,7 +116,7 @@ func BuildGroupReport(
 		})
 	}
 
-	return GroupReportResponse{
+	return domain.GroupReport{
 		GroupID:      grp.ID,
 		GroupName:    grp.Name,
 		Year:         year,

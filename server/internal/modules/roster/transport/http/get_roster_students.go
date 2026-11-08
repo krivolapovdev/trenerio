@@ -14,7 +14,7 @@ import (
 // @Tags         roster-controller
 // @Security     BearerAuth
 // @Param        rosterId  path      string  true  "Roster ID"  Format(uuid)
-// @Success      200       {array}   response.StudentResponse
+// @Success      200       {array}   StudentResponse
 // @Router       /api/v1/rosters/{rosterId}/students [get]
 func (h *Handler) GetRosterStudents(c *gin.Context) {
 	jwtUser, ok := authhttp.GetUserFromContext(c)

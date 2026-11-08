@@ -1,12 +1,12 @@
 package mapper
 
 import (
-	"github.com/krivolapovdev/trenerio/internal/core/response"
 	"github.com/krivolapovdev/trenerio/internal/core/types"
 	"github.com/krivolapovdev/trenerio/internal/db"
+	"github.com/krivolapovdev/trenerio/internal/modules/student/domain"
 )
 
-func ToStudentResponse(s db.StudentsModuleStudent) response.StudentResponse {
+func ToStudentModel(s db.StudentsModuleStudent) domain.Student {
 	var birthdate *types.Date
 	if s.Birthdate.Valid {
 		birthdate = &types.Date{Time: s.Birthdate.Time}
@@ -19,7 +19,7 @@ func ToStudentResponse(s db.StudentsModuleStudent) response.StudentResponse {
 	if s.Note.Valid {
 		note = &s.Note.String
 	}
-	return response.StudentResponse{
+	return domain.Student{
 		ID:        s.ID,
 		FullName:  s.FullName,
 		Birthdate: birthdate,
@@ -28,4 +28,8 @@ func ToStudentResponse(s db.StudentsModuleStudent) response.StudentResponse {
 		CreatedAt: s.CreatedAt,
 		Free:      s.Free,
 	}
+}
+
+func ToStudentResponse(s db.StudentsModuleStudent) domain.Student {
+	return ToStudentModel(s)
 }

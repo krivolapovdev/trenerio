@@ -5,18 +5,17 @@ import (
 
 	"github.com/google/uuid"
 	pkgerrors "github.com/krivolapovdev/trenerio/internal/core/errors"
-	"github.com/krivolapovdev/trenerio/internal/core/response"
-	"github.com/krivolapovdev/trenerio/internal/modules/transaction/model"
+	"github.com/krivolapovdev/trenerio/internal/modules/transaction/domain"
 )
 
-type StudentBalance = model.StudentBalance
+type StudentBalance = domain.StudentBalance
 
 func IsPaidUntilBeforeDate(paidUntil, date time.Time) bool {
-	return model.IsPaidUntilBeforeDate(paidUntil, date)
+	return domain.IsPaidUntilBeforeDate(paidUntil, date)
 }
 
 func IsSubscriptionActive(maxPaidUntil *time.Time, referenceDate time.Time) bool {
-	return model.IsSubscriptionActive(maxPaidUntil, referenceDate)
+	return domain.IsSubscriptionActive(maxPaidUntil, referenceDate)
 }
 
 type AttendanceBalanceChange struct {
@@ -40,7 +39,7 @@ func ValidateStudentPaymentFields(paidUntil *time.Time, sessionsAdded *int64) er
 // MaxPaidUntil extracts the latest PaidUntil date from a list of transactions.
 // Transactions without PaymentDetails or PaidUntil are ignored.
 // If no valid PaidUntil date is found, nil is returned.
-func MaxPaidUntil(payments []response.TransactionResponse) *time.Time {
+func MaxPaidUntil(payments []domain.Transaction) *time.Time {
 	var maxPaidUntil *time.Time
 	for _, p := range payments {
 		if p.PaymentDetails != nil && p.PaymentDetails.PaidUntil != nil {
@@ -54,19 +53,21 @@ func MaxPaidUntil(payments []response.TransactionResponse) *time.Time {
 	return maxPaidUntil
 }
 
-// NeedsSessionForAttendance returns true under the Priority Rule when a visit is billable
-// and is not covered by an active subscription on lessonDate.
-func NeedsSessionForAttendance(paidUntil *time.Time, lessonDate time.Time, billable bool) bool {
-	if !billable {
+func NeedsSessionForAttendance(paidUntil *time.Time, lessonDate time.Time, isBillable bool) bool {
+	if !isBillable {
 		return false
 	}
-	return !IsSubscriptionActive(paidUntil, lessonDate)
+	if paidUntil == nil {
+		return true
+	}
+	return IsPaidUntilBeforeDate(*paidUntil, lessonDate)
 }
 
-// ResolveAttendanceSessionBalance applies the Priority Rule for an attendance transition:
-//  1. Date Check: If lessonDate <= paidUntil, sessions_left is NOT modified.
-//  2. Session Check: If subscription is inactive/null and sessions_left > 0, decrement by 1.
-//  3. Debt: If subscription is inactive/null and sessions_left == 0, sessions_left stays 0.
+// ResolveAttendanceSessionBalance calculates the updated sessionsLeft balance
+// for a single attendance change (recording, editing, or deleting a visit).
+//
+// When a visit transitions to "needs session" (e.g. marked present on a date
+// not covered by paid_until), 1 session is consumed, floored at 0 (debt visit).
 //
 // When reverting an uncovered billable visit (edit/delete), at most 1 session is refunded,
 // capped at max(0, totalSessionsAdded - remainingUncoveredBillableVisits) so debt visits

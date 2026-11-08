@@ -7,16 +7,20 @@ import (
 	pkgerrors "github.com/krivolapovdev/trenerio/internal/core/errors"
 	"github.com/krivolapovdev/trenerio/internal/core/web"
 	authhttp "github.com/krivolapovdev/trenerio/internal/modules/auth/transport/http"
-	"github.com/krivolapovdev/trenerio/internal/modules/roster/request"
 )
+
+// @name UpdateRosterStudentNoteRequest
+type UpdateRosterStudentNoteRequest struct {
+	Note *string `json:"note,omitempty" binding:"omitempty,max=255"`
+}
 
 // UpdateStudentNote
 // @ID           updateRosterStudentNote
 // @Tags         roster-controller
 // @Security     BearerAuth
-// @Param        rosterId   path  string                                  true  "Roster ID"   Format(uuid)
-// @Param        studentId  path  string                                  true  "Student ID"  Format(uuid)
-// @Param        body       body  request.UpdateRosterStudentNoteRequest  true  "Student note"
+// @Param        rosterId   path  string                          true  "Roster ID"   Format(uuid)
+// @Param        studentId  path  string                          true  "Student ID"  Format(uuid)
+// @Param        body       body  UpdateRosterStudentNoteRequest  true  "Student note"
 // @Success      204        "No Content"
 // @Router       /api/v1/rosters/{rosterId}/students/{studentId} [patch]
 func (h *Handler) UpdateStudentNote(c *gin.Context) {
@@ -35,7 +39,7 @@ func (h *Handler) UpdateStudentNote(c *gin.Context) {
 		return
 	}
 
-	var req request.UpdateRosterStudentNoteRequest
+	var req UpdateRosterStudentNoteRequest
 	if !web.BindJSON(c, &req) {
 		return
 	}

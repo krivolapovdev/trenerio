@@ -4,9 +4,10 @@ import (
 	"context"
 
 	"github.com/krivolapovdev/trenerio/internal/core/logger"
+	usermodel "github.com/krivolapovdev/trenerio/internal/modules/user/domain"
 )
 
-func generateLoginResponse(ctx context.Context, tp *TokenProvider, u UserResponse, loginType string) (LoginResponse, error) {
+func generateLoginResponse(ctx context.Context, tp *TokenProvider, u usermodel.User, loginType string) (LoginResult, error) {
 	jwtUser := JwtUser{
 		ID:    u.ID,
 		Email: u.Email,
@@ -15,12 +16,12 @@ func generateLoginResponse(ctx context.Context, tp *TokenProvider, u UserRespons
 	accessToken, refreshToken, err := tp.GenerateTokenPair(jwtUser)
 	if err != nil {
 		logger.ErrorContext(ctx, "Failed to generate tokens for "+loginType+" login", "error", err, "user_id", u.ID.String())
-		return LoginResponse{}, err
+		return LoginResult{}, err
 	}
 
-	return LoginResponse{
+	return LoginResult{
 		User: u,
-		JwtTokens: JwtResponse{
+		Tokens: Tokens{
 			AccessToken:  accessToken,
 			RefreshToken: refreshToken,
 		},

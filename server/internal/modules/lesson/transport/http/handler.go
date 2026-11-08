@@ -2,17 +2,18 @@ package http
 
 import (
 	"context"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/krivolapovdev/trenerio/internal/core/response"
-	"github.com/krivolapovdev/trenerio/internal/modules/lesson/request"
+	"github.com/krivolapovdev/trenerio/internal/modules/lesson/domain"
+	visitmodel "github.com/krivolapovdev/trenerio/internal/modules/visit/domain"
 )
 
 type lessonService interface {
-	GetLessonDetailsByID(ctx context.Context, lessonID, ownerID uuid.UUID) (response.LessonDetailsResponse, error)
-	CreateLesson(ctx context.Context, req request.CreateLessonRequest, ownerID uuid.UUID) (response.LessonResponse, error)
-	UpdateLesson(ctx context.Context, lessonID, ownerID uuid.UUID, req request.UpdateLessonRequest) (response.LessonResponse, error)
+	GetLessonDetailsByID(ctx context.Context, lessonID, ownerID uuid.UUID) (domain.LessonDetails, error)
+	CreateLesson(ctx context.Context, groupID *uuid.UUID, date time.Time, studentVisits []visitmodel.StudentVisit, ownerID uuid.UUID) (domain.Lesson, error)
+	UpdateLesson(ctx context.Context, lessonID, ownerID uuid.UUID, date *time.Time, studentVisits []visitmodel.StudentVisit) (domain.Lesson, error)
 	DeleteLesson(ctx context.Context, lessonID, ownerID uuid.UUID) error
 }
 

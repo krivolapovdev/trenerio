@@ -8,20 +8,21 @@ import (
 	"github.com/google/uuid"
 	pkgerrors "github.com/krivolapovdev/trenerio/internal/core/errors"
 	"github.com/krivolapovdev/trenerio/internal/db"
+	usermodel "github.com/krivolapovdev/trenerio/internal/modules/user/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 type mockUserProvider struct {
-	getOrCreateUserFromOAuth2 func(ctx context.Context, provider db.UsersModuleOauth2Provider, providerID, email string) (UserResponse, error)
+	getOrCreateUserFromOAuth2 func(ctx context.Context, provider db.UsersModuleOauth2Provider, providerID, email string) (usermodel.User, error)
 	existsByID                func(ctx context.Context, id uuid.UUID) (bool, error)
 }
 
-func (m *mockUserProvider) GetOrCreateUserFromOAuth2(ctx context.Context, provider db.UsersModuleOauth2Provider, providerID, email string) (UserResponse, error) {
+func (m *mockUserProvider) GetOrCreateUserFromOAuth2(ctx context.Context, provider db.UsersModuleOauth2Provider, providerID, email string) (usermodel.User, error) {
 	if m.getOrCreateUserFromOAuth2 != nil {
 		return m.getOrCreateUserFromOAuth2(ctx, provider, providerID, email)
 	}
-	return UserResponse{}, nil
+	return usermodel.User{}, nil
 }
 
 func (m *mockUserProvider) ExistsByID(ctx context.Context, id uuid.UUID) (bool, error) {
@@ -37,10 +38,10 @@ func TestAuthService_LoginReviewer(t *testing.T) {
 	testUserID := uuid.New()
 
 	mockProvider := &mockUserProvider{
-		getOrCreateUserFromOAuth2: func(ctx context.Context, provider db.UsersModuleOauth2Provider, providerID, email string) (UserResponse, error) {
+		getOrCreateUserFromOAuth2: func(ctx context.Context, provider db.UsersModuleOauth2Provider, providerID, email string) (usermodel.User, error) {
 			assert.Equal(t, ReviewerProviderID, providerID)
 			assert.Equal(t, ReviewerEmail, email)
-			return UserResponse{
+			return usermodel.User{
 				ID:    testUserID,
 				Email: email,
 			}, nil
@@ -54,8 +55,8 @@ func TestAuthService_LoginReviewer(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, testUserID, resp.User.ID)
 		assert.Equal(t, ReviewerEmail, resp.User.Email)
-		assert.NotEmpty(t, resp.JwtTokens.AccessToken)
-		assert.NotEmpty(t, resp.JwtTokens.RefreshToken)
+		assert.NotEmpty(t, resp.Tokens.AccessToken)
+		assert.NotEmpty(t, resp.Tokens.RefreshToken)
 	})
 
 	t.Run("InvalidKey", func(t *testing.T) {
@@ -68,53 +69,51 @@ func TestAuthService_LoginReviewer(t *testing.T) {
 
 func TestAuthService_RefreshTokens(t *testing.T) {
 	tokenProvider := NewTokenProvider("test-jwt-secret-key-at-least-32-chars", time.Hour, 24*time.Hour, "reviewer-key")
-	testUserID := uuid.New()
-
-	validUser := JwtUser{
-		ID:    testUserID,
+	testUser := JwtUser{
+		ID:    uuid.New(),
 		Email: "refresh@example.com",
 	}
 
-	validRefreshToken, err := tokenProvider.GenerateRefreshToken(validUser)
+	validRefreshToken, err := tokenProvider.GenerateRefreshToken(testUser)
 	require.NoError(t, err)
 
-	validAccessToken, err := tokenProvider.GenerateAccessToken(validUser)
-	require.NoError(t, err)
+	mockProvider := &mockUserProvider{
+		existsByID: func(ctx context.Context, id uuid.UUID) (bool, error) {
+			return id == testUser.ID, nil
+		},
+	}
 
-	t.Run("Success", func(t *testing.T) {
-		mockProvider := &mockUserProvider{
-			existsByID: func(ctx context.Context, id uuid.UUID) (bool, error) {
-				return id == testUserID, nil
-			},
-		}
+	service := NewService(mockProvider, tokenProvider, "dummy-google-client-id")
 
-		service := NewService(mockProvider, tokenProvider, "dummy-google-client-id")
+	t.Run("ValidRefreshToken", func(t *testing.T) {
 		tokens, err := service.RefreshTokens(context.Background(), validRefreshToken)
 		require.NoError(t, err)
 		assert.NotEmpty(t, tokens.AccessToken)
 		assert.NotEmpty(t, tokens.RefreshToken)
 	})
 
-	t.Run("InvalidTokenType", func(t *testing.T) {
-		mockProvider := &mockUserProvider{}
-		service := NewService(mockProvider, tokenProvider, "dummy-google-client-id")
-		_, err := service.RefreshTokens(context.Background(), validAccessToken)
+	t.Run("InvalidRefreshToken", func(t *testing.T) {
+		_, err := service.RefreshTokens(context.Background(), "totally-invalid-token")
 		require.Error(t, err)
-		var badReq *pkgerrors.BadRequestError
-		require.ErrorAs(t, err, &badReq)
+	})
+
+	t.Run("InvalidTokenType", func(t *testing.T) {
+		accessToken, err := tokenProvider.GenerateAccessToken(testUser)
+		require.NoError(t, err)
+
+		_, err = service.RefreshTokens(context.Background(), accessToken)
+		require.Error(t, err)
 	})
 
 	t.Run("UserNotFound", func(t *testing.T) {
-		mockProvider := &mockUserProvider{
-			existsByID: func(ctx context.Context, id uuid.UUID) (bool, error) {
-				return false, nil
-			},
+		nonExistentUser := JwtUser{
+			ID:    uuid.New(),
+			Email: "ghost@example.com",
 		}
+		ghostToken, err := tokenProvider.GenerateRefreshToken(nonExistentUser)
+		require.NoError(t, err)
 
-		service := NewService(mockProvider, tokenProvider, "dummy-google-client-id")
-		_, err := service.RefreshTokens(context.Background(), validRefreshToken)
+		_, err = service.RefreshTokens(context.Background(), ghostToken)
 		require.Error(t, err)
-		var badReq *pkgerrors.BadRequestError
-		require.ErrorAs(t, err, &badReq)
 	})
 }

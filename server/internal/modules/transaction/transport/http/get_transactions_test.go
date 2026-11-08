@@ -8,7 +8,8 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	authmodel "github.com/krivolapovdev/trenerio/internal/modules/auth/model"
+	authmodel "github.com/krivolapovdev/trenerio/internal/modules/auth/domain"
+	txmodel "github.com/krivolapovdev/trenerio/internal/modules/transaction/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -27,11 +28,11 @@ func TestTransactionHandler_GetPaginatedTransactions(t *testing.T) {
 
 	t.Run("SuccessWithDefaults", func(t *testing.T) {
 		mockSvc := &mockTxService{
-			getPaginatedTransactionsFn: func(ctx context.Context, page, size int, ownerID uuid.UUID) (PageTransactionResponse, error) {
+			getPaginatedTransactionsFn: func(ctx context.Context, page, size int, ownerID uuid.UUID) (txmodel.PageTransaction, error) {
 				assert.Equal(t, 1, page)
 				assert.Equal(t, 20, size)
 				assert.Equal(t, testUser.ID, ownerID)
-				return PageTransactionResponse{
+				return txmodel.PageTransaction{
 					Number:        page,
 					Size:          size,
 					TotalElements: 1,
@@ -54,10 +55,10 @@ func TestTransactionHandler_GetPaginatedTransactions(t *testing.T) {
 
 	t.Run("SuccessWithQueryParams", func(t *testing.T) {
 		mockSvc := &mockTxService{
-			getPaginatedTransactionsFn: func(ctx context.Context, page, size int, ownerID uuid.UUID) (PageTransactionResponse, error) {
+			getPaginatedTransactionsFn: func(ctx context.Context, page, size int, ownerID uuid.UUID) (txmodel.PageTransaction, error) {
 				assert.Equal(t, 2, page)
 				assert.Equal(t, 50, size)
-				return PageTransactionResponse{Number: page, Size: size}, nil
+				return txmodel.PageTransaction{Number: page, Size: size}, nil
 			},
 		}
 
@@ -71,8 +72,8 @@ func TestTransactionHandler_GetPaginatedTransactions(t *testing.T) {
 
 	t.Run("InternalServerError", func(t *testing.T) {
 		mockSvc := &mockTxService{
-			getPaginatedTransactionsFn: func(ctx context.Context, page, size int, ownerID uuid.UUID) (PageTransactionResponse, error) {
-				return PageTransactionResponse{}, assert.AnError
+			getPaginatedTransactionsFn: func(ctx context.Context, page, size int, ownerID uuid.UUID) (txmodel.PageTransaction, error) {
+				return txmodel.PageTransaction{}, assert.AnError
 			},
 		}
 

@@ -7,14 +7,12 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"github.com/krivolapovdev/trenerio/internal/core/response"
-	"github.com/krivolapovdev/trenerio/internal/modules/auth/model"
+	"github.com/krivolapovdev/trenerio/internal/modules/auth/domain"
 )
 
-type JwtUser = model.JwtUser
-type UserResponse = response.UserResponse
-type LoginResponse = response.LoginResponse
-type JwtResponse = response.JwtResponse
+type JwtUser = domain.JwtUser
+type Tokens = domain.Tokens
+type LoginResult = domain.LoginResult
 
 const (
 	claimSubject   = "sub"
@@ -85,12 +83,12 @@ func (p *TokenProvider) GenerateTokenPair(user JwtUser) (accessToken, refreshTok
 	return accessToken, refreshToken, nil
 }
 
-func (p *TokenProvider) generateToken(user JwtUser, exp time.Duration, tokenType string) (string, error) {
+func (p *TokenProvider) generateToken(user JwtUser, exp time.Duration, tokenType TokenType) (string, error) {
 	now := time.Now().UTC()
 	claims := jwt.MapClaims{
 		claimSubject:   user.ID.String(),
 		claimEmail:     user.Email,
-		claimType:      tokenType,
+		claimType:      string(tokenType),
 		claimIssuedAt:  now.Unix(),
 		claimExpiresAt: now.Add(exp).Unix(),
 	}
@@ -99,7 +97,7 @@ func (p *TokenProvider) generateToken(user JwtUser, exp time.Duration, tokenType
 	return token.SignedString(p.secretKey)
 }
 
-func (p *TokenProvider) IsTokenValid(tokenStr, expectedType string) bool {
+func (p *TokenProvider) IsTokenValid(tokenStr string, expectedType TokenType) bool {
 	token, err := p.parseToken(tokenStr)
 	if err != nil || !token.Valid {
 		return false
@@ -111,7 +109,7 @@ func (p *TokenProvider) IsTokenValid(tokenStr, expectedType string) bool {
 	}
 
 	tokenType, ok := claims[claimType].(string)
-	if !ok || tokenType != expectedType {
+	if !ok || tokenType != string(expectedType) {
 		return false
 	}
 

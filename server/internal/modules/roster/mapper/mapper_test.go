@@ -6,12 +6,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/krivolapovdev/trenerio/internal/core/response"
 	"github.com/krivolapovdev/trenerio/internal/db"
+	studentmodel "github.com/krivolapovdev/trenerio/internal/modules/student/domain"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestToRosterResponse(t *testing.T) {
+func TestToRosterModel(t *testing.T) {
 	rosterID := uuid.New()
 	now := time.Now()
 	date := time.Date(2026, 10, 22, 10, 0, 0, 0, time.UTC)
@@ -25,11 +25,11 @@ func TestToRosterResponse(t *testing.T) {
 		CreatedAt: now,
 	}
 
-	students := []response.StudentResponse{
+	students := []studentmodel.Student{
 		{ID: uuid.New(), FullName: "Alice"},
 	}
 
-	resp := ToRosterResponse(r, int64(len(students)), students)
+	resp := ToRosterModel(r, int64(len(students)), students)
 	assert.Equal(t, rosterID, resp.ID)
 	assert.Equal(t, "Morning Roster", resp.Name)
 	assert.NotNil(t, resp.Date)
@@ -46,9 +46,9 @@ func TestToRosterResponse(t *testing.T) {
 		Name:      "Empty Roster",
 		CreatedAt: now,
 	}
-	respEmpty := ToRosterResponse(rEmpty, 0, nil)
+	respEmpty := ToRosterModel(rEmpty, 0, nil)
 	assert.Nil(t, respEmpty.Date)
 	assert.Nil(t, respEmpty.Note)
-	assert.Empty(t, respEmpty.Students)
 	assert.Equal(t, int64(0), respEmpty.CountOfStudents)
+	assert.Empty(t, respEmpty.Students)
 }

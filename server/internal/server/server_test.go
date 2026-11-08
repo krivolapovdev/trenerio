@@ -11,11 +11,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	pkgerrors "github.com/krivolapovdev/trenerio/internal/core/errors"
-	"github.com/krivolapovdev/trenerio/internal/core/response"
-	"github.com/krivolapovdev/trenerio/internal/db"
-	authmodel "github.com/krivolapovdev/trenerio/internal/modules/auth/model"
+	authmodel "github.com/krivolapovdev/trenerio/internal/modules/auth/domain"
 	authsvc "github.com/krivolapovdev/trenerio/internal/modules/auth/service"
 	authhttp "github.com/krivolapovdev/trenerio/internal/modules/auth/transport/http"
+	usermodel "github.com/krivolapovdev/trenerio/internal/modules/user/domain"
 	userhttp "github.com/krivolapovdev/trenerio/internal/modules/user/transport/http"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -82,30 +81,26 @@ func TestNoRouteAndNoMethod(t *testing.T) {
 }
 
 type testAuthService struct {
-	loginReviewerFn func(ctx context.Context, reviewerKey string) (response.LoginResponse, error)
+	loginReviewerFn func(ctx context.Context, reviewerKey string) (authmodel.LoginResult, error)
 }
 
-func (m *testAuthService) LoginGoogle(ctx context.Context, token string) (response.LoginResponse, error) {
-	return response.LoginResponse{}, nil
+func (m *testAuthService) LoginGoogle(_ context.Context, _ string) (authmodel.LoginResult, error) {
+	return authmodel.LoginResult{}, nil
 }
 
-func (m *testAuthService) RefreshTokens(ctx context.Context, refreshToken string) (response.JwtResponse, error) {
-	return response.JwtResponse{}, nil
+func (m *testAuthService) RefreshTokens(ctx context.Context, refreshToken string) (authmodel.Tokens, error) {
+	return authmodel.Tokens{}, nil
 }
 
-func (m *testAuthService) LoginReviewer(ctx context.Context, reviewerKey string) (response.LoginResponse, error) {
+func (m *testAuthService) LoginReviewer(ctx context.Context, reviewerKey string) (authmodel.LoginResult, error) {
 	if m.loginReviewerFn != nil {
 		return m.loginReviewerFn(ctx, reviewerKey)
 	}
-	return response.LoginResponse{}, nil
+	return authmodel.LoginResult{}, nil
 }
 
 type testUserService struct {
 	deleteUserFn func(ctx context.Context, jwtUser authmodel.JwtUser) error
-}
-
-func (m *testUserService) GetOrCreateUserFromOAuth2(ctx context.Context, provider db.UsersModuleOauth2Provider, providerID, email string) (response.UserResponse, error) {
-	return response.UserResponse{}, nil
 }
 
 func (m *testUserService) ExistsByID(ctx context.Context, id uuid.UUID) (bool, error) {
@@ -124,21 +119,21 @@ func TestServer_AuthAndProtectedRoutes(t *testing.T) {
 	testUser := authmodel.JwtUser{ID: uuid.New(), Email: "test@trenerio.ru"}
 
 	authHandler := authhttp.NewHandler(&testAuthService{
-		loginReviewerFn: func(ctx context.Context, reviewerKey string) (response.LoginResponse, error) {
+		loginReviewerFn: func(ctx context.Context, reviewerKey string) (authmodel.LoginResult, error) {
 			if reviewerKey == "valid-key" {
 				acc, ref, err := tokenProvider.GenerateTokenPair(testUser)
 				if err != nil {
-					return response.LoginResponse{}, err
+					return authmodel.LoginResult{}, err
 				}
-				return response.LoginResponse{
-					User: response.UserResponse{ID: testUser.ID, Email: testUser.Email},
-					JwtTokens: response.JwtResponse{
+				return authmodel.LoginResult{
+					User: usermodel.User{ID: testUser.ID, Email: testUser.Email},
+					Tokens: authmodel.Tokens{
 						AccessToken:  acc,
 						RefreshToken: ref,
 					},
 				}, nil
 			}
-			return response.LoginResponse{}, pkgerrors.NewUnauthorized("Invalid reviewer key")
+			return authmodel.LoginResult{}, pkgerrors.NewUnauthorized("Invalid reviewer key")
 		},
 	})
 
@@ -158,7 +153,7 @@ func TestServer_AuthAndProtectedRoutes(t *testing.T) {
 		srv.Engine().ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
-		var resp response.LoginResponse
+		var resp authhttp.LoginResponse
 		err := json.Unmarshal(w.Body.Bytes(), &resp)
 		require.NoError(t, err)
 		assert.Equal(t, testUser.Email, resp.User.Email)

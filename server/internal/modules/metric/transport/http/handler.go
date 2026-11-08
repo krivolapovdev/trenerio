@@ -6,11 +6,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/krivolapovdev/trenerio/internal/core/response"
+	"github.com/krivolapovdev/trenerio/internal/modules/metric/domain"
 )
 
 type metricService interface {
-	GetPaymentStatistics(ctx context.Context, scopeStr string, startDate, endDate time.Time, ownerID uuid.UUID) ([]response.PaymentMetricResponse, error)
+	GetPaymentStatistics(ctx context.Context, scopeStr string, startDate, endDate time.Time, ownerID uuid.UUID) ([]domain.PaymentMetric, error)
 }
 
 type Handler struct {

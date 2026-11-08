@@ -16,7 +16,7 @@ import (
 // @Security     BearerAuth
 // @Param        studentId  path      string             true  "Student ID"        Format(uuid)
 // @Param        body       body      map[string]object  true  "Fields to update"
-// @Success      200        {object}  response.StudentResponse
+// @Success      200        {object}  StudentResponse
 // @Router       /api/v1/students/{studentId} [patch]
 func (h *Handler) UpdateStudent(c *gin.Context) {
 	jwtUser, ok := authhttp.GetUserFromContext(c)
@@ -47,5 +47,6 @@ func (h *Handler) UpdateStudent(c *gin.Context) {
 		return
 	}
 
-	c.JSON(nethttp.StatusOK, updatedStudent)
+	resp := StudentResponse(updatedStudent)
+	c.JSON(nethttp.StatusOK, resp)
 }

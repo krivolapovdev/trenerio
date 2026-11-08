@@ -6,9 +6,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/krivolapovdev/trenerio/internal/core/response"
 	"github.com/krivolapovdev/trenerio/internal/db"
-	"github.com/krivolapovdev/trenerio/internal/modules/transaction/model"
+	"github.com/krivolapovdev/trenerio/internal/modules/transaction/domain"
 )
 
 func ToNullTime(t *time.Time) sql.NullTime {
@@ -41,9 +40,9 @@ func FromNullInt64(ni sql.NullInt64) *int64 {
 	return &v
 }
 
-func ToStudentPaymentDetailsResponse(studentID uuid.UUID, paidUntil sql.NullTime, sessionsAdded sql.NullInt64, studentName *string) *response.StudentPaymentDetailsResponse {
-	return &response.StudentPaymentDetailsResponse{
-		DetailsType:   model.DetailsTypeStudent,
+func ToStudentPaymentDetails(studentID uuid.UUID, paidUntil sql.NullTime, sessionsAdded sql.NullInt64, studentName *string) *domain.StudentPaymentDetails {
+	return &domain.StudentPaymentDetails{
+		DetailsType:   domain.DetailsTypeStudent,
 		StudentID:     studentID,
 		PaidUntil:     FromNullTime(paidUntil),
 		SessionsAdded: FromNullInt64(sessionsAdded),
@@ -51,8 +50,8 @@ func ToStudentPaymentDetailsResponse(studentID uuid.UUID, paidUntil sql.NullTime
 	}
 }
 
-func ToStudentBalanceFromOwnerRow(b db.FindStudentBalancesByOwnerIDRow) model.StudentBalance {
-	return model.StudentBalance{
+func ToStudentBalanceFromOwnerRow(b db.FindStudentBalancesByOwnerIDRow) domain.StudentBalance {
+	return domain.StudentBalance{
 		StudentID:          b.StudentID,
 		PaidUntil:          FromNullTime(b.PaidUntil),
 		SessionsLeft:       b.SessionsLeft,
@@ -60,8 +59,8 @@ func ToStudentBalanceFromOwnerRow(b db.FindStudentBalancesByOwnerIDRow) model.St
 	}
 }
 
-func ToStudentBalanceFromIDsRow(b db.FindStudentBalancesByStudentIDsAndOwnerIDRow) model.StudentBalance {
-	return model.StudentBalance{
+func ToStudentBalanceFromIDsRow(b db.FindStudentBalancesByStudentIDsAndOwnerIDRow) domain.StudentBalance {
+	return domain.StudentBalance{
 		StudentID:          b.StudentID,
 		PaidUntil:          FromNullTime(b.PaidUntil),
 		SessionsLeft:       b.SessionsLeft,
@@ -69,74 +68,66 @@ func ToStudentBalanceFromIDsRow(b db.FindStudentBalancesByStudentIDsAndOwnerIDRo
 	}
 }
 
-func ToStudentBalance(b db.PaymentsModuleStudentBalance) model.StudentBalance {
-	return model.StudentBalance{
-		StudentID:    b.StudentID,
-		PaidUntil:    FromNullTime(b.PaidUntil),
-		SessionsLeft: b.SessionsLeft,
-	}
-}
-
-func ToTransactionResponse(tx db.PaymentsModuleTransaction, details *response.StudentPaymentDetailsResponse) response.TransactionResponse {
+func ToTransaction(tx db.PaymentsModuleTransaction, details *domain.StudentPaymentDetails) domain.Transaction {
 	amt, _ := strconv.ParseFloat(tx.Amount, 64)
-	return response.TransactionResponse{
+	return domain.Transaction{
 		ID:             tx.ID,
 		Amount:         amt,
 		Date:           tx.Date,
-		Type:           model.TransactionType(tx.Type),
+		Type:           domain.TransactionType(tx.Type),
 		CreatedAt:      tx.CreatedAt,
 		PaymentDetails: details,
 	}
 }
 
-func ToTransactionResponseFromPaginatedRow(r db.FindTransactionsByOwnerIDPaginatedRow, details *response.StudentPaymentDetailsResponse) response.TransactionResponse {
+func ToTransactionFromPaginatedRow(r db.FindTransactionsByOwnerIDPaginatedRow, details *domain.StudentPaymentDetails) domain.Transaction {
 	amt, _ := strconv.ParseFloat(r.Amount, 64)
-	return response.TransactionResponse{
+	return domain.Transaction{
 		ID:             r.ID,
 		Amount:         amt,
 		Date:           r.Date,
-		Type:           model.TransactionType(r.Type),
+		Type:           domain.TransactionType(r.Type),
 		CreatedAt:      r.CreatedAt,
 		PaymentDetails: details,
 	}
 }
 
-func ToTransactionResponseFromDateBetweenRow(r db.FindTransactionsByOwnerIDAndDateBetweenRow) response.TransactionResponse {
+func ToTransactionFromDateBetweenRow(r db.FindTransactionsByOwnerIDAndDateBetweenRow) domain.Transaction {
 	amt, _ := strconv.ParseFloat(r.Amount, 64)
-	var details *response.StudentPaymentDetailsResponse
+	var details *domain.StudentPaymentDetails
 	if r.StudentID.Valid && (r.PaidUntil.Valid || r.SessionsAdded.Valid) {
-		details = ToStudentPaymentDetailsResponse(r.StudentID.UUID, r.PaidUntil, r.SessionsAdded, nil)
+		details = ToStudentPaymentDetails(r.StudentID.UUID, r.PaidUntil, r.SessionsAdded, nil)
 	}
-	return response.TransactionResponse{
+	return domain.Transaction{
 		ID:             r.ID,
 		Amount:         amt,
 		Date:           r.Date,
-		Type:           model.TransactionType(r.Type),
+		Type:           domain.TransactionType(r.Type),
 		CreatedAt:      r.CreatedAt,
 		PaymentDetails: details,
 	}
 }
 
-func ToTransactionResponseFromStudentPaymentRow(r db.FindStudentPaymentsByStudentIDAndOwnerIDRow) response.TransactionResponse {
+func ToTransactionFromStudentPaymentRow(r db.FindStudentPaymentsByStudentIDAndOwnerIDRow) domain.Transaction {
 	amt, _ := strconv.ParseFloat(r.Amount, 64)
-	return response.TransactionResponse{
+	return domain.Transaction{
 		ID:             r.ID,
 		Amount:         amt,
 		Date:           r.Date,
-		Type:           model.TransactionType(r.Type),
+		Type:           domain.TransactionType(r.Type),
 		CreatedAt:      r.CreatedAt,
-		PaymentDetails: ToStudentPaymentDetailsResponse(r.StudentID, r.PaidUntil, r.SessionsAdded, nil),
+		PaymentDetails: ToStudentPaymentDetails(r.StudentID, r.PaidUntil, r.SessionsAdded, nil),
 	}
 }
 
-func ToTransactionResponseFromStudentPaymentsRow(r db.FindStudentPaymentsByStudentIDsAndOwnerIDRow) response.TransactionResponse {
+func ToTransactionFromStudentPaymentsRow(r db.FindStudentPaymentsByStudentIDsAndOwnerIDRow) domain.Transaction {
 	amt, _ := strconv.ParseFloat(r.Amount, 64)
-	return response.TransactionResponse{
+	return domain.Transaction{
 		ID:             r.ID,
 		Amount:         amt,
 		Date:           r.Date,
-		Type:           model.TransactionType(r.Type),
+		Type:           domain.TransactionType(r.Type),
 		CreatedAt:      r.CreatedAt,
-		PaymentDetails: ToStudentPaymentDetailsResponse(r.StudentID, r.PaidUntil, r.SessionsAdded, nil),
+		PaymentDetails: ToStudentPaymentDetails(r.StudentID, r.PaidUntil, r.SessionsAdded, nil),
 	}
 }

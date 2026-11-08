@@ -6,19 +6,19 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/krivolapovdev/trenerio/internal/core/response"
-	"github.com/krivolapovdev/trenerio/internal/modules/student/request"
+	studentmodel "github.com/krivolapovdev/trenerio/internal/modules/student/domain"
 	studentservice "github.com/krivolapovdev/trenerio/internal/modules/student/service"
+	txmodel "github.com/krivolapovdev/trenerio/internal/modules/transaction/domain"
 )
 
 type studentService interface {
-	GetAllStudentsSummary(ctx context.Context, ownerID uuid.UUID) ([]studentservice.StudentSummaryResponse, error)
-	GetStudentVisits(ctx context.Context, studentID, ownerID uuid.UUID, from, to *time.Time) ([]response.VisitWithLessonResponse, error)
-	GetStudentPayments(ctx context.Context, studentID, ownerID uuid.UUID) ([]response.TransactionResponse, error)
-	GetStudentDetailsByID(ctx context.Context, studentID, ownerID uuid.UUID) (response.StudentResponse, error)
-	CreateStudent(ctx context.Context, req request.CreateStudentRequest, ownerID uuid.UUID) (response.StudentResponse, error)
-	CreateStudentPayment(ctx context.Context, studentID, ownerID uuid.UUID, req request.CreateStudentPaymentRequest) (response.TransactionResponse, error)
-	UpdateStudent(ctx context.Context, studentID, ownerID uuid.UUID, updates map[string]any) (response.StudentResponse, error)
+	GetAllStudentsSummary(ctx context.Context, ownerID uuid.UUID) ([]studentservice.StudentSummary, error)
+	GetStudentVisits(ctx context.Context, studentID, ownerID uuid.UUID, from, to *time.Time) ([]studentservice.StudentVisitWithLesson, error)
+	GetStudentPayments(ctx context.Context, studentID, ownerID uuid.UUID) ([]txmodel.Transaction, error)
+	GetStudentDetailsByID(ctx context.Context, studentID, ownerID uuid.UUID) (studentmodel.Student, error)
+	CreateStudent(ctx context.Context, studentToCreate studentmodel.Student, ownerID uuid.UUID) (studentmodel.Student, error)
+	CreateStudentPayment(ctx context.Context, studentID, ownerID uuid.UUID, amount float64, date time.Time, paidUntil *time.Time, sessionsAdded *int64) (txmodel.Transaction, error)
+	UpdateStudent(ctx context.Context, studentID, ownerID uuid.UUID, updates map[string]any) (studentmodel.Student, error)
 	DeleteStudent(ctx context.Context, studentID, ownerID uuid.UUID) error
 }
 

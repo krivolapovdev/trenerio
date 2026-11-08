@@ -16,7 +16,7 @@ import (
 // @Security     BearerAuth
 // @Param        rosterId  path      string             true  "Roster ID"          Format(uuid)
 // @Param        body      body      map[string]object  true  "Fields to update"
-// @Success      200       {object}  response.RosterResponse
+// @Success      200       {object}  RosterResponse
 // @Router       /api/v1/rosters/{rosterId} [patch]
 func (h *Handler) UpdateRoster(c *gin.Context) {
 	jwtUser, ok := authhttp.GetUserFromContext(c)

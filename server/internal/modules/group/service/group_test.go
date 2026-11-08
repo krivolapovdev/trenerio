@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	pkgerrors "github.com/krivolapovdev/trenerio/internal/core/errors"
-	"github.com/krivolapovdev/trenerio/internal/modules/group/request"
+	"github.com/krivolapovdev/trenerio/internal/modules/group/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -18,10 +18,10 @@ func TestGroupService_DefaultPriceValidation(t *testing.T) {
 
 	t.Run("CreateGroup_ZeroDefaultPrice", func(t *testing.T) {
 		zero := 0.0
-		_, err := svc.CreateGroup(ctx, request.CreateGroupRequest{
+		_, err := svc.CreateGroup(ctx, domain.Group{
 			Name:         "Swimming",
 			DefaultPrice: &zero,
-		}, ownerID)
+		}, nil, ownerID)
 		require.Error(t, err)
 		var badReq *pkgerrors.BadRequestError
 		require.ErrorAs(t, err, &badReq)
@@ -30,10 +30,10 @@ func TestGroupService_DefaultPriceValidation(t *testing.T) {
 
 	t.Run("CreateGroup_NegativeDefaultPrice", func(t *testing.T) {
 		neg := -50.0
-		_, err := svc.CreateGroup(ctx, request.CreateGroupRequest{
+		_, err := svc.CreateGroup(ctx, domain.Group{
 			Name:         "Swimming",
 			DefaultPrice: &neg,
-		}, ownerID)
+		}, nil, ownerID)
 		require.Error(t, err)
 		var badReq *pkgerrors.BadRequestError
 		require.ErrorAs(t, err, &badReq)

@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/krivolapovdev/trenerio/internal/core/logger"
 	"github.com/krivolapovdev/trenerio/internal/core/web"
-	authmodel "github.com/krivolapovdev/trenerio/internal/modules/auth/model"
+	authmodel "github.com/krivolapovdev/trenerio/internal/modules/auth/domain"
 	authhttp "github.com/krivolapovdev/trenerio/internal/modules/auth/transport/http"
 )
 

@@ -12,7 +12,7 @@ import (
 // @ID           getAllGroupsSummary
 // @Tags         group-controller
 // @Security     BearerAuth
-// @Success      200  {array}   response.GroupSummaryResponse
+// @Success      200  {array}   GroupSummaryResponse
 // @Router       /api/v1/groups [get]
 func (h *Handler) GetAllGroupsSummary(c *gin.Context) {
 	jwtUser, ok := authhttp.GetUserFromContext(c)

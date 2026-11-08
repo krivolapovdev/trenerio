@@ -3,11 +3,12 @@ package mapper
 import (
 	"time"
 
-	"github.com/krivolapovdev/trenerio/internal/core/response"
 	"github.com/krivolapovdev/trenerio/internal/db"
+	"github.com/krivolapovdev/trenerio/internal/modules/roster/domain"
+	studentmodel "github.com/krivolapovdev/trenerio/internal/modules/student/domain"
 )
 
-func ToRosterResponse(r db.RostersModuleRoster, countOfStudents int64, students []response.StudentResponse) response.RosterResponse {
+func ToRosterModel(r db.RostersModuleRoster, countOfStudents int64, students []studentmodel.Student) domain.Roster {
 	var date *time.Time
 	if r.Date.Valid {
 		date = &r.Date.Time
@@ -19,10 +20,10 @@ func ToRosterResponse(r db.RostersModuleRoster, countOfStudents int64, students 
 	}
 
 	if students == nil {
-		students = []response.StudentResponse{}
+		students = []studentmodel.Student{}
 	}
 
-	return response.RosterResponse{
+	return domain.Roster{
 		ID:              r.ID,
 		Name:            r.Name,
 		Date:            date,

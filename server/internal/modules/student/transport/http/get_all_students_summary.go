@@ -12,7 +12,7 @@ import (
 // @ID           getStudentsSummary
 // @Tags         student-controller
 // @Security     BearerAuth
-// @Success      200  {array}   service.StudentSummaryResponse
+// @Success      200  {array}   StudentSummaryResponse
 // @Router       /api/v1/students/overview [get]
 func (h *Handler) GetAllStudentsSummary(c *gin.Context) {
 	jwtUser, ok := authhttp.GetUserFromContext(c)
@@ -26,5 +26,22 @@ func (h *Handler) GetAllStudentsSummary(c *gin.Context) {
 		return
 	}
 
-	c.JSON(nethttp.StatusOK, summaries)
+	resp := make([]StudentSummaryResponse, len(summaries))
+	for i, s := range summaries {
+		resp[i] = StudentSummaryResponse{
+			ID:            s.ID,
+			FullName:      s.FullName,
+			Birthdate:     s.Birthdate,
+			Phone:         s.Phone,
+			Note:          s.Note,
+			CreatedAt:     s.CreatedAt,
+			Free:          s.Free,
+			Statuses:      s.Statuses,
+			StudentGroups: s.StudentGroups,
+			PaidUntil:     s.PaidUntil,
+			SessionsLeft:  s.SessionsLeft,
+		}
+	}
+
+	c.JSON(nethttp.StatusOK, resp)
 }

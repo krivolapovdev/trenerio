@@ -13,80 +13,80 @@ import (
 	"github.com/google/uuid"
 	pkgerrors "github.com/krivolapovdev/trenerio/internal/core/errors"
 	"github.com/krivolapovdev/trenerio/internal/core/harness"
-	"github.com/krivolapovdev/trenerio/internal/core/response"
-	authmodel "github.com/krivolapovdev/trenerio/internal/modules/auth/model"
-	"github.com/krivolapovdev/trenerio/internal/modules/group/request"
+	authmodel "github.com/krivolapovdev/trenerio/internal/modules/auth/domain"
+	groupmodel "github.com/krivolapovdev/trenerio/internal/modules/group/domain"
 	groupsvc "github.com/krivolapovdev/trenerio/internal/modules/group/service"
+	lessonmodel "github.com/krivolapovdev/trenerio/internal/modules/lesson/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 type mockGroupService struct {
-	getAllGroupsSummaryFn func(ctx context.Context, ownerID uuid.UUID) ([]response.GroupSummaryResponse, error)
-	getGroupByIDFn        func(ctx context.Context, groupID, ownerID uuid.UUID) (response.GroupResponse, error)
-	getGroupStudentsFn    func(ctx context.Context, groupID, ownerID uuid.UUID) ([]groupsvc.GroupStudentSummaryResponse, error)
-	getGroupLessonsFn     func(ctx context.Context, groupID, ownerID uuid.UUID, from, to time.Time) ([]response.LessonResponse, error)
-	getGroupReportFn      func(ctx context.Context, groupID, ownerID uuid.UUID, year, month int) (groupsvc.GroupReportResponse, error)
-	createGroupFn         func(ctx context.Context, req request.CreateGroupRequest, ownerID uuid.UUID) (response.GroupResponse, error)
-	updateGroupFn         func(ctx context.Context, groupID, ownerID uuid.UUID, updates map[string]any) (response.GroupResponse, error)
+	getAllGroupsSummaryFn func(ctx context.Context, ownerID uuid.UUID) ([]groupmodel.GroupSummary, error)
+	getGroupByIDFn        func(ctx context.Context, groupID, ownerID uuid.UUID) (groupmodel.Group, error)
+	getGroupStudentsFn    func(ctx context.Context, groupID, ownerID uuid.UUID) ([]groupmodel.GroupStudentSummary, error)
+	getGroupLessonsFn     func(ctx context.Context, groupID, ownerID uuid.UUID, from, to time.Time) ([]lessonmodel.Lesson, error)
+	getGroupReportFn      func(ctx context.Context, groupID, ownerID uuid.UUID, year, month int) (groupmodel.GroupReport, error)
+	createGroupFn         func(ctx context.Context, groupToCreate groupmodel.Group, studentIDs []uuid.UUID, ownerID uuid.UUID) (groupmodel.Group, error)
+	updateGroupFn         func(ctx context.Context, groupID, ownerID uuid.UUID, updates map[string]any) (groupmodel.Group, error)
 	deleteGroupFn         func(ctx context.Context, groupID, ownerID uuid.UUID) error
 }
 
-func (m *mockGroupService) GetAllGroupsSummary(ctx context.Context, ownerID uuid.UUID) ([]response.GroupSummaryResponse, error) {
+func (m *mockGroupService) GetAllGroupsSummary(ctx context.Context, ownerID uuid.UUID) ([]groupmodel.GroupSummary, error) {
 	if m.getAllGroupsSummaryFn != nil {
 		return m.getAllGroupsSummaryFn(ctx, ownerID)
 	}
 	return nil, nil
 }
 
-func (m *mockGroupService) GetGroupByID(ctx context.Context, groupID, ownerID uuid.UUID) (response.GroupResponse, error) {
+func (m *mockGroupService) GetGroupByID(ctx context.Context, groupID, ownerID uuid.UUID) (groupmodel.Group, error) {
 	if m.getGroupByIDFn != nil {
 		return m.getGroupByIDFn(ctx, groupID, ownerID)
 	}
-	return response.GroupResponse{}, nil
+	return groupmodel.Group{}, nil
 }
 
-func (m *mockGroupService) GetGroupStudents(ctx context.Context, groupID, ownerID uuid.UUID) ([]groupsvc.GroupStudentSummaryResponse, error) {
+func (m *mockGroupService) GetGroupStudents(ctx context.Context, groupID, ownerID uuid.UUID) ([]groupmodel.GroupStudentSummary, error) {
 	if m.getGroupStudentsFn != nil {
 		return m.getGroupStudentsFn(ctx, groupID, ownerID)
 	}
 	return nil, nil
 }
 
-func (m *mockGroupService) GetGroupLessons(ctx context.Context, groupID, ownerID uuid.UUID, from, to time.Time) ([]response.LessonResponse, error) {
+func (m *mockGroupService) GetGroupLessons(ctx context.Context, groupID, ownerID uuid.UUID, from, to time.Time) ([]lessonmodel.Lesson, error) {
 	if m.getGroupLessonsFn != nil {
 		return m.getGroupLessonsFn(ctx, groupID, ownerID, from, to)
 	}
 	return nil, nil
 }
 
-func (m *mockGroupService) GetGroupReport(ctx context.Context, groupID, ownerID uuid.UUID, year, month int) (groupsvc.GroupReportResponse, error) {
+func (m *mockGroupService) GetGroupReport(ctx context.Context, groupID, ownerID uuid.UUID, year, month int) (groupmodel.GroupReport, error) {
 	if m.getGroupReportFn != nil {
 		return m.getGroupReportFn(ctx, groupID, ownerID, year, month)
 	}
-	return groupsvc.GroupReportResponse{}, nil
+	return groupmodel.GroupReport{}, nil
 }
 
-func (m *mockGroupService) GetGroupsByStudentIDs(ctx context.Context, studentIDs []uuid.UUID, ownerID uuid.UUID) (map[uuid.UUID][]response.GroupResponse, error) {
+func (m *mockGroupService) GetGroupsByStudentIDs() (map[uuid.UUID][]groupmodel.Group, error) {
 	return nil, nil
 }
 
-func (m *mockGroupService) SetStudentGroups(ctx context.Context, studentID, ownerID uuid.UUID, groupIDs []uuid.UUID) error {
+func (m *mockGroupService) SetStudentGroups() error {
 	return nil
 }
 
-func (m *mockGroupService) CreateGroup(ctx context.Context, req request.CreateGroupRequest, ownerID uuid.UUID) (response.GroupResponse, error) {
+func (m *mockGroupService) CreateGroup(ctx context.Context, groupToCreate groupmodel.Group, studentIDs []uuid.UUID, ownerID uuid.UUID) (groupmodel.Group, error) {
 	if m.createGroupFn != nil {
-		return m.createGroupFn(ctx, req, ownerID)
+		return m.createGroupFn(ctx, groupToCreate, studentIDs, ownerID)
 	}
-	return response.GroupResponse{}, nil
+	return groupmodel.Group{}, nil
 }
 
-func (m *mockGroupService) UpdateGroup(ctx context.Context, groupID, ownerID uuid.UUID, updates map[string]any) (response.GroupResponse, error) {
+func (m *mockGroupService) UpdateGroup(ctx context.Context, groupID, ownerID uuid.UUID, updates map[string]any) (groupmodel.Group, error) {
 	if m.updateGroupFn != nil {
 		return m.updateGroupFn(ctx, groupID, ownerID, updates)
 	}
-	return response.GroupResponse{}, nil
+	return groupmodel.Group{}, nil
 }
 
 func (m *mockGroupService) DeleteGroup(ctx context.Context, groupID, ownerID uuid.UUID) error {
@@ -115,11 +115,11 @@ func TestGroupHandler_GetAllGroupsSummary(t *testing.T) {
 	})
 
 	t.Run("Success", func(t *testing.T) {
-		expected := []response.GroupSummaryResponse{
+		expected := []GroupSummaryResponse{
 			{ID: uuid.New(), Name: "Beginners", CountOfStudents: 10, CountOfDebtors: 2},
 		}
 		mockSvc := &mockGroupService{
-			getAllGroupsSummaryFn: func(ctx context.Context, ownerID uuid.UUID) ([]response.GroupSummaryResponse, error) {
+			getAllGroupsSummaryFn: func(ctx context.Context, ownerID uuid.UUID) ([]GroupSummaryResponse, error) {
 				assert.Equal(t, testUser.ID, ownerID)
 				return expected, nil
 			},
@@ -131,7 +131,7 @@ func TestGroupHandler_GetAllGroupsSummary(t *testing.T) {
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, nethttp.StatusOK, w.Code)
-		var actual []response.GroupSummaryResponse
+		var actual []GroupSummaryResponse
 		err := json.Unmarshal(w.Body.Bytes(), &actual)
 		require.NoError(t, err)
 		assert.Len(t, actual, 1)
@@ -141,7 +141,7 @@ func TestGroupHandler_GetAllGroupsSummary(t *testing.T) {
 
 	t.Run("InternalServerError", func(t *testing.T) {
 		mockSvc := &mockGroupService{
-			getAllGroupsSummaryFn: func(ctx context.Context, ownerID uuid.UUID) ([]response.GroupSummaryResponse, error) {
+			getAllGroupsSummaryFn: func(ctx context.Context, ownerID uuid.UUID) ([]GroupSummaryResponse, error) {
 				return nil, assert.AnError
 			},
 		}
@@ -170,10 +170,10 @@ func TestGroupHandler_GetGroupStudents(t *testing.T) {
 
 	t.Run("Success", func(t *testing.T) {
 		mockSvc := &mockGroupService{
-			getGroupStudentsFn: func(ctx context.Context, gID, ownerID uuid.UUID) ([]groupsvc.GroupStudentSummaryResponse, error) {
+			getGroupStudentsFn: func(ctx context.Context, gID, ownerID uuid.UUID) ([]groupmodel.GroupStudentSummary, error) {
 				assert.Equal(t, groupID, gID)
 				assert.Equal(t, testUser.ID, ownerID)
-				return []groupsvc.GroupStudentSummaryResponse{
+				return []groupmodel.GroupStudentSummary{
 					{ID: uuid.New(), FullName: "Student 1"},
 				}, nil
 			},
@@ -189,7 +189,7 @@ func TestGroupHandler_GetGroupStudents(t *testing.T) {
 
 	t.Run("NotFound", func(t *testing.T) {
 		mockSvc := &mockGroupService{
-			getGroupStudentsFn: func(ctx context.Context, gID, ownerID uuid.UUID) ([]groupsvc.GroupStudentSummaryResponse, error) {
+			getGroupStudentsFn: func(ctx context.Context, gID, ownerID uuid.UUID) ([]groupmodel.GroupStudentSummary, error) {
 				return nil, pkgerrors.NewNotFound("Group", gID, ownerID)
 			},
 		}
@@ -204,7 +204,7 @@ func TestGroupHandler_GetGroupStudents(t *testing.T) {
 
 	t.Run("InternalServerError", func(t *testing.T) {
 		mockSvc := &mockGroupService{
-			getGroupStudentsFn: func(ctx context.Context, gID, ownerID uuid.UUID) ([]groupsvc.GroupStudentSummaryResponse, error) {
+			getGroupStudentsFn: func(ctx context.Context, gID, ownerID uuid.UUID) ([]groupmodel.GroupStudentSummary, error) {
 				return nil, assert.AnError
 			},
 		}
@@ -245,11 +245,11 @@ func TestGroupHandler_GetGroupLessons(t *testing.T) {
 		to := time.Date(2026, 1, 31, 23, 59, 59, 0, time.UTC)
 
 		mockSvc := &mockGroupService{
-			getGroupLessonsFn: func(ctx context.Context, gID, ownerID uuid.UUID, f, toDate time.Time) ([]response.LessonResponse, error) {
+			getGroupLessonsFn: func(ctx context.Context, gID, ownerID uuid.UUID, f, toDate time.Time) ([]lessonmodel.Lesson, error) {
 				assert.Equal(t, groupID, gID)
 				assert.True(t, from.Equal(f))
 				assert.True(t, to.Equal(toDate))
-				return []response.LessonResponse{{ID: uuid.New()}}, nil
+				return []lessonmodel.Lesson{{ID: uuid.New()}}, nil
 			},
 		}
 
@@ -265,7 +265,7 @@ func TestGroupHandler_GetGroupLessons(t *testing.T) {
 		from := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 		to := time.Date(2026, 1, 31, 23, 59, 59, 0, time.UTC)
 		mockSvc := &mockGroupService{
-			getGroupLessonsFn: func(ctx context.Context, gID, ownerID uuid.UUID, f, toDate time.Time) ([]response.LessonResponse, error) {
+			getGroupLessonsFn: func(ctx context.Context, gID, ownerID uuid.UUID, f, toDate time.Time) ([]lessonmodel.Lesson, error) {
 				return nil, assert.AnError
 			},
 		}
@@ -320,10 +320,10 @@ func TestGroupHandler_GetGroupReport(t *testing.T) {
 
 	t.Run("Success", func(t *testing.T) {
 		mockSvc := &mockGroupService{
-			getGroupReportFn: func(ctx context.Context, gID, ownerID uuid.UUID, year, month int) (groupsvc.GroupReportResponse, error) {
+			getGroupReportFn: func(ctx context.Context, gID, ownerID uuid.UUID, year, month int) (groupmodel.GroupReport, error) {
 				assert.Equal(t, 2026, year)
 				assert.Equal(t, 10, month)
-				return groupsvc.GroupReportResponse{Year: year, Month: month}, nil
+				return groupmodel.GroupReport{Year: year, Month: month}, nil
 			},
 		}
 
@@ -337,8 +337,8 @@ func TestGroupHandler_GetGroupReport(t *testing.T) {
 
 	t.Run("InternalServerError", func(t *testing.T) {
 		mockSvc := &mockGroupService{
-			getGroupReportFn: func(ctx context.Context, gID, ownerID uuid.UUID, year, month int) (groupsvc.GroupReportResponse, error) {
-				return groupsvc.GroupReportResponse{}, assert.AnError
+			getGroupReportFn: func(ctx context.Context, gID, ownerID uuid.UUID, year, month int) (groupmodel.GroupReport, error) {
+				return groupmodel.GroupReport{}, assert.AnError
 			},
 		}
 
@@ -367,9 +367,9 @@ func TestGroupHandler_CreateGroup(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		expectedID := uuid.New()
 		mockSvc := &mockGroupService{
-			createGroupFn: func(ctx context.Context, req request.CreateGroupRequest, ownerID uuid.UUID) (response.GroupResponse, error) {
-				assert.Equal(t, "Advanced", req.Name)
-				return response.GroupResponse{ID: expectedID, Name: req.Name}, nil
+			createGroupFn: func(ctx context.Context, groupToCreate groupmodel.Group, studentIDs []uuid.UUID, ownerID uuid.UUID) (groupmodel.Group, error) {
+				assert.Equal(t, "Advanced", groupToCreate.Name)
+				return groupmodel.Group{ID: expectedID, Name: groupToCreate.Name}, nil
 			},
 		}
 
@@ -384,8 +384,8 @@ func TestGroupHandler_CreateGroup(t *testing.T) {
 
 	t.Run("ConflictError", func(t *testing.T) {
 		mockSvc := &mockGroupService{
-			createGroupFn: func(ctx context.Context, req request.CreateGroupRequest, ownerID uuid.UUID) (response.GroupResponse, error) {
-				return response.GroupResponse{}, pkgerrors.NewConflict(groupsvc.ErrGroupNameNotUnique, "Group already exists")
+			createGroupFn: func(ctx context.Context, groupToCreate groupmodel.Group, studentIDs []uuid.UUID, ownerID uuid.UUID) (groupmodel.Group, error) {
+				return groupmodel.Group{}, pkgerrors.NewConflict(groupsvc.ErrGroupNameNotUnique, "Group already exists")
 			},
 		}
 
@@ -430,9 +430,9 @@ func TestGroupHandler_CreateGroup(t *testing.T) {
 
 	t.Run("NullDefaultPrice", func(t *testing.T) {
 		mockSvc := &mockGroupService{
-			createGroupFn: func(ctx context.Context, req request.CreateGroupRequest, ownerID uuid.UUID) (response.GroupResponse, error) {
-				assert.Nil(t, req.DefaultPrice)
-				return response.GroupResponse{ID: uuid.New(), Name: req.Name}, nil
+			createGroupFn: func(ctx context.Context, groupToCreate groupmodel.Group, studentIDs []uuid.UUID, ownerID uuid.UUID) (groupmodel.Group, error) {
+				assert.Nil(t, groupToCreate.DefaultPrice)
+				return groupmodel.Group{ID: uuid.New(), Name: groupToCreate.Name}, nil
 			},
 		}
 		r := setupGroupRouter(mockSvc, testUser)
@@ -446,10 +446,10 @@ func TestGroupHandler_CreateGroup(t *testing.T) {
 
 	t.Run("PositiveDefaultPrice", func(t *testing.T) {
 		mockSvc := &mockGroupService{
-			createGroupFn: func(ctx context.Context, req request.CreateGroupRequest, ownerID uuid.UUID) (response.GroupResponse, error) {
-				require.NotNil(t, req.DefaultPrice)
-				assert.Equal(t, 150.0, *req.DefaultPrice)
-				return response.GroupResponse{ID: uuid.New(), Name: req.Name, DefaultPrice: req.DefaultPrice}, nil
+			createGroupFn: func(ctx context.Context, groupToCreate groupmodel.Group, studentIDs []uuid.UUID, ownerID uuid.UUID) (groupmodel.Group, error) {
+				require.NotNil(t, groupToCreate.DefaultPrice)
+				assert.Equal(t, 150.0, *groupToCreate.DefaultPrice)
+				return groupmodel.Group{ID: uuid.New(), Name: groupToCreate.Name, DefaultPrice: groupToCreate.DefaultPrice}, nil
 			},
 		}
 		r := setupGroupRouter(mockSvc, testUser)
@@ -464,11 +464,11 @@ func TestGroupHandler_CreateGroup(t *testing.T) {
 	t.Run("TrimmedData", func(t *testing.T) {
 		expectedID := uuid.New()
 		mockSvc := &mockGroupService{
-			createGroupFn: func(ctx context.Context, req request.CreateGroupRequest, ownerID uuid.UUID) (response.GroupResponse, error) {
-				assert.Equal(t, "Advanced", req.Name)
-				require.NotNil(t, req.Note)
-				assert.Equal(t, "note text", *req.Note)
-				return response.GroupResponse{ID: expectedID, Name: req.Name, Note: req.Note}, nil
+			createGroupFn: func(ctx context.Context, groupToCreate groupmodel.Group, studentIDs []uuid.UUID, ownerID uuid.UUID) (groupmodel.Group, error) {
+				assert.Equal(t, "Advanced", groupToCreate.Name)
+				require.NotNil(t, groupToCreate.Note)
+				assert.Equal(t, "note text", *groupToCreate.Note)
+				return groupmodel.Group{ID: expectedID, Name: groupToCreate.Name, Note: groupToCreate.Note}, nil
 			},
 		}
 
@@ -483,8 +483,8 @@ func TestGroupHandler_CreateGroup(t *testing.T) {
 
 	t.Run("InternalServerError", func(t *testing.T) {
 		mockSvc := &mockGroupService{
-			createGroupFn: func(ctx context.Context, req request.CreateGroupRequest, ownerID uuid.UUID) (response.GroupResponse, error) {
-				return response.GroupResponse{}, assert.AnError
+			createGroupFn: func(ctx context.Context, groupToCreate groupmodel.Group, studentIDs []uuid.UUID, ownerID uuid.UUID) (groupmodel.Group, error) {
+				return groupmodel.Group{}, assert.AnError
 			},
 		}
 
@@ -524,10 +524,10 @@ func TestGroupHandler_UpdateGroup(t *testing.T) {
 
 	t.Run("Success", func(t *testing.T) {
 		mockSvc := &mockGroupService{
-			updateGroupFn: func(ctx context.Context, gID, ownerID uuid.UUID, updates map[string]any) (response.GroupResponse, error) {
+			updateGroupFn: func(ctx context.Context, gID, ownerID uuid.UUID, updates map[string]any) (groupmodel.Group, error) {
 				assert.Equal(t, groupID, gID)
 				assert.Equal(t, "Updated Name", updates["name"])
-				return response.GroupResponse{ID: groupID, Name: "Updated Name"}, nil
+				return groupmodel.Group{ID: groupID, Name: "Updated Name"}, nil
 			},
 		}
 
@@ -552,11 +552,11 @@ func TestGroupHandler_UpdateGroup(t *testing.T) {
 
 	t.Run("TrimmedData", func(t *testing.T) {
 		mockSvc := &mockGroupService{
-			updateGroupFn: func(ctx context.Context, gID, ownerID uuid.UUID, updates map[string]any) (response.GroupResponse, error) {
+			updateGroupFn: func(ctx context.Context, gID, ownerID uuid.UUID, updates map[string]any) (groupmodel.Group, error) {
 				assert.Equal(t, groupID, gID)
 				assert.Equal(t, "Updated Name", updates["name"])
 				assert.Equal(t, "new note", updates["note"])
-				return response.GroupResponse{ID: groupID, Name: "Updated Name"}, nil
+				return groupmodel.Group{ID: groupID, Name: "Updated Name"}, nil
 			},
 		}
 
@@ -571,8 +571,8 @@ func TestGroupHandler_UpdateGroup(t *testing.T) {
 
 	t.Run("InternalServerError", func(t *testing.T) {
 		mockSvc := &mockGroupService{
-			updateGroupFn: func(ctx context.Context, gID, ownerID uuid.UUID, updates map[string]any) (response.GroupResponse, error) {
-				return response.GroupResponse{}, assert.AnError
+			updateGroupFn: func(ctx context.Context, gID, ownerID uuid.UUID, updates map[string]any) (groupmodel.Group, error) {
+				return groupmodel.Group{}, assert.AnError
 			},
 		}
 

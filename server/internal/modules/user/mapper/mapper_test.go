@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestToUserResponse(t *testing.T) {
+func TestToUserModel(t *testing.T) {
 	userID := uuid.New()
 	u := db.UsersModuleOauth2User{
 		ID:         userID,
@@ -19,7 +19,7 @@ func TestToUserResponse(t *testing.T) {
 		CreatedAt:  time.Now(),
 	}
 
-	resp := ToUserResponse(u)
-	assert.Equal(t, userID, resp.ID)
-	assert.Equal(t, "TEST@EXAMPLE.COM", resp.Email)
+	res := ToUserModel(u)
+	assert.Equal(t, userID, res.ID)
+	assert.Equal(t, "TEST@EXAMPLE.COM", res.Email)
 }

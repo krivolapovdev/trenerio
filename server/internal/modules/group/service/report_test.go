@@ -5,9 +5,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/krivolapovdev/trenerio/internal/core/response"
-	txmodel "github.com/krivolapovdev/trenerio/internal/modules/transaction/model"
-	visitmodel "github.com/krivolapovdev/trenerio/internal/modules/visit/model"
+	groupmodel "github.com/krivolapovdev/trenerio/internal/modules/group/domain"
+	lessonmodel "github.com/krivolapovdev/trenerio/internal/modules/lesson/domain"
+	studentmodel "github.com/krivolapovdev/trenerio/internal/modules/student/domain"
+	txmodel "github.com/krivolapovdev/trenerio/internal/modules/transaction/domain"
+	visitmodel "github.com/krivolapovdev/trenerio/internal/modules/visit/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -22,14 +24,14 @@ func TestBuildGroupReport_DayGrid(t *testing.T) {
 	firstLessonID := uuid.New()
 	secondLessonID := uuid.New()
 
-	lessons := []response.LessonResponse{
+	lessons := []lessonmodel.Lesson{
 		{ID: uuid.New(), Date: time.Date(2026, 2, 3, 10, 0, 0, 0, time.UTC), CreatedAt: createdAt, GroupID: &groupID},
 		{ID: firstLessonID, Date: time.Date(2026, 2, 5, 10, 0, 0, 0, time.UTC), CreatedAt: createdAt, GroupID: &groupID},
 		{ID: secondLessonID, Date: time.Date(2026, 2, 10, 10, 0, 0, 0, time.UTC), CreatedAt: createdAt, GroupID: &groupID},
 		{ID: uuid.New(), Date: time.Date(2026, 3, 3, 10, 0, 0, 0, time.UTC), CreatedAt: createdAt, GroupID: &groupID},
 	}
 
-	visits := map[uuid.UUID][]response.VisitResponse{
+	visits := map[uuid.UUID][]visitmodel.Visit{
 		annaID: {
 			{ID: uuid.New(), LessonID: firstLessonID, StudentID: annaID, Status: visitmodel.VisitStatusPresent, CreatedAt: createdAt},
 			{ID: uuid.New(), LessonID: secondLessonID, StudentID: annaID, Status: visitmodel.VisitStatusPresent, CreatedAt: createdAt},
@@ -40,13 +42,13 @@ func TestBuildGroupReport_DayGrid(t *testing.T) {
 		},
 	}
 
-	grp := response.GroupResponse{
+	grp := groupmodel.Group{
 		ID:        groupID,
 		Name:      "Beginners",
 		CreatedAt: createdAt,
 	}
 
-	students := []response.StudentResponse{
+	students := []studentmodel.Student{
 		{ID: annaID, FullName: "Anna Smirnova", CreatedAt: createdAt},
 		{ID: ivanID, FullName: "Ivan Petrov", CreatedAt: createdAt},
 	}
@@ -84,13 +86,13 @@ func TestBuildGroupReport_MultipleLessonsInOneDay(t *testing.T) {
 	eveningLessonID := uuid.New()
 	singleLessonID := uuid.New()
 
-	lessons := []response.LessonResponse{
+	lessons := []lessonmodel.Lesson{
 		{ID: eveningLessonID, Date: time.Date(2026, 2, 5, 18, 0, 0, 0, time.UTC), CreatedAt: createdAt, GroupID: &groupID},
 		{ID: morningLessonID, Date: time.Date(2026, 2, 5, 10, 0, 0, 0, time.UTC), CreatedAt: createdAt, GroupID: &groupID},
 		{ID: singleLessonID, Date: time.Date(2026, 2, 10, 10, 0, 0, 0, time.UTC), CreatedAt: createdAt, GroupID: &groupID},
 	}
 
-	visits := map[uuid.UUID][]response.VisitResponse{
+	visits := map[uuid.UUID][]visitmodel.Visit{
 		annaID: {
 			{ID: uuid.New(), LessonID: morningLessonID, StudentID: annaID, Status: visitmodel.VisitStatusPresent, CreatedAt: createdAt},
 			{ID: uuid.New(), LessonID: eveningLessonID, StudentID: annaID, Status: visitmodel.VisitStatusPresent, CreatedAt: createdAt},
@@ -103,13 +105,13 @@ func TestBuildGroupReport_MultipleLessonsInOneDay(t *testing.T) {
 		},
 	}
 
-	grp := response.GroupResponse{
+	grp := groupmodel.Group{
 		ID:        groupID,
 		Name:      "Beginners",
 		CreatedAt: createdAt,
 	}
 
-	students := []response.StudentResponse{
+	students := []studentmodel.Student{
 		{ID: annaID, FullName: "Anna Smirnova", CreatedAt: createdAt},
 		{ID: ivanID, FullName: "Ivan Petrov", CreatedAt: createdAt},
 	}
@@ -153,22 +155,22 @@ func TestBuildGroupReport_OrderingAndEmpty(t *testing.T) {
 	createdAt := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	today := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
 
-	grp := response.GroupResponse{
+	grp := groupmodel.Group{
 		ID:        groupID,
 		Name:      "Beginners",
 		CreatedAt: createdAt,
 	}
 
-	lessons := []response.LessonResponse{
+	lessons := []lessonmodel.Lesson{
 		{ID: uuid.New(), Date: time.Date(2026, 2, 3, 10, 0, 0, 0, time.UTC), CreatedAt: createdAt, GroupID: &groupID},
 	}
 
-	students := []response.StudentResponse{
+	students := []studentmodel.Student{
 		{ID: ivanID, FullName: "ivan petrov", CreatedAt: createdAt},
 		{ID: annaID, FullName: "Anna Smirnova", CreatedAt: createdAt},
 	}
 
-	report := BuildGroupReport(grp, 2026, 2, students, lessons, map[uuid.UUID][]response.VisitResponse{}, map[uuid.UUID]txmodel.StudentBalance{}, today)
+	report := BuildGroupReport(grp, 2026, 2, students, lessons, map[uuid.UUID][]visitmodel.Visit{}, map[uuid.UUID]txmodel.StudentBalance{}, today)
 
 	require.Len(t, report.Students, 2)
 	assert.Equal(t, "Anna Smirnova", report.Students[0].FullName)
@@ -176,7 +178,7 @@ func TestBuildGroupReport_OrderingAndEmpty(t *testing.T) {
 	assert.Equal(t, 0, report.TotalPresent)
 	assert.Equal(t, 2, report.TotalLessons)
 
-	emptyReport := BuildGroupReport(grp, 2026, 2, []response.StudentResponse{}, []response.LessonResponse{}, map[uuid.UUID][]response.VisitResponse{}, map[uuid.UUID]txmodel.StudentBalance{}, today)
+	emptyReport := BuildGroupReport(grp, 2026, 2, []studentmodel.Student{}, []lessonmodel.Lesson{}, map[uuid.UUID][]visitmodel.Visit{}, map[uuid.UUID]txmodel.StudentBalance{}, today)
 	assert.Empty(t, emptyReport.Students)
 	assert.Equal(t, 0, emptyReport.TotalPresent)
 	assert.Equal(t, 0, emptyReport.TotalLessons)
@@ -193,17 +195,17 @@ func TestBuildGroupReport_PaidFlags(t *testing.T) {
 	createdAt := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	today := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
 
-	grp := response.GroupResponse{
+	grp := groupmodel.Group{
 		ID:        groupID,
 		Name:      "Beginners",
 		CreatedAt: createdAt,
 	}
 
-	lessons := []response.LessonResponse{
+	lessons := []lessonmodel.Lesson{
 		{ID: uuid.New(), Date: time.Date(2026, 2, 3, 10, 0, 0, 0, time.UTC), CreatedAt: createdAt, GroupID: &groupID},
 	}
 
-	students := []response.StudentResponse{
+	students := []studentmodel.Student{
 		{ID: decID, FullName: "Anna ExpiresInDecember", CreatedAt: createdAt},
 		{ID: noPayID, FullName: "Boris WithoutPayments", CreatedAt: createdAt},
 		{ID: oct1ID, FullName: "Cyril ExpiresInOctober", CreatedAt: createdAt},
@@ -222,21 +224,21 @@ func TestBuildGroupReport_PaidFlags(t *testing.T) {
 		sessionPackID: {StudentID: sessionPackID, PaidUntil: nil, SessionsLeft: 4},
 	}
 
-	reportFeb := BuildGroupReport(grp, 2026, 2, students, lessons, map[uuid.UUID][]response.VisitResponse{}, balances, today)
+	reportFeb := BuildGroupReport(grp, 2026, 2, students, lessons, map[uuid.UUID][]visitmodel.Visit{}, balances, today)
 	var febPaid []bool
 	for _, s := range reportFeb.Students {
 		febPaid = append(febPaid, s.Paid)
 	}
 	assert.Equal(t, []bool{true, false, true, true, true}, febPaid)
 
-	reportOct := BuildGroupReport(grp, 2026, 10, students, lessons, map[uuid.UUID][]response.VisitResponse{}, balances, today)
+	reportOct := BuildGroupReport(grp, 2026, 10, students, lessons, map[uuid.UUID][]visitmodel.Visit{}, balances, today)
 	var octPaid []bool
 	for _, s := range reportOct.Students {
 		octPaid = append(octPaid, s.Paid)
 	}
 	assert.Equal(t, []bool{true, false, false, true, true}, octPaid)
 
-	reportDec := BuildGroupReport(grp, 2026, 12, students, lessons, map[uuid.UUID][]response.VisitResponse{}, balances, today)
+	reportDec := BuildGroupReport(grp, 2026, 12, students, lessons, map[uuid.UUID][]visitmodel.Visit{}, balances, today)
 	var decPaid []bool
 	for _, s := range reportDec.Students {
 		decPaid = append(decPaid, s.Paid)

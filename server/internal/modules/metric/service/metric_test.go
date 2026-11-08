@@ -7,8 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	pkgerrors "github.com/krivolapovdev/trenerio/internal/core/errors"
-	"github.com/krivolapovdev/trenerio/internal/core/response"
-	txrequest "github.com/krivolapovdev/trenerio/internal/modules/transaction/request"
+	txmodel "github.com/krivolapovdev/trenerio/internal/modules/transaction/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -70,10 +69,10 @@ func TestMetricScopeStrategy_Year(t *testing.T) {
 }
 
 type mockTransactionProvider struct {
-	getTransactionsBetween func(ctx context.Context, startDate, endDate time.Time, ownerID uuid.UUID) ([]response.TransactionResponse, error)
+	getTransactionsBetween func(ctx context.Context, startDate, endDate time.Time, ownerID uuid.UUID) ([]txmodel.Transaction, error)
 }
 
-func (m mockTransactionProvider) GetTransactionsBetween(ctx context.Context, startDate, endDate time.Time, ownerID uuid.UUID) ([]response.TransactionResponse, error) {
+func (m mockTransactionProvider) GetTransactionsBetween(ctx context.Context, startDate, endDate time.Time, ownerID uuid.UUID) ([]txmodel.Transaction, error) {
 	if m.getTransactionsBetween != nil {
 		return m.getTransactionsBetween(ctx, startDate, endDate, ownerID)
 	}
@@ -85,22 +84,22 @@ func TestMetricService_Calculation(t *testing.T) {
 	endDate := time.Date(2026, 3, 31, 0, 0, 0, 0, time.UTC)
 	ownerID := uuid.New()
 
-	mockFetch := func(ctx context.Context, s, e time.Time, o uuid.UUID) ([]response.TransactionResponse, error) {
-		return []response.TransactionResponse{
+	mockFetch := func(ctx context.Context, s, e time.Time, o uuid.UUID) ([]txmodel.Transaction, error) {
+		return []txmodel.Transaction{
 			{
 				Amount: 1000,
 				Date:   time.Date(2026, 1, 15, 12, 0, 0, 0, time.UTC),
-				Type:   txrequest.TransactionTypeIncome,
+				Type:   txmodel.TransactionTypeIncome,
 			},
 			{
 				Amount: 200,
 				Date:   time.Date(2026, 1, 20, 12, 0, 0, 0, time.UTC),
-				Type:   txrequest.TransactionTypeExpense,
+				Type:   txmodel.TransactionTypeExpense,
 			},
 			{
 				Amount: 500,
 				Date:   time.Date(2026, 3, 5, 12, 0, 0, 0, time.UTC),
-				Type:   txrequest.TransactionTypeIncome,
+				Type:   txmodel.TransactionTypeIncome,
 			},
 		}, nil
 	}

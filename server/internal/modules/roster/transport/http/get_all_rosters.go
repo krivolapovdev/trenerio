@@ -12,7 +12,7 @@ import (
 // @ID           getAllRosters
 // @Tags         roster-controller
 // @Security     BearerAuth
-// @Success      200  {array}   response.RosterResponse
+// @Success      200  {array}   RosterResponse
 // @Router       /api/v1/rosters [get]
 func (h *Handler) GetAllRosters(c *gin.Context) {
 	jwtUser, ok := authhttp.GetUserFromContext(c)

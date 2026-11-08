@@ -12,7 +12,7 @@ import (
 // @ID           login
 // @Tags         reviewer-auth-controller
 // @Param        X-Reviewer-Key  header    string  true  "Reviewer secret key"
-// @Success      200             {object}  response.LoginResponse
+// @Success      200             {object}  LoginResponse
 // @Router       /api/v1/reviewer/login [post]
 func (h *Handler) ReviewerLogin(c *gin.Context) {
 	reviewerKey := c.GetHeader(web.HeaderXReviewerKey)
@@ -21,11 +21,22 @@ func (h *Handler) ReviewerLogin(c *gin.Context) {
 		return
 	}
 
-	loginResponse, err := h.service.LoginReviewer(c.Request.Context(), reviewerKey)
+	result, err := h.service.LoginReviewer(c.Request.Context(), reviewerKey)
 	if err != nil {
 		pkgerrors.HandleError(c, err)
 		return
 	}
 
-	c.JSON(nethttp.StatusOK, loginResponse)
+	resp := LoginResponse{
+		User: UserResponse{
+			ID:    result.User.ID,
+			Email: result.User.Email,
+		},
+		JwtTokens: JwtResponse{
+			AccessToken:  result.Tokens.AccessToken,
+			RefreshToken: result.Tokens.RefreshToken,
+		},
+	}
+
+	c.JSON(nethttp.StatusOK, resp)
 }

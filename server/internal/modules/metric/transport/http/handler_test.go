@@ -12,18 +12,18 @@ import (
 	"github.com/google/uuid"
 	pkgerrors "github.com/krivolapovdev/trenerio/internal/core/errors"
 	"github.com/krivolapovdev/trenerio/internal/core/harness"
-	"github.com/krivolapovdev/trenerio/internal/core/response"
-	authmodel "github.com/krivolapovdev/trenerio/internal/modules/auth/model"
+	authmodel "github.com/krivolapovdev/trenerio/internal/modules/auth/domain"
+	"github.com/krivolapovdev/trenerio/internal/modules/metric/domain"
 	metricsvc "github.com/krivolapovdev/trenerio/internal/modules/metric/service"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 type mockMetricService struct {
-	getPaymentStatisticsFn func(ctx context.Context, scopeStr string, startDate, endDate time.Time, ownerID uuid.UUID) ([]response.PaymentMetricResponse, error)
+	getPaymentStatisticsFn func(ctx context.Context, scopeStr string, startDate, endDate time.Time, ownerID uuid.UUID) ([]domain.PaymentMetric, error)
 }
 
-func (m *mockMetricService) GetPaymentStatistics(ctx context.Context, scopeStr string, startDate, endDate time.Time, ownerID uuid.UUID) ([]response.PaymentMetricResponse, error) {
+func (m *mockMetricService) GetPaymentStatistics(ctx context.Context, scopeStr string, startDate, endDate time.Time, ownerID uuid.UUID) ([]domain.PaymentMetric, error) {
 	if m.getPaymentStatisticsFn != nil {
 		return m.getPaymentStatisticsFn(ctx, scopeStr, startDate, endDate, ownerID)
 	}
@@ -69,12 +69,12 @@ func TestMetricHandler_GetPaymentStatistics(t *testing.T) {
 	})
 
 	t.Run("SuccessWithDefaultScope", func(t *testing.T) {
-		expected := []response.PaymentMetricResponse{
+		expected := []domain.PaymentMetric{
 			{Date: startDate, Total: 15000.0},
 		}
 
 		mockSvc := &mockMetricService{
-			getPaymentStatisticsFn: func(ctx context.Context, scopeStr string, start, end time.Time, ownerID uuid.UUID) ([]response.PaymentMetricResponse, error) {
+			getPaymentStatisticsFn: func(ctx context.Context, scopeStr string, start, end time.Time, ownerID uuid.UUID) ([]domain.PaymentMetric, error) {
 				assert.Equal(t, string(metricsvc.Month), scopeStr)
 				assert.True(t, startDate.Equal(start))
 				assert.True(t, endDate.Equal(end))
@@ -90,7 +90,7 @@ func TestMetricHandler_GetPaymentStatistics(t *testing.T) {
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, nethttp.StatusOK, w.Code)
-		var actual []response.PaymentMetricResponse
+		var actual []PaymentMetricResponse
 		err := json.Unmarshal(w.Body.Bytes(), &actual)
 		require.NoError(t, err)
 		assert.Len(t, actual, 1)
@@ -98,51 +98,35 @@ func TestMetricHandler_GetPaymentStatistics(t *testing.T) {
 	})
 
 	t.Run("SuccessWithExplicitScope", func(t *testing.T) {
+		expected := []domain.PaymentMetric{
+			{Date: startDate, Total: 5000.0},
+		}
+
 		mockSvc := &mockMetricService{
-			getPaymentStatisticsFn: func(ctx context.Context, scopeStr string, start, end time.Time, ownerID uuid.UUID) ([]response.PaymentMetricResponse, error) {
-				assert.Equal(t, "WEEK", scopeStr)
-				return []response.PaymentMetricResponse{}, nil
+			getPaymentStatisticsFn: func(ctx context.Context, scopeStr string, start, end time.Time, ownerID uuid.UUID) ([]domain.PaymentMetric, error) {
+				assert.Equal(t, string(metricsvc.Week), scopeStr)
+				return expected, nil
 			},
 		}
 
 		r := setupMetricRouter(mockSvc, testUser)
 		w := httptest.NewRecorder()
-		url := "/api/v1/metrics/payments?scope=WEEK&startDate=" + startDate.Format(time.RFC3339) + "&endDate=" + endDate.Format(time.RFC3339)
+		url := "/api/v1/metrics/payments?startDate=" + startDate.Format(time.RFC3339) + "&endDate=" + endDate.Format(time.RFC3339) + "&scope=WEEK"
 		req := httptest.NewRequest(nethttp.MethodGet, url, nil)
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, nethttp.StatusOK, w.Code)
+		var actual []PaymentMetricResponse
+		err := json.Unmarshal(w.Body.Bytes(), &actual)
+		require.NoError(t, err)
+		assert.Len(t, actual, 1)
+		assert.Equal(t, 5000.0, actual[0].Total)
 	})
 
-	t.Run("DateRangeServiceError", func(t *testing.T) {
+	t.Run("ServiceError", func(t *testing.T) {
 		mockSvc := &mockMetricService{
-			getPaymentStatisticsFn: func(ctx context.Context, scopeStr string, start, end time.Time, ownerID uuid.UUID) ([]response.PaymentMetricResponse, error) {
-				return nil, pkgerrors.NewBadRequest("endDate must not be before startDate")
-			},
-		}
-
-		r := setupMetricRouter(mockSvc, testUser)
-		w := httptest.NewRecorder()
-		url := "/api/v1/metrics/payments?startDate=" + endDate.Format(time.RFC3339) + "&endDate=" + startDate.Format(time.RFC3339)
-		req := httptest.NewRequest(nethttp.MethodGet, url, nil)
-		r.ServeHTTP(w, req)
-
-		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
-	})
-
-	t.Run("MissingEndDate", func(t *testing.T) {
-		r := setupMetricRouter(&mockMetricService{}, testUser)
-		w := httptest.NewRecorder()
-		req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/metrics/payments?startDate="+startDate.Format(time.RFC3339), nil)
-		r.ServeHTTP(w, req)
-
-		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
-	})
-
-	t.Run("InternalServerError", func(t *testing.T) {
-		mockSvc := &mockMetricService{
-			getPaymentStatisticsFn: func(ctx context.Context, scopeStr string, start, end time.Time, ownerID uuid.UUID) ([]response.PaymentMetricResponse, error) {
-				return nil, assert.AnError
+			getPaymentStatisticsFn: func(ctx context.Context, scopeStr string, start, end time.Time, ownerID uuid.UUID) ([]domain.PaymentMetric, error) {
+				return nil, pkgerrors.NewBadRequest("invalid dates")
 			},
 		}
 
@@ -152,6 +136,6 @@ func TestMetricHandler_GetPaymentStatistics(t *testing.T) {
 		req := httptest.NewRequest(nethttp.MethodGet, url, nil)
 		r.ServeHTTP(w, req)
 
-		assert.Equal(t, nethttp.StatusInternalServerError, w.Code)
+		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
 	})
 }

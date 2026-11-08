@@ -14,7 +14,7 @@ import (
 // @Tags         lesson-controller
 // @Security     BearerAuth
 // @Param        lessonId  path      string  true  "Lesson ID"  Format(uuid)
-// @Success      200       {object}  response.LessonDetailsResponse
+// @Success      200       {object}  LessonDetailsResponse
 // @Router       /api/v1/lessons/{lessonId}/details [get]
 func (h *Handler) GetLessonDetails(c *gin.Context) {
 	jwtUser, ok := authhttp.GetUserFromContext(c)

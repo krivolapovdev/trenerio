@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/krivolapovdev/trenerio/internal/db"
 	"github.com/krivolapovdev/trenerio/internal/modules/lesson/mapper"
-	"github.com/krivolapovdev/trenerio/internal/modules/lesson/request"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -49,18 +48,14 @@ func TestLessonService_DateValidation(t *testing.T) {
 
 	t.Run("CreateLesson_FutureDate", func(t *testing.T) {
 		futureDate := time.Now().UTC().Add(24 * time.Hour)
-		_, err := svc.CreateLesson(ctx, request.CreateLessonRequest{
-			Date: futureDate,
-		}, ownerID)
+		_, err := svc.CreateLesson(ctx, nil, futureDate, nil, ownerID)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "date cannot be in the future")
 	})
 
 	t.Run("UpdateLesson_FutureDate", func(t *testing.T) {
 		futureDate := time.Now().UTC().Add(24 * time.Hour)
-		_, err := svc.UpdateLesson(ctx, uuid.New(), ownerID, request.UpdateLessonRequest{
-			Date: &futureDate,
-		})
+		_, err := svc.UpdateLesson(ctx, uuid.New(), ownerID, &futureDate, nil)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "date cannot be in the future")
 	})

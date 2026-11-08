@@ -14,7 +14,7 @@ import (
 // @Tags         group-controller
 // @Security     BearerAuth
 // @Param        groupId  path      string  true  "Group ID"  Format(uuid)
-// @Success      200      {array}   service.GroupStudentSummaryResponse
+// @Success      200      {array}   GroupStudentSummaryResponse
 // @Router       /api/v1/groups/{groupId}/students [get]
 func (h *Handler) GetGroupStudents(c *gin.Context) {
 	jwtUser, ok := authhttp.GetUserFromContext(c)

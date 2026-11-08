@@ -4,29 +4,29 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/krivolapovdev/trenerio/internal/core/response"
+	lessonmodel "github.com/krivolapovdev/trenerio/internal/modules/lesson/domain"
 	lessonsvc "github.com/krivolapovdev/trenerio/internal/modules/lesson/service"
-	studentmodel "github.com/krivolapovdev/trenerio/internal/modules/student/model"
-	txmodel "github.com/krivolapovdev/trenerio/internal/modules/transaction/model"
-	visitmodel "github.com/krivolapovdev/trenerio/internal/modules/visit/model"
+	studentmodel "github.com/krivolapovdev/trenerio/internal/modules/student/domain"
+	txmodel "github.com/krivolapovdev/trenerio/internal/modules/transaction/domain"
+	visitmodel "github.com/krivolapovdev/trenerio/internal/modules/visit/domain"
 )
 
 func ComputeStudentStatuses(
-	student response.StudentResponse,
-	visits []visitmodel.VisitResponse,
+	student studentmodel.Student,
+	visits []visitmodel.Visit,
 	balance *txmodel.StudentBalance,
-	lessonsMap map[uuid.UUID]response.LessonResponse,
+	lessonsMap map[uuid.UUID]lessonmodel.Lesson,
 	today time.Time,
 ) []studentmodel.StudentStatus {
 	return ComputeStudentStatusesWithVisitLessons(student, visits, balance, lessonsMap, lessonsMap, today)
 }
 
 func ComputeStudentStatusesWithVisitLessons(
-	student response.StudentResponse,
-	visits []visitmodel.VisitResponse,
+	student studentmodel.Student,
+	visits []visitmodel.Visit,
 	balance *txmodel.StudentBalance,
-	lessonsMap map[uuid.UUID]response.LessonResponse,
-	visitLessonsMap map[uuid.UUID]response.LessonResponse,
+	lessonsMap map[uuid.UUID]lessonmodel.Lesson,
+	visitLessonsMap map[uuid.UUID]lessonmodel.Lesson,
 	_ time.Time,
 ) []studentmodel.StudentStatus {
 	if len(visits) == 0 && !balance.HasPaymentActivity() {
@@ -38,7 +38,7 @@ func ComputeStudentStatusesWithVisitLessons(
 
 	statuses := make([]studentmodel.StudentStatus, 0)
 
-	studentVisitLessons := make(map[uuid.UUID]response.LessonResponse)
+	studentVisitLessons := make(map[uuid.UUID]lessonmodel.Lesson)
 	for _, v := range visits {
 		if l, ok := visitLessonsMap[v.LessonID]; ok {
 			studentVisitLessons[v.LessonID] = l
@@ -61,7 +61,7 @@ func ComputeStudentStatusesWithVisitLessons(
 		return statuses
 	}
 
-	studentLessons := make(map[uuid.UUID]response.LessonResponse)
+	studentLessons := make(map[uuid.UUID]lessonmodel.Lesson)
 	for _, v := range visits {
 		if v.Type == visitmodel.VisitTypeFree || v.Status == visitmodel.VisitStatusExcused {
 			continue

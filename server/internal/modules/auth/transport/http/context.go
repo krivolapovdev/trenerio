@@ -3,22 +3,14 @@ package http
 import (
 	"github.com/gin-gonic/gin"
 	pkgerrors "github.com/krivolapovdev/trenerio/internal/core/errors"
-	"github.com/krivolapovdev/trenerio/internal/modules/auth/model"
+	"github.com/krivolapovdev/trenerio/internal/modules/auth/domain"
 )
 
-type JwtUser = model.JwtUser
+type JwtUser = domain.JwtUser
 
 const (
 	ContextKeyJWTUser = "jwtUser"
 )
-
-func CurrentUser(c *gin.Context) (JwtUser, bool) {
-	return GetUserFromContext(c)
-}
-
-func SetUserToContext(c *gin.Context, u JwtUser) {
-	c.Set(ContextKeyJWTUser, u)
-}
 
 func GetUserFromContext(c *gin.Context) (JwtUser, bool) {
 	val, exists := c.Get(ContextKeyJWTUser)

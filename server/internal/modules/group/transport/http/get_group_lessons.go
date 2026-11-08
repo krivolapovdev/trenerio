@@ -16,7 +16,7 @@ import (
 // @Param        groupId  path      string  true  "Group ID"               Format(uuid)
 // @Param        from     query     string  true  "Start date (RFC3339)"   Format(date-time)
 // @Param        to       query     string  true  "End date (RFC3339)"     Format(date-time)
-// @Success      200      {array}   response.LessonResponse
+// @Success      200      {array}   LessonResponse
 // @Router       /api/v1/groups/{groupId}/lessons [get]
 func (h *Handler) GetGroupLessons(c *gin.Context) {
 	jwtUser, ok := authhttp.GetUserFromContext(c)

@@ -2,20 +2,33 @@ package http
 
 import (
 	nethttp "net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	pkgerrors "github.com/krivolapovdev/trenerio/internal/core/errors"
+	"github.com/krivolapovdev/trenerio/internal/core/validator"
 	"github.com/krivolapovdev/trenerio/internal/core/web"
 	authhttp "github.com/krivolapovdev/trenerio/internal/modules/auth/transport/http"
-	"github.com/krivolapovdev/trenerio/internal/modules/lesson/request"
+	visitmodel "github.com/krivolapovdev/trenerio/internal/modules/visit/domain"
 )
+
+// @name StudentVisit
+type StudentVisit = visitmodel.StudentVisit
+
+// @name CreateLessonRequest
+type CreateLessonRequest struct {
+	GroupID  *uuid.UUID     `json:"groupId" format:"uuid"`
+	Date     time.Time      `json:"date" binding:"required" format:"date-time"`
+	Students []StudentVisit `json:"students"`
+}
 
 // CreateLesson
 // @ID           createLesson
 // @Tags         lesson-controller
 // @Security     BearerAuth
-// @Param        body  body      request.CreateLessonRequest  true  "Create lesson request"
-// @Success      201   {object}  response.LessonResponse
+// @Param        body  body      CreateLessonRequest  true  "Create lesson request"
+// @Success      201   {object}  LessonResponse
 // @Router       /api/v1/lessons [post]
 func (h *Handler) CreateLesson(c *gin.Context) {
 	jwtUser, ok := authhttp.GetUserFromContext(c)
@@ -23,16 +36,21 @@ func (h *Handler) CreateLesson(c *gin.Context) {
 		return
 	}
 
-	var req request.CreateLessonRequest
+	var req CreateLessonRequest
 	if !web.BindJSON(c, &req) {
 		return
 	}
 
-	createdLesson, err := h.service.CreateLesson(c.Request.Context(), req, jwtUser.ID)
+	if err := validator.ValidateDateNotFuture(req.Date, "date"); err != nil {
+		pkgerrors.HandleError(c, err)
+		return
+	}
+
+	createdLesson, err := h.service.CreateLesson(c.Request.Context(), req.GroupID, req.Date, req.Students, jwtUser.ID)
 	if err != nil {
 		pkgerrors.HandleError(c, err)
 		return
 	}
 
-	c.JSON(nethttp.StatusCreated, createdLesson)
+	c.JSON(nethttp.StatusCreated, LessonResponse(createdLesson))
 }

@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 	pkgerrors "github.com/krivolapovdev/trenerio/internal/core/errors"
 	"github.com/krivolapovdev/trenerio/internal/core/types"
-	"github.com/krivolapovdev/trenerio/internal/modules/student/request"
+	studentmodel "github.com/krivolapovdev/trenerio/internal/modules/student/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -20,7 +20,7 @@ func TestStudentService_DateAndPaymentValidation(t *testing.T) {
 
 	t.Run("CreateStudent_FutureBirthdate", func(t *testing.T) {
 		futureBirthdate := types.Date{Time: time.Now().UTC().Add(24 * time.Hour)}
-		_, err := svc.CreateStudent(ctx, request.CreateStudentRequest{
+		_, err := svc.CreateStudent(ctx, studentmodel.Student{
 			FullName:  "Test Student",
 			Birthdate: &futureBirthdate,
 		}, ownerID)
@@ -33,11 +33,7 @@ func TestStudentService_DateAndPaymentValidation(t *testing.T) {
 	t.Run("CreateStudentPayment_FutureDate", func(t *testing.T) {
 		futureDate := time.Now().UTC().Add(24 * time.Hour)
 		paidUntil := futureDate.Add(24 * time.Hour)
-		_, err := svc.CreateStudentPayment(ctx, uuid.New(), ownerID, request.CreateStudentPaymentRequest{
-			Amount:    1000,
-			Date:      futureDate,
-			PaidUntil: &paidUntil,
-		})
+		_, err := svc.CreateStudentPayment(ctx, uuid.New(), ownerID, 1000, futureDate, &paidUntil, nil)
 		require.Error(t, err)
 		var badReq *pkgerrors.BadRequestError
 		require.ErrorAs(t, err, &badReq)
@@ -46,18 +42,15 @@ func TestStudentService_DateAndPaymentValidation(t *testing.T) {
 
 	t.Run("CreateStudentPayment_MissingPaidUntilAndSessionsAdded", func(t *testing.T) {
 		pastDate := time.Date(2026, 10, 1, 10, 0, 0, 0, time.UTC)
-		_, err := svc.CreateStudentPayment(ctx, uuid.New(), ownerID, request.CreateStudentPaymentRequest{
-			Amount: 1000,
-			Date:   pastDate,
-		})
+		_, err := svc.CreateStudentPayment(ctx, uuid.New(), ownerID, 1000, pastDate, nil, nil)
 		require.Error(t, err)
 		var badReq *pkgerrors.BadRequestError
 		require.ErrorAs(t, err, &badReq)
 		assert.Contains(t, badReq.Message, "either paidUntil or sessionsAdded")
 	})
 
-	t.Run("GetTransactionStudentsByIDs_Empty", func(t *testing.T) {
-		res, err := svc.GetTransactionStudentsByIDs(ctx, []uuid.UUID{}, ownerID)
+	t.Run("GetStudentsByIDs_Empty", func(t *testing.T) {
+		res, err := svc.GetStudentsByIDs(ctx, []uuid.UUID{}, ownerID)
 		require.NoError(t, err)
 		assert.Empty(t, res)
 	})
@@ -69,7 +62,7 @@ func TestStudentService_Dependencies(t *testing.T) {
 
 	svc.SetDependencies(nil, nil, nil, nil)
 	assert.Nil(t, svc.visitProvider)
-
-	svcWithDeps := NewServiceWithDependencies(nil, nil, nil, nil, nil, nil)
-	require.NotNil(t, svcWithDeps)
+	assert.Nil(t, svc.transactionProvider)
+	assert.Nil(t, svc.groupProvider)
+	assert.Nil(t, svc.lessonProvider)
 }

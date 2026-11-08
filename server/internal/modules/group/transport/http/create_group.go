@@ -4,19 +4,28 @@ import (
 	nethttp "net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	pkgerrors "github.com/krivolapovdev/trenerio/internal/core/errors"
 	"github.com/krivolapovdev/trenerio/internal/core/validator"
 	"github.com/krivolapovdev/trenerio/internal/core/web"
 	authhttp "github.com/krivolapovdev/trenerio/internal/modules/auth/transport/http"
-	"github.com/krivolapovdev/trenerio/internal/modules/group/request"
+	"github.com/krivolapovdev/trenerio/internal/modules/group/domain"
 )
+
+// @name CreateGroupRequest
+type CreateGroupRequest struct {
+	Name         string      `json:"name" binding:"required,max=255"`
+	DefaultPrice *float64    `json:"defaultPrice" binding:"omitempty,gt=0"`
+	Note         *string     `json:"note" binding:"omitempty,max=255"`
+	StudentIds   []uuid.UUID `json:"studentIds"`
+}
 
 // CreateGroup
 // @ID           createGroup
 // @Tags         group-controller
 // @Security     BearerAuth
-// @Param        body  body      request.CreateGroupRequest  true  "Create group request"
-// @Success      201   {object}  response.GroupResponse
+// @Param        body  body      CreateGroupRequest  true  "Create group request"
+// @Success      201   {object}  GroupResponse
 // @Router       /api/v1/groups [post]
 func (h *Handler) CreateGroup(c *gin.Context) {
 	jwtUser, ok := authhttp.GetUserFromContext(c)
@@ -24,7 +33,7 @@ func (h *Handler) CreateGroup(c *gin.Context) {
 		return
 	}
 
-	var req request.CreateGroupRequest
+	var req CreateGroupRequest
 	if !web.BindJSON(c, &req) {
 		return
 	}
@@ -34,10 +43,14 @@ func (h *Handler) CreateGroup(c *gin.Context) {
 		pkgerrors.HandleError(c, err)
 		return
 	}
-	req.Name = trimmedName
-	req.Note = validator.TrimStringPtr(req.Note)
 
-	createdGroup, err := h.service.CreateGroup(c.Request.Context(), req, jwtUser.ID)
+	groupToCreate := domain.Group{
+		Name:         trimmedName,
+		DefaultPrice: req.DefaultPrice,
+		Note:         validator.TrimStringPtr(req.Note),
+	}
+
+	createdGroup, err := h.service.CreateGroup(c.Request.Context(), groupToCreate, req.StudentIds, jwtUser.ID)
 	if err != nil {
 		pkgerrors.HandleError(c, err)
 		return

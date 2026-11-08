@@ -3,7 +3,7 @@ package harness
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	authmodel "github.com/krivolapovdev/trenerio/internal/modules/auth/model"
+	authmodel "github.com/krivolapovdev/trenerio/internal/modules/auth/domain"
 	authhttp "github.com/krivolapovdev/trenerio/internal/modules/auth/transport/http"
 )
 

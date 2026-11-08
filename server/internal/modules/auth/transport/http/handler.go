@@ -4,13 +4,13 @@ import (
 	"context"
 
 	"github.com/gin-gonic/gin"
-	"github.com/krivolapovdev/trenerio/internal/core/response"
+	authmodel "github.com/krivolapovdev/trenerio/internal/modules/auth/domain"
 )
 
 type AuthService interface {
-	LoginGoogle(ctx context.Context, token string) (response.LoginResponse, error)
-	LoginReviewer(ctx context.Context, reviewerKey string) (response.LoginResponse, error)
-	RefreshTokens(ctx context.Context, refreshToken string) (response.JwtResponse, error)
+	LoginGoogle(ctx context.Context, token string) (authmodel.LoginResult, error)
+	LoginReviewer(ctx context.Context, reviewerKey string) (authmodel.LoginResult, error)
+	RefreshTokens(ctx context.Context, refreshToken string) (authmodel.Tokens, error)
 }
 
 type Handler struct {

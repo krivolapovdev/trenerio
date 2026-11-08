@@ -9,7 +9,8 @@ import (
 
 	"github.com/google/uuid"
 	pkgerrors "github.com/krivolapovdev/trenerio/internal/core/errors"
-	authmodel "github.com/krivolapovdev/trenerio/internal/modules/auth/model"
+	authmodel "github.com/krivolapovdev/trenerio/internal/modules/auth/domain"
+	txmodel "github.com/krivolapovdev/trenerio/internal/modules/transaction/domain"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -39,11 +40,11 @@ func TestTransactionHandler_UpdateTransaction(t *testing.T) {
 
 	t.Run("Success", func(t *testing.T) {
 		mockSvc := &mockTxService{
-			updateTransactionFn: func(ctx context.Context, id, ownerID uuid.UUID, updates map[string]any) (TransactionResponse, error) {
+			updateTransactionFn: func(ctx context.Context, id, ownerID uuid.UUID, updates map[string]any) (txmodel.Transaction, error) {
 				assert.Equal(t, txID, id)
 				assert.Equal(t, testUser.ID, ownerID)
 				assert.Equal(t, 3000.0, updates["amount"])
-				return TransactionResponse{ID: txID, Amount: 3000.0}, nil
+				return txmodel.Transaction{ID: txID, Amount: 3000.0}, nil
 			},
 		}
 
@@ -58,8 +59,8 @@ func TestTransactionHandler_UpdateTransaction(t *testing.T) {
 
 	t.Run("NotFound", func(t *testing.T) {
 		mockSvc := &mockTxService{
-			updateTransactionFn: func(ctx context.Context, id, ownerID uuid.UUID, updates map[string]any) (TransactionResponse, error) {
-				return TransactionResponse{}, pkgerrors.NewNotFound("Transaction", id, ownerID)
+			updateTransactionFn: func(ctx context.Context, id, ownerID uuid.UUID, updates map[string]any) (txmodel.Transaction, error) {
+				return txmodel.Transaction{}, pkgerrors.NewNotFound("Transaction", id, ownerID)
 			},
 		}
 
@@ -74,8 +75,8 @@ func TestTransactionHandler_UpdateTransaction(t *testing.T) {
 
 	t.Run("InternalServerError", func(t *testing.T) {
 		mockSvc := &mockTxService{
-			updateTransactionFn: func(ctx context.Context, id, ownerID uuid.UUID, updates map[string]any) (TransactionResponse, error) {
-				return TransactionResponse{}, assert.AnError
+			updateTransactionFn: func(ctx context.Context, id, ownerID uuid.UUID, updates map[string]any) (txmodel.Transaction, error) {
+				return txmodel.Transaction{}, assert.AnError
 			},
 		}
 

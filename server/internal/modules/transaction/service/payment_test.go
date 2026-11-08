@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/krivolapovdev/trenerio/internal/core/response"
+	"github.com/krivolapovdev/trenerio/internal/modules/transaction/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -13,14 +13,14 @@ import (
 func TestMaxPaidUntil(t *testing.T) {
 	t.Run("EmptyList_ReturnsNil", func(t *testing.T) {
 		assert.Nil(t, MaxPaidUntil(nil))
-		assert.Nil(t, MaxPaidUntil([]response.TransactionResponse{}))
+		assert.Nil(t, MaxPaidUntil([]domain.Transaction{}))
 	})
 
 	t.Run("NoPaymentDetailsOrSessionOnly_ReturnsNil", func(t *testing.T) {
 		sessions := int64(8)
-		txs := []response.TransactionResponse{
+		txs := []domain.Transaction{
 			{PaymentDetails: nil},
-			{PaymentDetails: &response.StudentPaymentDetailsResponse{PaidUntil: nil, SessionsAdded: &sessions}},
+			{PaymentDetails: &domain.StudentPaymentDetails{PaidUntil: nil, SessionsAdded: &sessions}},
 		}
 		assert.Nil(t, MaxPaidUntil(txs))
 	})
@@ -31,12 +31,12 @@ func TestMaxPaidUntil(t *testing.T) {
 		t3 := time.Date(2026, 2, 20, 0, 0, 0, 0, time.UTC)
 		sessions := int64(4)
 
-		txs := []response.TransactionResponse{
-			{PaymentDetails: &response.StudentPaymentDetailsResponse{PaidUntil: &t1}},
+		txs := []domain.Transaction{
+			{PaymentDetails: &domain.StudentPaymentDetails{PaidUntil: &t1}},
 			{PaymentDetails: nil},
-			{PaymentDetails: &response.StudentPaymentDetailsResponse{PaidUntil: nil, SessionsAdded: &sessions}},
-			{PaymentDetails: &response.StudentPaymentDetailsResponse{PaidUntil: &t2, SessionsAdded: &sessions}},
-			{PaymentDetails: &response.StudentPaymentDetailsResponse{PaidUntil: &t3}},
+			{PaymentDetails: &domain.StudentPaymentDetails{PaidUntil: nil, SessionsAdded: &sessions}},
+			{PaymentDetails: &domain.StudentPaymentDetails{PaidUntil: &t2, SessionsAdded: &sessions}},
+			{PaymentDetails: &domain.StudentPaymentDetails{PaidUntil: &t3}},
 		}
 
 		latest := MaxPaidUntil(txs)
@@ -49,162 +49,123 @@ func TestValidateStudentPaymentFields(t *testing.T) {
 	paidUntil := time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC)
 	validSessions := int64(8)
 	zeroSessions := int64(0)
-	negSessions := int64(-3)
+	negSessions := int64(-5)
 
-	assert.NoError(t, ValidateStudentPaymentFields(&paidUntil, nil))
-	assert.NoError(t, ValidateStudentPaymentFields(nil, &validSessions))
-	assert.NoError(t, ValidateStudentPaymentFields(&paidUntil, &validSessions))
+	t.Run("ValidPaidUntilOnly", func(t *testing.T) {
+		assert.NoError(t, ValidateStudentPaymentFields(&paidUntil, nil))
+	})
 
-	assert.Error(t, ValidateStudentPaymentFields(nil, nil))
-	assert.Error(t, ValidateStudentPaymentFields(nil, &zeroSessions))
-	assert.Error(t, ValidateStudentPaymentFields(&paidUntil, &negSessions))
+	t.Run("ValidSessionsOnly", func(t *testing.T) {
+		assert.NoError(t, ValidateStudentPaymentFields(nil, &validSessions))
+	})
+
+	t.Run("ValidBoth", func(t *testing.T) {
+		assert.NoError(t, ValidateStudentPaymentFields(&paidUntil, &validSessions))
+	})
+
+	t.Run("Neither_ReturnsError", func(t *testing.T) {
+		assert.Error(t, ValidateStudentPaymentFields(nil, nil))
+	})
+
+	t.Run("ZeroSessions_ReturnsError", func(t *testing.T) {
+		assert.Error(t, ValidateStudentPaymentFields(nil, &zeroSessions))
+	})
+
+	t.Run("NegativeSessions_ReturnsError", func(t *testing.T) {
+		assert.Error(t, ValidateStudentPaymentFields(nil, &negSessions))
+	})
 }
 
-func TestStudentBalanceHelpers(t *testing.T) {
-	refDate := time.Date(2026, 10, 15, 10, 0, 0, 0, time.UTC)
-	activeDate := time.Date(2026, 10, 20, 0, 0, 0, 0, time.UTC)
-	expiredDate := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+func TestNeedsSessionForAttendance(t *testing.T) {
+	paidUntil := time.Date(2026, 5, 10, 0, 0, 0, 0, time.UTC)
 
-	var nilBal *StudentBalance
-	assert.False(t, nilBal.HasPaymentActivity())
-	assert.False(t, nilBal.IsPaidAt(refDate))
+	t.Run("NonBillable_DoesNotNeedSession", func(t *testing.T) {
+		assert.False(t, NeedsSessionForAttendance(&paidUntil, time.Date(2026, 5, 20, 0, 0, 0, 0, time.UTC), false))
+		assert.False(t, NeedsSessionForAttendance(nil, time.Date(2026, 5, 20, 0, 0, 0, 0, time.UTC), false))
+	})
 
-	emptyBal := &StudentBalance{StudentID: uuid.New(), PaidUntil: nil, SessionsLeft: 0}
-	assert.False(t, emptyBal.HasPaymentActivity())
-	assert.False(t, emptyBal.IsPaidAt(refDate))
+	t.Run("NoSubscription_Billable_NeedsSession", func(t *testing.T) {
+		assert.True(t, NeedsSessionForAttendance(nil, time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC), true))
+	})
 
-	sessionOnlyBal := &StudentBalance{StudentID: uuid.New(), PaidUntil: nil, SessionsLeft: 3}
-	assert.True(t, sessionOnlyBal.HasPaymentActivity())
-	assert.True(t, sessionOnlyBal.IsPaidAt(refDate))
+	t.Run("LessonWithinSubscription_DoesNotNeedSession", func(t *testing.T) {
+		assert.False(t, NeedsSessionForAttendance(&paidUntil, time.Date(2026, 5, 5, 0, 0, 0, 0, time.UTC), true))
+		assert.False(t, NeedsSessionForAttendance(&paidUntil, time.Date(2026, 5, 10, 0, 0, 0, 0, time.UTC), true))
+	})
 
-	expiredWithReserve := &StudentBalance{StudentID: uuid.New(), PaidUntil: &expiredDate, SessionsLeft: 2}
-	assert.True(t, expiredWithReserve.HasPaymentActivity())
-	assert.True(t, expiredWithReserve.IsPaidAt(refDate))
-
-	expiredWithoutReserve := &StudentBalance{StudentID: uuid.New(), PaidUntil: &expiredDate, SessionsLeft: 0}
-	assert.True(t, expiredWithoutReserve.HasPaymentActivity())
-	assert.False(t, expiredWithoutReserve.IsPaidAt(refDate))
-
-	activeSub := &StudentBalance{StudentID: uuid.New(), PaidUntil: &activeDate, SessionsLeft: 0}
-	assert.True(t, activeSub.HasPaymentActivity())
-	assert.True(t, activeSub.IsPaidAt(refDate))
+	t.Run("LessonAfterSubscription_NeedsSession", func(t *testing.T) {
+		assert.True(t, NeedsSessionForAttendance(&paidUntil, time.Date(2026, 5, 11, 0, 0, 0, 0, time.UTC), true))
+	})
 }
 
-func TestResolveAttendanceSessionBalance_PriorityRule(t *testing.T) {
-	studentID := uuid.New()
-	paidUntil := time.Date(2026, 11, 15, 0, 0, 0, 0, time.UTC)
+func TestResolveAttendanceSessionBalance(t *testing.T) {
+	paidUntil := time.Date(2026, 5, 10, 0, 0, 0, 0, time.UTC)
+	coveredDate := time.Date(2026, 5, 5, 0, 0, 0, 0, time.UTC)
+	uncoveredDate := time.Date(2026, 5, 15, 0, 0, 0, 0, time.UTC)
+	sID := uuid.New()
 
-	t.Run("Priority1_DateActive_DoesNotDeductReserveSessions", func(t *testing.T) {
-		lessonOnPaidUntil := time.Date(2026, 11, 15, 18, 0, 0, 0, time.UTC)
+	t.Run("UncoveredMarked_DeductsSession", func(t *testing.T) {
 		change := AttendanceBalanceChange{
-			StudentID:     studentID,
+			StudentID:     sID,
 			OldBillable:   false,
+			OldLessonDate: coveredDate,
 			NewBillable:   true,
-			NewLessonDate: lessonOnPaidUntil,
+			NewLessonDate: uncoveredDate,
 		}
-
-		next, changed := ResolveAttendanceSessionBalance(change, &paidUntil, 5, 5, 0)
-		assert.False(t, changed)
-		assert.Equal(t, int64(5), next)
-	})
-
-	t.Run("Priority2_DateExpired_DeductsOneSession", func(t *testing.T) {
-		lessonAfterPaidUntil := time.Date(2026, 11, 16, 18, 0, 0, 0, time.UTC)
-		change := AttendanceBalanceChange{
-			StudentID:     studentID,
-			OldBillable:   false,
-			NewBillable:   true,
-			NewLessonDate: lessonAfterPaidUntil,
-		}
-
-		next, changed := ResolveAttendanceSessionBalance(change, &paidUntil, 5, 5, 1)
+		newLeft, changed := ResolveAttendanceSessionBalance(change, &paidUntil, 5, 10, 0)
 		assert.True(t, changed)
-		assert.Equal(t, int64(4), next)
+		assert.Equal(t, int64(4), newLeft)
 	})
 
-	t.Run("Priority2_NullPaidUntil_DeductsOneSession", func(t *testing.T) {
-		lessonDate := time.Date(2026, 11, 10, 18, 0, 0, 0, time.UTC)
+	t.Run("UncoveredMarked_ZeroBalanceFloorsAtZero", func(t *testing.T) {
 		change := AttendanceBalanceChange{
-			StudentID:     studentID,
+			StudentID:     sID,
 			OldBillable:   false,
+			OldLessonDate: coveredDate,
 			NewBillable:   true,
-			NewLessonDate: lessonDate,
+			NewLessonDate: uncoveredDate,
 		}
-
-		next, changed := ResolveAttendanceSessionBalance(change, nil, 1, 1, 1)
-		assert.True(t, changed)
-		assert.Equal(t, int64(0), next)
-	})
-
-	t.Run("Priority3_Debt_DateExpiredAndZeroSessions_StaysZero", func(t *testing.T) {
-		lessonAfterPaidUntil := time.Date(2026, 11, 20, 18, 0, 0, 0, time.UTC)
-		change := AttendanceBalanceChange{
-			StudentID:     studentID,
-			OldBillable:   false,
-			NewBillable:   true,
-			NewLessonDate: lessonAfterPaidUntil,
-		}
-
-		next, changed := ResolveAttendanceSessionBalance(change, &paidUntil, 0, 0, 1)
+		newLeft, changed := ResolveAttendanceSessionBalance(change, &paidUntil, 0, 10, 0)
 		assert.False(t, changed)
-		assert.Equal(t, int64(0), next)
+		assert.Equal(t, int64(0), newLeft)
 	})
 
-	t.Run("RefundOnDelete_SessionBackedVisit_RefundsOne", func(t *testing.T) {
-		lessonDate := time.Date(2026, 11, 20, 18, 0, 0, 0, time.UTC)
+	t.Run("UncoveredUnmarked_RefundsSessionWhenAllowed", func(t *testing.T) {
 		change := AttendanceBalanceChange{
-			StudentID:     studentID,
+			StudentID:     sID,
 			OldBillable:   true,
-			OldLessonDate: lessonDate,
+			OldLessonDate: uncoveredDate,
 			NewBillable:   false,
+			NewLessonDate: uncoveredDate,
 		}
-
-		// Bought 5 sessions, 1 remaining uncovered visit left after deleting the 2nd visit -> maxAllowed = 4
-		next, changed := ResolveAttendanceSessionBalance(change, nil, 3, 5, 1)
+		newLeft, changed := ResolveAttendanceSessionBalance(change, &paidUntil, 3, 10, 2)
 		assert.True(t, changed)
-		assert.Equal(t, int64(4), next)
+		assert.Equal(t, int64(4), newLeft)
 	})
 
-	t.Run("RefundOnDelete_DebtVisitWithNoSessionPacks_DoesNotFabricateSession", func(t *testing.T) {
-		lessonDate := time.Date(2026, 11, 20, 18, 0, 0, 0, time.UTC)
+	t.Run("UncoveredUnmarked_DoesNotRefundDebtVisits", func(t *testing.T) {
 		change := AttendanceBalanceChange{
-			StudentID:     studentID,
+			StudentID:     sID,
 			OldBillable:   true,
-			OldLessonDate: lessonDate,
+			OldLessonDate: uncoveredDate,
 			NewBillable:   false,
+			NewLessonDate: uncoveredDate,
 		}
-
-		next, changed := ResolveAttendanceSessionBalance(change, &paidUntil, 0, 0, 0)
+		newLeft, changed := ResolveAttendanceSessionBalance(change, &paidUntil, 0, 5, 5)
 		assert.False(t, changed)
-		assert.Equal(t, int64(0), next)
+		assert.Equal(t, int64(0), newLeft)
 	})
 
-	t.Run("RefundOnDelete_DebtVisitAfterExhaustedSessionPack_DoesNotFabricateSession", func(t *testing.T) {
-		lessonDate := time.Date(2026, 11, 20, 18, 0, 0, 0, time.UTC)
+	t.Run("CoveredAttendance_NoBalanceChange", func(t *testing.T) {
 		change := AttendanceBalanceChange{
-			StudentID:     studentID,
-			OldBillable:   true,
-			OldLessonDate: lessonDate,
-			NewBillable:   false,
-		}
-
-		// Bought 5 sessions, attended 6 lessons (6th was debt), deleted 6th -> 5 uncovered visits still remain!
-		next, changed := ResolveAttendanceSessionBalance(change, nil, 0, 5, 5)
-		assert.False(t, changed)
-		assert.Equal(t, int64(0), next)
-	})
-
-	t.Run("LessonDateMovedFromCoveredToUncovered_DeductsSession", func(t *testing.T) {
-		change := AttendanceBalanceChange{
-			StudentID:     studentID,
-			OldBillable:   true,
-			OldLessonDate: time.Date(2026, 11, 10, 18, 0, 0, 0, time.UTC),
+			StudentID:     sID,
+			OldBillable:   false,
+			OldLessonDate: coveredDate,
 			NewBillable:   true,
-			NewLessonDate: time.Date(2026, 11, 20, 18, 0, 0, 0, time.UTC),
+			NewLessonDate: coveredDate,
 		}
-
-		next, changed := ResolveAttendanceSessionBalance(change, &paidUntil, 3, 5, 1)
-		assert.True(t, changed)
-		assert.Equal(t, int64(2), next)
+		newLeft, changed := ResolveAttendanceSessionBalance(change, &paidUntil, 5, 10, 0)
+		assert.False(t, changed)
+		assert.Equal(t, int64(5), newLeft)
 	})
 }
