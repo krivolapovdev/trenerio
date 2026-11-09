@@ -85,7 +85,7 @@ func (s *Service) UpdateTransaction(ctx context.Context, transactionID, ownerID 
 		}
 	}
 
-	var updatedTx db.PaymentsModuleTransaction
+	var updatedTx db.FinanceModuleTransaction
 	var details *domain.StudentPaymentDetails
 
 	err := s.withTx(ctx, func(qtx *db.Queries) error {

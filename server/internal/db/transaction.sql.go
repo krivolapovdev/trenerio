@@ -16,7 +16,7 @@ import (
 
 const countTransactionsByOwnerID = `-- name: CountTransactionsByOwnerID :one
 SELECT COUNT(*)
-FROM payments_module.transactions
+FROM finance_module.transactions
 WHERE owner_id = $1
 `
 
@@ -28,7 +28,7 @@ func (q *Queries) CountTransactionsByOwnerID(ctx context.Context, ownerID uuid.U
 }
 
 const createStudentPayment = `-- name: CreateStudentPayment :one
-INSERT INTO payments_module.student_payments (transaction_id, student_id, paid_from, paid_until, sessions_added)
+INSERT INTO finance_module.student_payments (transaction_id, student_id, paid_from, paid_until, sessions_added)
 VALUES ($1, $2, $3, $4, $5)
 RETURNING transaction_id, student_id, paid_from, paid_until, sessions_added
 `
@@ -69,26 +69,26 @@ func (q *Queries) CreateStudentPayment(ctx context.Context, arg CreateStudentPay
 }
 
 const createTransaction = `-- name: CreateTransaction :one
-INSERT INTO payments_module.transactions (owner_id, type, amount, date)
+INSERT INTO finance_module.transactions (owner_id, type, amount, date)
 VALUES ($1, $2, $3, $4)
 RETURNING id, owner_id, type, amount, date, created_at, updated_at
 `
 
 type CreateTransactionParams struct {
-	OwnerID uuid.UUID                     `json:"owner_id"`
-	Type    PaymentsModuleTransactionType `json:"type"`
-	Amount  string                        `json:"amount"`
-	Date    time.Time                     `json:"date"`
+	OwnerID uuid.UUID                    `json:"owner_id"`
+	Type    FinanceModuleTransactionType `json:"type"`
+	Amount  string                       `json:"amount"`
+	Date    time.Time                    `json:"date"`
 }
 
-func (q *Queries) CreateTransaction(ctx context.Context, arg CreateTransactionParams) (PaymentsModuleTransaction, error) {
+func (q *Queries) CreateTransaction(ctx context.Context, arg CreateTransactionParams) (FinanceModuleTransaction, error) {
 	row := q.db.QueryRowContext(ctx, createTransaction,
 		arg.OwnerID,
 		arg.Type,
 		arg.Amount,
 		arg.Date,
 	)
-	var i PaymentsModuleTransaction
+	var i FinanceModuleTransaction
 	err := row.Scan(
 		&i.ID,
 		&i.OwnerID,
@@ -102,7 +102,7 @@ func (q *Queries) CreateTransaction(ctx context.Context, arg CreateTransactionPa
 }
 
 const deleteStudentPaymentByTransactionID = `-- name: DeleteStudentPaymentByTransactionID :exec
-DELETE FROM payments_module.student_payments
+DELETE FROM finance_module.student_payments
 WHERE transaction_id = $1
 `
 
@@ -112,7 +112,7 @@ func (q *Queries) DeleteStudentPaymentByTransactionID(ctx context.Context, trans
 }
 
 const deleteTransactionByIDAndOwnerID = `-- name: DeleteTransactionByIDAndOwnerID :exec
-DELETE FROM payments_module.transactions
+DELETE FROM finance_module.transactions
 WHERE id = $1 AND owner_id = $2
 `
 
@@ -128,20 +128,20 @@ func (q *Queries) DeleteTransactionByIDAndOwnerID(ctx context.Context, arg Delet
 
 const findAllTransactionsByOwnerID = `-- name: FindAllTransactionsByOwnerID :many
 SELECT id, owner_id, type, amount, date, created_at, updated_at
-FROM payments_module.transactions
+FROM finance_module.transactions
 WHERE owner_id = $1
 ORDER BY date DESC
 `
 
-func (q *Queries) FindAllTransactionsByOwnerID(ctx context.Context, ownerID uuid.UUID) ([]PaymentsModuleTransaction, error) {
+func (q *Queries) FindAllTransactionsByOwnerID(ctx context.Context, ownerID uuid.UUID) ([]FinanceModuleTransaction, error) {
 	rows, err := q.db.QueryContext(ctx, findAllTransactionsByOwnerID, ownerID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []PaymentsModuleTransaction{}
+	items := []FinanceModuleTransaction{}
 	for rows.Next() {
-		var i PaymentsModuleTransaction
+		var i FinanceModuleTransaction
 		if err := rows.Scan(
 			&i.ID,
 			&i.OwnerID,
@@ -166,8 +166,8 @@ func (q *Queries) FindAllTransactionsByOwnerID(ctx context.Context, ownerID uuid
 
 const findLatestPaidUntilByStudentID = `-- name: FindLatestPaidUntilByStudentID :one
 SELECT sp.paid_until
-FROM payments_module.student_payments sp
-JOIN payments_module.transactions t ON sp.transaction_id = t.id
+FROM finance_module.student_payments sp
+JOIN finance_module.transactions t ON sp.transaction_id = t.id
 WHERE sp.student_id = $1 AND t.owner_id = $2 AND sp.paid_until IS NOT NULL
 ORDER BY sp.paid_until DESC NULLS LAST
 LIMIT 1
@@ -187,8 +187,8 @@ func (q *Queries) FindLatestPaidUntilByStudentID(ctx context.Context, arg FindLa
 
 const findStudentPaymentByTransactionIDAndOwnerID = `-- name: FindStudentPaymentByTransactionIDAndOwnerID :one
 SELECT sp.transaction_id, sp.student_id, sp.paid_from, sp.paid_until, sp.sessions_added
-FROM payments_module.student_payments sp
-JOIN payments_module.transactions t ON sp.transaction_id = t.id
+FROM finance_module.student_payments sp
+JOIN finance_module.transactions t ON sp.transaction_id = t.id
 WHERE sp.transaction_id = $1 AND t.owner_id = $2
 `
 
@@ -220,8 +220,8 @@ func (q *Queries) FindStudentPaymentByTransactionIDAndOwnerID(ctx context.Contex
 
 const findStudentPaymentsByOwnerID = `-- name: FindStudentPaymentsByOwnerID :many
 SELECT sp.transaction_id, sp.student_id, sp.paid_from, sp.paid_until, sp.sessions_added
-FROM payments_module.student_payments sp
-JOIN payments_module.transactions t ON sp.transaction_id = t.id
+FROM finance_module.student_payments sp
+JOIN finance_module.transactions t ON sp.transaction_id = t.id
 WHERE t.owner_id = $1
 ORDER BY t.date DESC, t.created_at DESC
 `
@@ -267,8 +267,8 @@ const findStudentPaymentsByStudentIDAndOwnerID = `-- name: FindStudentPaymentsBy
 SELECT
     t.id, t.owner_id, t.type, t.amount, t.date, t.created_at, t.updated_at,
     sp.student_id, sp.paid_from, sp.paid_until, sp.sessions_added
-FROM payments_module.student_payments sp
-JOIN payments_module.transactions t ON sp.transaction_id = t.id
+FROM finance_module.student_payments sp
+JOIN finance_module.transactions t ON sp.transaction_id = t.id
 WHERE sp.student_id = $1 AND t.owner_id = $2
 ORDER BY t.date DESC, t.created_at DESC
 `
@@ -279,17 +279,17 @@ type FindStudentPaymentsByStudentIDAndOwnerIDParams struct {
 }
 
 type FindStudentPaymentsByStudentIDAndOwnerIDRow struct {
-	ID            uuid.UUID                     `json:"id"`
-	OwnerID       uuid.UUID                     `json:"owner_id"`
-	Type          PaymentsModuleTransactionType `json:"type"`
-	Amount        string                        `json:"amount"`
-	Date          time.Time                     `json:"date"`
-	CreatedAt     time.Time                     `json:"created_at"`
-	UpdatedAt     time.Time                     `json:"updated_at"`
-	StudentID     uuid.UUID                     `json:"student_id"`
-	PaidFrom      sql.NullTime                  `json:"paid_from"`
-	PaidUntil     sql.NullTime                  `json:"paid_until"`
-	SessionsAdded sql.NullInt64                 `json:"sessions_added"`
+	ID            uuid.UUID                    `json:"id"`
+	OwnerID       uuid.UUID                    `json:"owner_id"`
+	Type          FinanceModuleTransactionType `json:"type"`
+	Amount        string                       `json:"amount"`
+	Date          time.Time                    `json:"date"`
+	CreatedAt     time.Time                    `json:"created_at"`
+	UpdatedAt     time.Time                    `json:"updated_at"`
+	StudentID     uuid.UUID                    `json:"student_id"`
+	PaidFrom      sql.NullTime                 `json:"paid_from"`
+	PaidUntil     sql.NullTime                 `json:"paid_until"`
+	SessionsAdded sql.NullInt64                `json:"sessions_added"`
 }
 
 func (q *Queries) FindStudentPaymentsByStudentIDAndOwnerID(ctx context.Context, arg FindStudentPaymentsByStudentIDAndOwnerIDParams) ([]FindStudentPaymentsByStudentIDAndOwnerIDRow, error) {
@@ -331,8 +331,8 @@ const findStudentPaymentsByStudentIDsAndOwnerID = `-- name: FindStudentPaymentsB
 SELECT
     t.id, t.owner_id, t.type, t.amount, t.date, t.created_at, t.updated_at,
     sp.student_id, sp.paid_from, sp.paid_until, sp.sessions_added
-FROM payments_module.student_payments sp
-JOIN payments_module.transactions t ON sp.transaction_id = t.id
+FROM finance_module.student_payments sp
+JOIN finance_module.transactions t ON sp.transaction_id = t.id
 WHERE t.owner_id = $1 AND sp.student_id = ANY($2::uuid[])
 ORDER BY t.date DESC, t.created_at DESC
 `
@@ -343,17 +343,17 @@ type FindStudentPaymentsByStudentIDsAndOwnerIDParams struct {
 }
 
 type FindStudentPaymentsByStudentIDsAndOwnerIDRow struct {
-	ID            uuid.UUID                     `json:"id"`
-	OwnerID       uuid.UUID                     `json:"owner_id"`
-	Type          PaymentsModuleTransactionType `json:"type"`
-	Amount        string                        `json:"amount"`
-	Date          time.Time                     `json:"date"`
-	CreatedAt     time.Time                     `json:"created_at"`
-	UpdatedAt     time.Time                     `json:"updated_at"`
-	StudentID     uuid.UUID                     `json:"student_id"`
-	PaidFrom      sql.NullTime                  `json:"paid_from"`
-	PaidUntil     sql.NullTime                  `json:"paid_until"`
-	SessionsAdded sql.NullInt64                 `json:"sessions_added"`
+	ID            uuid.UUID                    `json:"id"`
+	OwnerID       uuid.UUID                    `json:"owner_id"`
+	Type          FinanceModuleTransactionType `json:"type"`
+	Amount        string                       `json:"amount"`
+	Date          time.Time                    `json:"date"`
+	CreatedAt     time.Time                    `json:"created_at"`
+	UpdatedAt     time.Time                    `json:"updated_at"`
+	StudentID     uuid.UUID                    `json:"student_id"`
+	PaidFrom      sql.NullTime                 `json:"paid_from"`
+	PaidUntil     sql.NullTime                 `json:"paid_until"`
+	SessionsAdded sql.NullInt64                `json:"sessions_added"`
 }
 
 func (q *Queries) FindStudentPaymentsByStudentIDsAndOwnerID(ctx context.Context, arg FindStudentPaymentsByStudentIDsAndOwnerIDParams) ([]FindStudentPaymentsByStudentIDsAndOwnerIDRow, error) {
@@ -395,8 +395,8 @@ const findTransactionByIDAndOwnerID = `-- name: FindTransactionByIDAndOwnerID :o
 SELECT
     t.id, t.owner_id, t.type, t.amount, t.date, t.created_at, t.updated_at,
     sp.student_id, sp.paid_from, sp.paid_until, sp.sessions_added
-FROM payments_module.transactions t
-LEFT JOIN payments_module.student_payments sp ON t.id = sp.transaction_id
+FROM finance_module.transactions t
+LEFT JOIN finance_module.student_payments sp ON t.id = sp.transaction_id
 WHERE t.id = $1 AND t.owner_id = $2
 `
 
@@ -406,17 +406,17 @@ type FindTransactionByIDAndOwnerIDParams struct {
 }
 
 type FindTransactionByIDAndOwnerIDRow struct {
-	ID            uuid.UUID                     `json:"id"`
-	OwnerID       uuid.UUID                     `json:"owner_id"`
-	Type          PaymentsModuleTransactionType `json:"type"`
-	Amount        string                        `json:"amount"`
-	Date          time.Time                     `json:"date"`
-	CreatedAt     time.Time                     `json:"created_at"`
-	UpdatedAt     time.Time                     `json:"updated_at"`
-	StudentID     uuid.NullUUID                 `json:"student_id"`
-	PaidFrom      sql.NullTime                  `json:"paid_from"`
-	PaidUntil     sql.NullTime                  `json:"paid_until"`
-	SessionsAdded sql.NullInt64                 `json:"sessions_added"`
+	ID            uuid.UUID                    `json:"id"`
+	OwnerID       uuid.UUID                    `json:"owner_id"`
+	Type          FinanceModuleTransactionType `json:"type"`
+	Amount        string                       `json:"amount"`
+	Date          time.Time                    `json:"date"`
+	CreatedAt     time.Time                    `json:"created_at"`
+	UpdatedAt     time.Time                    `json:"updated_at"`
+	StudentID     uuid.NullUUID                `json:"student_id"`
+	PaidFrom      sql.NullTime                 `json:"paid_from"`
+	PaidUntil     sql.NullTime                 `json:"paid_until"`
+	SessionsAdded sql.NullInt64                `json:"sessions_added"`
 }
 
 func (q *Queries) FindTransactionByIDAndOwnerID(ctx context.Context, arg FindTransactionByIDAndOwnerIDParams) (FindTransactionByIDAndOwnerIDRow, error) {
@@ -442,8 +442,8 @@ const findTransactionsByOwnerIDAndDateBetween = `-- name: FindTransactionsByOwne
 SELECT
     t.id, t.owner_id, t.type, t.amount, t.date, t.created_at, t.updated_at,
     sp.student_id, sp.paid_from, sp.paid_until, sp.sessions_added
-FROM payments_module.transactions t
-LEFT JOIN payments_module.student_payments sp ON t.id = sp.transaction_id
+FROM finance_module.transactions t
+LEFT JOIN finance_module.student_payments sp ON t.id = sp.transaction_id
 WHERE t.owner_id = $1 AND t.date BETWEEN $2 AND $3
 ORDER BY t.date DESC
 `
@@ -455,17 +455,17 @@ type FindTransactionsByOwnerIDAndDateBetweenParams struct {
 }
 
 type FindTransactionsByOwnerIDAndDateBetweenRow struct {
-	ID            uuid.UUID                     `json:"id"`
-	OwnerID       uuid.UUID                     `json:"owner_id"`
-	Type          PaymentsModuleTransactionType `json:"type"`
-	Amount        string                        `json:"amount"`
-	Date          time.Time                     `json:"date"`
-	CreatedAt     time.Time                     `json:"created_at"`
-	UpdatedAt     time.Time                     `json:"updated_at"`
-	StudentID     uuid.NullUUID                 `json:"student_id"`
-	PaidFrom      sql.NullTime                  `json:"paid_from"`
-	PaidUntil     sql.NullTime                  `json:"paid_until"`
-	SessionsAdded sql.NullInt64                 `json:"sessions_added"`
+	ID            uuid.UUID                    `json:"id"`
+	OwnerID       uuid.UUID                    `json:"owner_id"`
+	Type          FinanceModuleTransactionType `json:"type"`
+	Amount        string                       `json:"amount"`
+	Date          time.Time                    `json:"date"`
+	CreatedAt     time.Time                    `json:"created_at"`
+	UpdatedAt     time.Time                    `json:"updated_at"`
+	StudentID     uuid.NullUUID                `json:"student_id"`
+	PaidFrom      sql.NullTime                 `json:"paid_from"`
+	PaidUntil     sql.NullTime                 `json:"paid_until"`
+	SessionsAdded sql.NullInt64                `json:"sessions_added"`
 }
 
 func (q *Queries) FindTransactionsByOwnerIDAndDateBetween(ctx context.Context, arg FindTransactionsByOwnerIDAndDateBetweenParams) ([]FindTransactionsByOwnerIDAndDateBetweenRow, error) {
@@ -507,8 +507,8 @@ const findTransactionsByOwnerIDPaginated = `-- name: FindTransactionsByOwnerIDPa
 SELECT
     t.id, t.owner_id, t.type, t.amount, t.date, t.created_at, t.updated_at,
     sp.student_id, sp.paid_from, sp.paid_until, sp.sessions_added
-FROM payments_module.transactions t
-LEFT JOIN payments_module.student_payments sp ON t.id = sp.transaction_id
+FROM finance_module.transactions t
+LEFT JOIN finance_module.student_payments sp ON t.id = sp.transaction_id
 WHERE t.owner_id = $1
 ORDER BY t.date DESC, t.created_at DESC
 LIMIT $2 OFFSET $3
@@ -521,17 +521,17 @@ type FindTransactionsByOwnerIDPaginatedParams struct {
 }
 
 type FindTransactionsByOwnerIDPaginatedRow struct {
-	ID            uuid.UUID                     `json:"id"`
-	OwnerID       uuid.UUID                     `json:"owner_id"`
-	Type          PaymentsModuleTransactionType `json:"type"`
-	Amount        string                        `json:"amount"`
-	Date          time.Time                     `json:"date"`
-	CreatedAt     time.Time                     `json:"created_at"`
-	UpdatedAt     time.Time                     `json:"updated_at"`
-	StudentID     uuid.NullUUID                 `json:"student_id"`
-	PaidFrom      sql.NullTime                  `json:"paid_from"`
-	PaidUntil     sql.NullTime                  `json:"paid_until"`
-	SessionsAdded sql.NullInt64                 `json:"sessions_added"`
+	ID            uuid.UUID                    `json:"id"`
+	OwnerID       uuid.UUID                    `json:"owner_id"`
+	Type          FinanceModuleTransactionType `json:"type"`
+	Amount        string                       `json:"amount"`
+	Date          time.Time                    `json:"date"`
+	CreatedAt     time.Time                    `json:"created_at"`
+	UpdatedAt     time.Time                    `json:"updated_at"`
+	StudentID     uuid.NullUUID                `json:"student_id"`
+	PaidFrom      sql.NullTime                 `json:"paid_from"`
+	PaidUntil     sql.NullTime                 `json:"paid_until"`
+	SessionsAdded sql.NullInt64                `json:"sessions_added"`
 }
 
 func (q *Queries) FindTransactionsByOwnerIDPaginated(ctx context.Context, arg FindTransactionsByOwnerIDPaginatedParams) ([]FindTransactionsByOwnerIDPaginatedRow, error) {
@@ -571,8 +571,8 @@ func (q *Queries) FindTransactionsByOwnerIDPaginated(ctx context.Context, arg Fi
 
 const sumSessionsAddedByStudentIDAndOwnerID = `-- name: SumSessionsAddedByStudentIDAndOwnerID :one
 SELECT COALESCE(SUM(sp.sessions_added), 0)::bigint AS total_sessions_added
-FROM payments_module.student_payments sp
-JOIN payments_module.transactions t ON sp.transaction_id = t.id
+FROM finance_module.student_payments sp
+JOIN finance_module.transactions t ON sp.transaction_id = t.id
 WHERE sp.student_id = $1 AND t.owner_id = $2
 `
 
@@ -589,7 +589,7 @@ func (q *Queries) SumSessionsAddedByStudentIDAndOwnerID(ctx context.Context, arg
 }
 
 const updateStudentPayment = `-- name: UpdateStudentPayment :one
-UPDATE payments_module.student_payments
+UPDATE finance_module.student_payments
 SET paid_from = $2,
     paid_until = $3,
     sessions_added = $4
@@ -631,7 +631,7 @@ func (q *Queries) UpdateStudentPayment(ctx context.Context, arg UpdateStudentPay
 }
 
 const updateTransaction = `-- name: UpdateTransaction :one
-UPDATE payments_module.transactions
+UPDATE finance_module.transactions
 SET amount = $3,
     date = $4
 WHERE id = $1 AND owner_id = $2
@@ -645,14 +645,14 @@ type UpdateTransactionParams struct {
 	Date    time.Time `json:"date"`
 }
 
-func (q *Queries) UpdateTransaction(ctx context.Context, arg UpdateTransactionParams) (PaymentsModuleTransaction, error) {
+func (q *Queries) UpdateTransaction(ctx context.Context, arg UpdateTransactionParams) (FinanceModuleTransaction, error) {
 	row := q.db.QueryRowContext(ctx, updateTransaction,
 		arg.ID,
 		arg.OwnerID,
 		arg.Amount,
 		arg.Date,
 	)
-	var i PaymentsModuleTransaction
+	var i FinanceModuleTransaction
 	err := row.Scan(
 		&i.ID,
 		&i.OwnerID,

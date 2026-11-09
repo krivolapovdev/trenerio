@@ -40,7 +40,8 @@ class LessonAttendanceBottomSheet extends StatelessWidget {
   VisitType get _effectiveType =>
       free ? VisitType.free : (attendance?.type ?? VisitType.regular);
 
-  bool get _showsType => !free && _status != null;
+  bool get _showsType =>
+      !free && _status != null && _status != VisitStatus.excused;
 
   void _pickStatus(BuildContext context, _StatusChoice? choice) {
     final status = switch (choice) {

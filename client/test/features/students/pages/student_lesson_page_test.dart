@@ -215,7 +215,10 @@ void main() {
       await tester.tap(find.text(t.lessons.excused));
       await tester.pumpAndSettle();
 
-      expect(find.text(t.lessons.excused), findsOneWidget);
+      expect(
+        find.text('${t.lessons.excused} · ${t.lessons.freeLesson}'),
+        findsOneWidget,
+      );
       final checkbox = tester.widget<Checkbox>(find.byType(Checkbox));
       expect(checkbox.value, isFalse);
 

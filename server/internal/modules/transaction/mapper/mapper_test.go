@@ -17,11 +17,11 @@ func TestToTransaction(t *testing.T) {
 	now := time.Now()
 	date := time.Date(2026, 10, 20, 14, 0, 0, 0, time.UTC)
 
-	tx := db.PaymentsModuleTransaction{
+	tx := db.FinanceModuleTransaction{
 		ID:        txID,
 		Amount:    "125.75",
 		Date:      date,
-		Type:      db.PaymentsModuleTransactionTypeINCOME,
+		Type:      db.FinanceModuleTransactionTypeINCOME,
 		CreatedAt: now,
 	}
 
@@ -55,7 +55,7 @@ func TestStudentPaymentMappers_HybridModes(t *testing.T) {
 		ID:            uuid.New(),
 		Amount:        "5000",
 		Date:          now,
-		Type:          db.PaymentsModuleTransactionTypeINCOME,
+		Type:          db.FinanceModuleTransactionTypeINCOME,
 		CreatedAt:     now,
 		StudentID:     studentID,
 		PaidFrom:      sql.NullTime{Time: paidFrom, Valid: true},
@@ -73,7 +73,7 @@ func TestStudentPaymentMappers_HybridModes(t *testing.T) {
 		ID:            uuid.New(),
 		Amount:        "3000",
 		Date:          now,
-		Type:          db.PaymentsModuleTransactionTypeINCOME,
+		Type:          db.FinanceModuleTransactionTypeINCOME,
 		CreatedAt:     now,
 		StudentID:     studentID,
 		PaidFrom:      sql.NullTime{Time: paidFrom, Valid: true},

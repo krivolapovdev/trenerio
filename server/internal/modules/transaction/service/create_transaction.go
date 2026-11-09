@@ -45,7 +45,7 @@ func (s *Service) CreateTransaction(ctx context.Context, txToCreate domain.Trans
 		}
 	}
 
-	var createdTx db.PaymentsModuleTransaction
+	var createdTx db.FinanceModuleTransaction
 	var details *domain.StudentPaymentDetails
 
 	err := s.withTx(ctx, func(qtx *db.Queries) error {
@@ -53,7 +53,7 @@ func (s *Service) CreateTransaction(ctx context.Context, txToCreate domain.Trans
 		var err error
 		createdTx, err = qtx.CreateTransaction(ctx, db.CreateTransactionParams{
 			OwnerID: ownerID,
-			Type:    db.PaymentsModuleTransactionType(txToCreate.Type),
+			Type:    db.FinanceModuleTransactionType(txToCreate.Type),
 			Amount:  amountStr,
 			Date:    txToCreate.Date,
 		})

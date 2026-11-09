@@ -13,46 +13,46 @@ import (
 	"github.com/google/uuid"
 )
 
-type PaymentsModuleTransactionType string
+type FinanceModuleTransactionType string
 
 const (
-	PaymentsModuleTransactionTypeINCOME  PaymentsModuleTransactionType = "INCOME"
-	PaymentsModuleTransactionTypeEXPENSE PaymentsModuleTransactionType = "EXPENSE"
+	FinanceModuleTransactionTypeINCOME  FinanceModuleTransactionType = "INCOME"
+	FinanceModuleTransactionTypeEXPENSE FinanceModuleTransactionType = "EXPENSE"
 )
 
-func (e *PaymentsModuleTransactionType) Scan(src interface{}) error {
+func (e *FinanceModuleTransactionType) Scan(src interface{}) error {
 	switch s := src.(type) {
 	case []byte:
-		*e = PaymentsModuleTransactionType(s)
+		*e = FinanceModuleTransactionType(s)
 	case string:
-		*e = PaymentsModuleTransactionType(s)
+		*e = FinanceModuleTransactionType(s)
 	default:
-		return fmt.Errorf("unsupported scan type for PaymentsModuleTransactionType: %T", src)
+		return fmt.Errorf("unsupported scan type for FinanceModuleTransactionType: %T", src)
 	}
 	return nil
 }
 
-type NullPaymentsModuleTransactionType struct {
-	PaymentsModuleTransactionType PaymentsModuleTransactionType `json:"payments_module_transaction_type"`
-	Valid                         bool                          `json:"valid"` // Valid is true if PaymentsModuleTransactionType is not NULL
+type NullFinanceModuleTransactionType struct {
+	FinanceModuleTransactionType FinanceModuleTransactionType `json:"finance_module_transaction_type"`
+	Valid                        bool                         `json:"valid"` // Valid is true if FinanceModuleTransactionType is not NULL
 }
 
 // Scan implements the Scanner interface.
-func (ns *NullPaymentsModuleTransactionType) Scan(value interface{}) error {
+func (ns *NullFinanceModuleTransactionType) Scan(value interface{}) error {
 	if value == nil {
-		ns.PaymentsModuleTransactionType, ns.Valid = "", false
+		ns.FinanceModuleTransactionType, ns.Valid = "", false
 		return nil
 	}
 	ns.Valid = true
-	return ns.PaymentsModuleTransactionType.Scan(value)
+	return ns.FinanceModuleTransactionType.Scan(value)
 }
 
 // Value implements the driver Valuer interface.
-func (ns NullPaymentsModuleTransactionType) Value() (driver.Value, error) {
+func (ns NullFinanceModuleTransactionType) Value() (driver.Value, error) {
 	if !ns.Valid {
 		return nil, nil
 	}
-	return string(ns.PaymentsModuleTransactionType), nil
+	return string(ns.FinanceModuleTransactionType), nil
 }
 
 type UsersModuleOauth2Provider string
@@ -182,6 +182,24 @@ func (ns NullVisitsModuleVisitType) Value() (driver.Value, error) {
 	return string(ns.VisitsModuleVisitType), nil
 }
 
+type FinanceModuleStudentPayment struct {
+	TransactionID uuid.UUID     `json:"transaction_id"`
+	StudentID     uuid.UUID     `json:"student_id"`
+	PaidUntil     sql.NullTime  `json:"paid_until"`
+	PaidFrom      sql.NullTime  `json:"paid_from"`
+	SessionsAdded sql.NullInt64 `json:"sessions_added"`
+}
+
+type FinanceModuleTransaction struct {
+	ID        uuid.UUID                    `json:"id"`
+	OwnerID   uuid.UUID                    `json:"owner_id"`
+	Type      FinanceModuleTransactionType `json:"type"`
+	Amount    string                       `json:"amount"`
+	Date      time.Time                    `json:"date"`
+	CreatedAt time.Time                    `json:"created_at"`
+	UpdatedAt time.Time                    `json:"updated_at"`
+}
+
 type GroupsModuleGroup struct {
 	ID           uuid.UUID      `json:"id"`
 	OwnerID      uuid.UUID      `json:"owner_id"`
@@ -208,24 +226,6 @@ type LessonsModuleLesson struct {
 	Date      time.Time     `json:"date"`
 	CreatedAt time.Time     `json:"created_at"`
 	UpdatedAt time.Time     `json:"updated_at"`
-}
-
-type PaymentsModuleStudentPayment struct {
-	TransactionID uuid.UUID     `json:"transaction_id"`
-	StudentID     uuid.UUID     `json:"student_id"`
-	PaidUntil     sql.NullTime  `json:"paid_until"`
-	PaidFrom      sql.NullTime  `json:"paid_from"`
-	SessionsAdded sql.NullInt64 `json:"sessions_added"`
-}
-
-type PaymentsModuleTransaction struct {
-	ID        uuid.UUID                     `json:"id"`
-	OwnerID   uuid.UUID                     `json:"owner_id"`
-	Type      PaymentsModuleTransactionType `json:"type"`
-	Amount    string                        `json:"amount"`
-	Date      time.Time                     `json:"date"`
-	CreatedAt time.Time                     `json:"created_at"`
-	UpdatedAt time.Time                     `json:"updated_at"`
 }
 
 type RostersModuleParticipant struct {

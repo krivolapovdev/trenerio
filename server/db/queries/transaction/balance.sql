@@ -3,16 +3,16 @@ SELECT
     s.id AS student_id,
     (
         SELECT sp.paid_from
-        FROM payments_module.student_payments sp
-        JOIN payments_module.transactions t ON t.id = sp.transaction_id
+        FROM finance_module.student_payments sp
+        JOIN finance_module.transactions t ON t.id = sp.transaction_id
         WHERE sp.student_id = s.id AND t.owner_id = s.owner_id AND sp.paid_until IS NOT NULL
         ORDER BY sp.paid_until DESC NULLS LAST
         LIMIT 1
     ) AS paid_from,
     (
         SELECT sp.paid_until
-        FROM payments_module.student_payments sp
-        JOIN payments_module.transactions t ON t.id = sp.transaction_id
+        FROM finance_module.student_payments sp
+        JOIN finance_module.transactions t ON t.id = sp.transaction_id
         WHERE sp.student_id = s.id AND t.owner_id = s.owner_id AND sp.paid_until IS NOT NULL
         ORDER BY sp.paid_until DESC NULLS LAST
         LIMIT 1
@@ -20,8 +20,8 @@ SELECT
     GREATEST(0,
         COALESCE((
             SELECT SUM(sp.sessions_added)
-            FROM payments_module.student_payments sp
-            JOIN payments_module.transactions t ON t.id = sp.transaction_id
+            FROM finance_module.student_payments sp
+            JOIN finance_module.transactions t ON t.id = sp.transaction_id
             WHERE sp.student_id = s.id AND t.owner_id = s.owner_id
         ), 0)
         -
@@ -37,8 +37,8 @@ SELECT
                   AND v.status IN ('PRESENT', 'ABSENT')
                   AND NOT EXISTS (
                       SELECT 1
-                      FROM payments_module.student_payments sp
-                      JOIN payments_module.transactions t ON t.id = sp.transaction_id
+                      FROM finance_module.student_payments sp
+                      JOIN finance_module.transactions t ON t.id = sp.transaction_id
                       WHERE sp.student_id = s.id
                         AND t.owner_id = s.owner_id
                         AND sp.paid_until IS NOT NULL
@@ -50,8 +50,8 @@ SELECT
     )::bigint AS sessions_left,
     COALESCE((
         SELECT SUM(sp.sessions_added)
-        FROM payments_module.student_payments sp
-        JOIN payments_module.transactions t ON t.id = sp.transaction_id
+        FROM finance_module.student_payments sp
+        JOIN finance_module.transactions t ON t.id = sp.transaction_id
         WHERE sp.student_id = s.id AND t.owner_id = s.owner_id
     ), 0)::bigint AS total_sessions_added
 FROM students_module.students s
@@ -62,16 +62,16 @@ SELECT
     s.id AS student_id,
     (
         SELECT sp.paid_from
-        FROM payments_module.student_payments sp
-        JOIN payments_module.transactions t ON t.id = sp.transaction_id
+        FROM finance_module.student_payments sp
+        JOIN finance_module.transactions t ON t.id = sp.transaction_id
         WHERE sp.student_id = s.id AND t.owner_id = s.owner_id AND sp.paid_until IS NOT NULL
         ORDER BY sp.paid_until DESC NULLS LAST
         LIMIT 1
     ) AS paid_from,
     (
         SELECT sp.paid_until
-        FROM payments_module.student_payments sp
-        JOIN payments_module.transactions t ON t.id = sp.transaction_id
+        FROM finance_module.student_payments sp
+        JOIN finance_module.transactions t ON t.id = sp.transaction_id
         WHERE sp.student_id = s.id AND t.owner_id = s.owner_id AND sp.paid_until IS NOT NULL
         ORDER BY sp.paid_until DESC NULLS LAST
         LIMIT 1
@@ -79,8 +79,8 @@ SELECT
     GREATEST(0,
         COALESCE((
             SELECT SUM(sp.sessions_added)
-            FROM payments_module.student_payments sp
-            JOIN payments_module.transactions t ON t.id = sp.transaction_id
+            FROM finance_module.student_payments sp
+            JOIN finance_module.transactions t ON t.id = sp.transaction_id
             WHERE sp.student_id = s.id AND t.owner_id = s.owner_id
         ), 0)
         -
@@ -96,8 +96,8 @@ SELECT
                   AND v.status IN ('PRESENT', 'ABSENT')
                   AND NOT EXISTS (
                       SELECT 1
-                      FROM payments_module.student_payments sp
-                      JOIN payments_module.transactions t ON t.id = sp.transaction_id
+                      FROM finance_module.student_payments sp
+                      JOIN finance_module.transactions t ON t.id = sp.transaction_id
                       WHERE sp.student_id = s.id
                         AND t.owner_id = s.owner_id
                         AND sp.paid_until IS NOT NULL
@@ -109,8 +109,8 @@ SELECT
     )::bigint AS sessions_left,
     COALESCE((
         SELECT SUM(sp.sessions_added)
-        FROM payments_module.student_payments sp
-        JOIN payments_module.transactions t ON t.id = sp.transaction_id
+        FROM finance_module.student_payments sp
+        JOIN finance_module.transactions t ON t.id = sp.transaction_id
         WHERE sp.student_id = s.id AND t.owner_id = s.owner_id
     ), 0)::bigint AS total_sessions_added
 FROM students_module.students s
@@ -121,16 +121,16 @@ SELECT
     s.id AS student_id,
     (
         SELECT sp.paid_from
-        FROM payments_module.student_payments sp
-        JOIN payments_module.transactions t ON t.id = sp.transaction_id
+        FROM finance_module.student_payments sp
+        JOIN finance_module.transactions t ON t.id = sp.transaction_id
         WHERE sp.student_id = s.id AND t.owner_id = s.owner_id AND sp.paid_until IS NOT NULL
         ORDER BY sp.paid_until DESC NULLS LAST
         LIMIT 1
     ) AS paid_from,
     (
         SELECT sp.paid_until
-        FROM payments_module.student_payments sp
-        JOIN payments_module.transactions t ON t.id = sp.transaction_id
+        FROM finance_module.student_payments sp
+        JOIN finance_module.transactions t ON t.id = sp.transaction_id
         WHERE sp.student_id = s.id AND t.owner_id = s.owner_id AND sp.paid_until IS NOT NULL
         ORDER BY sp.paid_until DESC NULLS LAST
         LIMIT 1
@@ -138,8 +138,8 @@ SELECT
     GREATEST(0,
         COALESCE((
             SELECT SUM(sp.sessions_added)
-            FROM payments_module.student_payments sp
-            JOIN payments_module.transactions t ON t.id = sp.transaction_id
+            FROM finance_module.student_payments sp
+            JOIN finance_module.transactions t ON t.id = sp.transaction_id
             WHERE sp.student_id = s.id AND t.owner_id = s.owner_id
         ), 0)
         -
@@ -155,8 +155,8 @@ SELECT
                   AND v.status IN ('PRESENT', 'ABSENT')
                   AND NOT EXISTS (
                       SELECT 1
-                      FROM payments_module.student_payments sp
-                      JOIN payments_module.transactions t ON t.id = sp.transaction_id
+                      FROM finance_module.student_payments sp
+                      JOIN finance_module.transactions t ON t.id = sp.transaction_id
                       WHERE sp.student_id = s.id
                         AND t.owner_id = s.owner_id
                         AND sp.paid_until IS NOT NULL
@@ -168,8 +168,8 @@ SELECT
     )::bigint AS sessions_left,
     COALESCE((
         SELECT SUM(sp.sessions_added)
-        FROM payments_module.student_payments sp
-        JOIN payments_module.transactions t ON t.id = sp.transaction_id
+        FROM finance_module.student_payments sp
+        JOIN finance_module.transactions t ON t.id = sp.transaction_id
         WHERE sp.student_id = s.id AND t.owner_id = s.owner_id
     ), 0)::bigint AS total_sessions_added
 FROM students_module.students s

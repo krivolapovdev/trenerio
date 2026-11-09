@@ -71,7 +71,7 @@ func ToStudentBalanceFromIDsRow(b db.FindStudentBalancesByStudentIDsAndOwnerIDRo
 	}
 }
 
-func ToTransaction(tx db.PaymentsModuleTransaction, details *domain.StudentPaymentDetails) domain.Transaction {
+func ToTransaction(tx db.FinanceModuleTransaction, details *domain.StudentPaymentDetails) domain.Transaction {
 	amt, _ := strconv.ParseFloat(tx.Amount, 64)
 	return domain.Transaction{
 		ID:             tx.ID,

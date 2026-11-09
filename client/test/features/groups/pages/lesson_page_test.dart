@@ -668,6 +668,35 @@ void main() {
     expect(find.text(t.lessons.freeLesson), findsOneWidget);
   });
 
+  testWidgets(
+    'an excused student has no type section in sheet and shows excused and free subtitles',
+    (tester) async {
+      final lessonClient = _FakeLessonClient(
+        visits: [_visit(studentId: 'student-1', status: VisitStatus.present)],
+      );
+
+      await _openPage(tester, lesson: _lesson, lessonClient: lessonClient);
+
+      await _startEditing(tester);
+
+      await _openAttendanceSheet(tester, 'Ivan Petrov');
+
+      expect(find.text(t.lessons.regular), findsOneWidget);
+
+      await tester.tap(find.text(t.lessons.excused));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('${t.lessons.excused} · ${t.lessons.freeLesson}'),
+        findsOneWidget,
+      );
+
+      await _openAttendanceSheet(tester, 'Ivan Petrov');
+      expect(find.text(t.lessons.regular), findsNothing);
+      expect(find.text(t.lessons.free), findsNothing);
+    },
+  );
+
   testWidgets('a free student has no type to pick and stores a free lesson', (
     tester,
   ) async {

@@ -31,12 +31,13 @@ class StudentAttendanceTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isExcused = attendance?.status == VisitStatus.excused;
     final isFree = attendance?.type == VisitType.free;
     final isPresent = attendance?.status == VisitStatus.present;
 
     final modifiers = <String>[
-      if (attendance?.status == VisitStatus.excused) context.t.lessons.excused,
-      if (attendance?.type == VisitType.free) context.t.lessons.freeLesson,
+      if (isExcused) context.t.lessons.excused,
+      if (isFree || isExcused) context.t.lessons.freeLesson,
     ];
 
     final trailingWidgets = <Widget>[
