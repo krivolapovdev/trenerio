@@ -1,5 +1,6 @@
 package domain
 
+// @name VisitType
 type VisitType string
 
 const (

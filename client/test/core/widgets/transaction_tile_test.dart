@@ -55,6 +55,28 @@ void main() {
     expect(info.subtitle, '${t.finance.paidUntil} 01.09.2025');
   });
 
+  test('student payments with paidFrom and paidUntil display date range in subtitle', () {
+    final tx = TransactionResponse(
+      id: 'tx-range',
+      amount: 3800,
+      date: DateTime(2025, 8, 22),
+      type: TransactionType.income,
+      createdAt: DateTime(2025, 8, 22, 14, 30),
+      paymentDetails: StudentPaymentDetailsResponse(
+        detailsType: 'STUDENT',
+        studentId: 'student-1',
+        studentName: 'Ivan Petrov',
+        paidFrom: DateTime(2025, 8),
+        paidUntil: DateTime(2025, 9),
+      ),
+    );
+
+    final info = TransactionTileInfo.fromTransaction(tx);
+
+    expect(info.title, 'Ivan Petrov');
+    expect(info.subtitle, '01.08.2025 - 01.09.2025');
+  });
+
   test('session student payments display sessions count in subtitle', () {
     final tx = TransactionResponse(
       id: 'tx-2',

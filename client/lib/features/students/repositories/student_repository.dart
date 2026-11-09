@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phone/core/errors/dio_error_mapper.dart';
+import 'package:phone/features/students/services/student_paid_lesson_calculator.dart';
 import 'package:phone/features/students/services/student_service.dart';
 import 'package:phone/generated/models/create_student_payment_request.dart';
 import 'package:phone/generated/models/create_student_request.dart';
@@ -61,8 +62,8 @@ class StudentRepository {
 
   Future<List<VisitWithLessonResponse>> getStudentVisits({
     required String studentId,
-    required DateTime from,
-    required DateTime to,
+    DateTime? from,
+    DateTime? to,
   }) => guardApiCall(
     () => _service.getStudentVisits(studentId: studentId, from: from, to: to),
   );
@@ -70,10 +71,28 @@ class StudentRepository {
   Future<List<TransactionResponse>> getStudentPayments(String studentId) =>
       guardApiCall(() => _service.getStudentPayments(studentId: studentId));
 
+  Future<DateTime?> getLastPaidLessonDate(
+    String studentId, {
+    bool isStudentFree = false,
+  }) async {
+    final results = await Future.wait([
+      getStudentVisits(studentId: studentId),
+      getStudentPayments(studentId),
+    ]);
+    final visits = results[0] as List<VisitWithLessonResponse>;
+    final payments = results[1] as List<TransactionResponse>;
+    return findLastPaidLessonDate(
+      visits: visits,
+      payments: payments,
+      isStudentFree: isStudentFree,
+    );
+  }
+
   Future<TransactionResponse> createStudentPayment({
     required String studentId,
     required double amount,
     required DateTime date,
+    DateTime? paidFrom,
     DateTime? paidUntil,
     int? sessionsAdded,
   }) {
@@ -87,6 +106,7 @@ class StudentRepository {
         body: CreateStudentPaymentRequest(
           amount: amount,
           date: date,
+          paidFrom: paidFrom,
           paidUntil: paidUntil,
           sessionsAdded: sessionsAdded,
         ),

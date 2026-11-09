@@ -13,7 +13,6 @@ import (
 	visitmodel "github.com/krivolapovdev/trenerio/internal/modules/visit/domain"
 )
 
-// @name StudentVisit
 type StudentVisit = visitmodel.StudentVisit
 
 // @name CreateLessonRequest

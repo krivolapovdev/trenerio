@@ -50,9 +50,15 @@ class TransactionTileInfo {
 
   static String _subtitle(StudentPaymentDetailsResponse details) {
     final parts = <String>[
-      if (details.paidUntil != null)
+      if (details.paidFrom != null && details.paidUntil != null)
+        '${DateFormat(AppDateFormats.dayMonthYear).format(details.paidFrom!)} - '
+            '${DateFormat(AppDateFormats.dayMonthYear).format(details.paidUntil!)}'
+      else if (details.paidUntil != null)
         '${t.finance.paidUntil} '
-            '${DateFormat(AppDateFormats.dayMonthYear).format(details.paidUntil!)}',
+            '${DateFormat(AppDateFormats.dayMonthYear).format(details.paidUntil!)}'
+      else if (details.paidFrom != null)
+        '${t.finance.paidFrom} '
+            '${DateFormat(AppDateFormats.dayMonthYear).format(details.paidFrom!)}',
       if (details.sessionsAdded != null)
         t.titleWithCount(
           title: t.finance.sessionsCount,

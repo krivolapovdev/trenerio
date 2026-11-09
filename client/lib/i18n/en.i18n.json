@@ -194,6 +194,7 @@
     "typeIncome": "Income",
     "typeExpense": "Expense",
     "student": "Student",
+    "paidFrom": "Paid from",
     "paidUntil": "Paid until",
     "sessionsCount": "Sessions count",
     "createdAt": "Created at",

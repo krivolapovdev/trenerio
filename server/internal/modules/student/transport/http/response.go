@@ -36,5 +36,4 @@ type VisitWithLessonResponse struct {
 	Lesson lessonmodel.Lesson `json:"lesson" binding:"required"`
 }
 
-// @name TransactionResponse
 type TransactionResponse = txhttp.TransactionResponse

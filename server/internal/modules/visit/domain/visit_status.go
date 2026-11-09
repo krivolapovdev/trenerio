@@ -1,5 +1,6 @@
 package domain
 
+// @name VisitStatus
 type VisitStatus string
 
 const (

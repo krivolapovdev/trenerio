@@ -7,7 +7,7 @@ import (
 	studentmodel "github.com/krivolapovdev/trenerio/internal/modules/student/domain"
 )
 
-// @name RosterResponse
+// @name Roster
 type Roster struct {
 	ID              uuid.UUID              `json:"id" binding:"required" format:"uuid"`
 	Name            string                 `json:"name" binding:"required"`
@@ -18,7 +18,6 @@ type Roster struct {
 	Students        []studentmodel.Student `json:"students,omitempty"`
 }
 
-// @name ParticipantResponse
 type Participant struct {
 	ID        uuid.UUID `json:"id" format:"uuid"`
 	RosterID  uuid.UUID `json:"rosterId" format:"uuid"`

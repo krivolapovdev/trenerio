@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -5,16 +7,24 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:phone/features/finance/services/metric_service.dart';
 import 'package:phone/features/finance/services/transaction_service.dart';
 import 'package:phone/features/finance/widgets/create_transaction_bottom_sheet.dart';
+import 'package:phone/features/finance/widgets/paid_from_field.dart';
+import 'package:phone/features/finance/widgets/paid_until_field.dart';
 import 'package:phone/features/finance/widgets/student_payment_mode_selector.dart';
 import 'package:phone/features/students/services/student_service.dart';
 import 'package:phone/generated/metric_controller/metric_controller_client.dart';
 import 'package:phone/generated/models/create_student_payment_request.dart';
+import 'package:phone/generated/models/lesson_response.dart';
 import 'package:phone/generated/models/metric_scope.dart';
 import 'package:phone/generated/models/page_transaction_response.dart';
 import 'package:phone/generated/models/payment_metric_response.dart';
+import 'package:phone/generated/models/student_payment_details_response.dart';
 import 'package:phone/generated/models/student_summary_response.dart';
 import 'package:phone/generated/models/transaction_response.dart';
 import 'package:phone/generated/models/transaction_type.dart';
+import 'package:phone/generated/models/visit_response.dart';
+import 'package:phone/generated/models/visit_status.dart';
+import 'package:phone/generated/models/visit_type.dart';
+import 'package:phone/generated/models/visit_with_lesson_response.dart';
 import 'package:phone/generated/student_controller/student_controller_client.dart';
 import 'package:phone/generated/transaction_controller/transaction_controller_client.dart';
 import 'package:phone/i18n/strings.g.dart';
@@ -25,9 +35,23 @@ class _FakeStudentClient implements StudentControllerClient {
   final List<StudentSummaryResponse> students;
   final List<CreateStudentPaymentRequest> createdPayments = [];
   final List<String> createdPaymentStudentIds = [];
+  List<VisitWithLessonResponse> visits = const [];
+  List<TransactionResponse> payments = const [];
 
   @override
   Future<List<StudentSummaryResponse>> getStudentsSummary() async => students;
+
+  @override
+  Future<List<VisitWithLessonResponse>> getStudentVisits({
+    required String studentId,
+    DateTime? from,
+    DateTime? to,
+  }) async => visits;
+
+  @override
+  Future<List<TransactionResponse>> getStudentPayments({
+    required String studentId,
+  }) async => payments;
 
   @override
   Future<TransactionResponse> createStudentPayment({
@@ -47,6 +71,19 @@ class _FakeStudentClient implements StudentControllerClient {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _DelayedStudentClient extends _FakeStudentClient {
+  new([super.students]);
+
+  Completer<List<VisitWithLessonResponse>> visitsCompleter = Completer();
+
+  @override
+  Future<List<VisitWithLessonResponse>> getStudentVisits({
+    required String studentId,
+    DateTime? from,
+    DateTime? to,
+  }) => visitsCompleter.future;
 }
 
 class _FakeTransactionClient implements TransactionControllerClient {
@@ -481,6 +518,168 @@ void main() {
 
       expect(_field('Количество занятий*'), findsOneWidget);
       expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('paid from and paid until fields are displayed in the same row', (
+    tester,
+  ) async {
+    await _pump(tester, initialAmount: 2000);
+
+    expect(find.byType(PaidFromField), findsOneWidget);
+    expect(find.byType(PaidUntilField), findsOneWidget);
+
+    final rowFinder = find.ancestor(
+      of: find.byType(PaidFromField),
+      matching: find.byType(Row),
+    );
+    expect(rowFinder, findsOneWidget);
+
+    final untilInSameRow = find.descendant(
+      of: rowFinder,
+      matching: find.byType(PaidUntilField),
+    );
+    expect(untilInSameRow, findsOneWidget);
+  });
+
+  testWidgets(
+    'automatically substitutes paid from with the last paid lesson date',
+    (tester) async {
+      final lastPaidDate = DateTime(2025, 8, 15);
+      final client = _FakeStudentClient([_student])
+        ..visits = [
+          VisitWithLessonResponse(
+            visit: VisitResponse(
+              id: 'v-1',
+              studentId: 'student-1',
+              lessonId: 'l-1',
+              status: VisitStatus.present,
+              type: VisitType.regular,
+              createdAt: DateTime(2025, 8, 15),
+            ),
+            lesson: LessonResponse(
+              id: 'l-1',
+              date: lastPaidDate,
+              createdAt: DateTime(2025, 8, 15),
+            ),
+          ),
+        ]
+        ..payments = [
+          TransactionResponse(
+            id: 'p-1',
+            amount: 3000,
+            date: DateTime(2025, 8, 1),
+            type: TransactionType.income,
+            createdAt: DateTime(2025, 8, 1),
+            paymentDetails: StudentPaymentDetailsResponse(
+              detailsType: 'STUDENT',
+              studentId: 'student-1',
+              paidFrom: DateTime(2025, 8, 1),
+              paidUntil: DateTime(2025, 8, 31),
+            ),
+          ),
+        ];
+
+      await _pump(
+        tester,
+        initialAmount: 3000,
+        studentClient: client,
+        initialStudentId: 'student-1',
+      );
+
+      expect(_textOf(tester, t.finance.paidFrom), '15.08.2025');
+      expect(_textOf(tester, _paidUntilLabel), '15.09.2025');
+    },
+  );
+
+  testWidgets(
+    'entering paidFrom automatically updates paidUntil to paidFrom + 1 month',
+    (tester) async {
+      await _pump(tester, initialAmount: 3500);
+
+      await tester.enterText(_field(t.finance.paidFrom), '10042025');
+      await tester.pump();
+
+      expect(_textOf(tester, _paidUntilLabel), '10.05.2025');
+    },
+  );
+
+  testWidgets(
+    'shows loading icon for paidFrom while getting data and hides clear button',
+    (tester) async {
+      final delayedClient = _DelayedStudentClient([_student]);
+      tester.view.physicalSize = const Size(1200, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        _wrap(
+          initialAmount: 3000,
+          studentClient: delayedClient,
+          initialStudentId: 'student-1',
+        ),
+      );
+      await tester.pump();
+
+      final paidFromFinder = find.byType(PaidFromField);
+      expect(
+        find.descendant(
+          of: paidFromFinder,
+          matching: find.byType(CircularProgressIndicator),
+        ),
+        findsOneWidget,
+      );
+
+      delayedClient.visitsCompleter.complete([]);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.descendant(
+          of: paidFromFinder,
+          matching: find.byType(CircularProgressIndicator),
+        ),
+        findsNothing,
+      );
+
+      expect(
+        find.descendant(of: paidFromFinder, matching: find.byIcon(Icons.clear)),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets('submitting payment sends both paidFrom and paidUntil', (
+    tester,
+  ) async {
+    final client = _FakeStudentClient([_student]);
+    await _pump(tester, initialAmount: 3500, studentClient: client);
+
+    await tester.enterText(_field(t.finance.paidFrom), '01082025');
+    await tester.enterText(_field(_paidUntilLabel), '31082025');
+    await tester.pump();
+
+    await tester.tap(find.text(t.create));
+    await tester.pumpAndSettle();
+
+    expect(client.createdPayments, hasLength(1));
+    expect(client.createdPayments.single.paidFrom, DateTime(2025, 8, 1));
+    expect(client.createdPayments.single.paidUntil, DateTime(2025, 8, 31));
+  });
+
+  testWidgets(
+    'invalid date range where paidFrom is after paidUntil blocks saving',
+    (tester) async {
+      final client = _FakeStudentClient([_student]);
+      await _pump(tester, initialAmount: 3500, studentClient: client);
+
+      await tester.enterText(_field(t.finance.paidFrom), '15092025');
+      await tester.enterText(_field(_paidUntilLabel), '01092025');
+      await tester.pump();
+
+      await tester.tap(find.text(t.create));
+      await tester.pumpAndSettle();
+
+      expect(client.createdPayments, isEmpty);
     },
   );
 }

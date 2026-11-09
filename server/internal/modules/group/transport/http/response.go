@@ -2,10 +2,9 @@ package http
 
 import (
 	"github.com/krivolapovdev/trenerio/internal/modules/group/domain"
-	lessonmodel "github.com/krivolapovdev/trenerio/internal/modules/lesson/domain"
+	lessonhttp "github.com/krivolapovdev/trenerio/internal/modules/lesson/transport/http"
 )
 
-// @name GroupResponse
 type GroupResponse = domain.Group
 
 // @name GroupStudentResponse
@@ -20,11 +19,9 @@ type GroupStudentSummaryResponse = domain.GroupStudentSummary
 // @name GroupReportDayMarkResponse
 type GroupReportDayMarkResponse = domain.GroupReportDayMark
 
-// @name GroupReportStudentResponse
 type GroupReportStudentResponse = domain.GroupReportStudent
 
 // @name GroupReportResponse
 type GroupReportResponse = domain.GroupReport
 
-// @name LessonResponse
-type LessonResponse = lessonmodel.Lesson
+type LessonResponse = lessonhttp.LessonResponse

@@ -9,7 +9,7 @@ import (
 )
 
 // @name GroupResponse
-type Group struct {
+type GroupResponse struct {
 	ID           uuid.UUID `json:"id" binding:"required" format:"uuid"`
 	Name         string    `json:"name" binding:"required"`
 	DefaultPrice *float64  `json:"defaultPrice,omitempty"`
@@ -17,14 +17,14 @@ type Group struct {
 	CreatedAt    time.Time `json:"createdAt" binding:"required" format:"date-time"`
 }
 
-// @name GroupStudentResponse
+type Group = GroupResponse
+
 type GroupStudent struct {
 	ID        uuid.UUID `json:"id" format:"uuid"`
 	GroupID   uuid.UUID `json:"groupId" format:"uuid"`
 	StudentID uuid.UUID `json:"studentId" format:"uuid"`
 }
 
-// @name GroupSummaryResponse
 type GroupSummary struct {
 	ID              uuid.UUID `json:"id" binding:"required" format:"uuid"`
 	Name            string    `json:"name" binding:"required"`
@@ -35,7 +35,6 @@ type GroupSummary struct {
 	CountOfDebtors  int64     `json:"countOfDebtors"`
 }
 
-// @name GroupStudentSummaryResponse
 type GroupStudentSummary struct {
 	ID        uuid.UUID                    `json:"id" binding:"required" format:"uuid"`
 	FullName  string                       `json:"fullName" binding:"required"`
@@ -47,14 +46,13 @@ type GroupStudentSummary struct {
 	Statuses  []studentmodel.StudentStatus `json:"statuses" binding:"required"`
 }
 
-// @name GroupReportDayMarkResponse
 type GroupReportDayMark struct {
 	Day   int    `json:"day" binding:"required"`
 	Marks []bool `json:"marks" binding:"required"`
 }
 
 // @name GroupReportStudentResponse
-type GroupReportStudent struct {
+type GroupReportStudentResponse struct {
 	StudentID    uuid.UUID            `json:"studentId" binding:"required" format:"uuid"`
 	FullName     string               `json:"fullName" binding:"required"`
 	Paid         bool                 `json:"paid" binding:"required"`
@@ -64,7 +62,8 @@ type GroupReportStudent struct {
 	LessonCount  int                  `json:"lessonCount" binding:"required"`
 }
 
-// @name GroupReportResponse
+type GroupReportStudent = GroupReportStudentResponse
+
 type GroupReport struct {
 	GroupID      uuid.UUID            `json:"groupId" binding:"required" format:"uuid"`
 	GroupName    string               `json:"groupName" binding:"required"`

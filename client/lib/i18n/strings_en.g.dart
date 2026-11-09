@@ -605,6 +605,9 @@ class Translations$finance$en {
 	/// en: 'Student'
 	String get student => 'Student';
 
+	/// en: 'Paid from'
+	String get paidFrom => 'Paid from';
+
 	/// en: 'Paid until'
 	String get paidUntil => 'Paid until';
 
@@ -899,6 +902,7 @@ extension on Translations {
 			'finance.typeIncome' => 'Income',
 			'finance.typeExpense' => 'Expense',
 			'finance.student' => 'Student',
+			'finance.paidFrom' => 'Paid from',
 			'finance.paidUntil' => 'Paid until',
 			'finance.sessionsCount' => 'Sessions count',
 			'finance.createdAt' => 'Created at',

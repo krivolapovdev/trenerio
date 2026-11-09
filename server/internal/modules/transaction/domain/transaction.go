@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// @name TransactionType
 type TransactionType string
 
 const (

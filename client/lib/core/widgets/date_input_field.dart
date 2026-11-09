@@ -16,6 +16,7 @@ class DateInputField extends StatefulWidget {
   final DateTime? lastDate;
 
   final bool allowClear;
+  final bool isLoading;
 
   static const String hint = '31.12.1999';
 
@@ -31,6 +32,7 @@ class DateInputField extends StatefulWidget {
     this.firstDate,
     this.lastDate,
     this.allowClear = false,
+    this.isLoading = false,
   });
 
   static String format(DateTime date) {
@@ -164,7 +166,7 @@ class _DateInputFieldState extends State<DateInputField> {
   Widget build(BuildContext context) => TextField(
     controller: _controller,
     focusNode: _focusNode,
-    enabled: widget.enabled,
+    enabled: widget.enabled && !widget.isLoading,
     keyboardType: TextInputType.number,
     inputFormatters: const [DateInputFormatter()],
     decoration: InputDecoration(
@@ -172,10 +174,18 @@ class _DateInputFieldState extends State<DateInputField> {
       hintText: DateInputField.hint,
       prefixIcon: widget.icon == null ? null : Icon(widget.icon),
       errorText: _errorText,
-      suffixIcon:
-          widget.allowClear && widget.enabled && _controller.text.isNotEmpty
-          ? _ClearButton(onClear: _clear)
-          : null,
+      suffixIcon: widget.isLoading
+          ? const Padding(
+              padding: EdgeInsets.all(12),
+              child: SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          : (widget.allowClear && widget.enabled && _controller.text.isNotEmpty
+                ? _ClearButton(onClear: _clear)
+                : null),
     ),
   );
 }

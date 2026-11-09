@@ -9,14 +9,15 @@ import (
 )
 
 // @name LessonResponse
-type Lesson struct {
+type LessonResponse struct {
 	ID        uuid.UUID  `json:"id" binding:"required" format:"uuid"`
 	Date      time.Time  `json:"date" binding:"required" format:"date-time"`
 	CreatedAt time.Time  `json:"createdAt" binding:"required" format:"date-time"`
 	GroupID   *uuid.UUID `json:"groupId,omitempty" format:"uuid"`
 }
 
-// @name LessonDetailsResponse
+type Lesson = LessonResponse
+
 type LessonDetails struct {
 	ID            uuid.UUID              `json:"id" binding:"required" format:"uuid"`
 	Date          time.Time              `json:"date" binding:"required" format:"date-time"`

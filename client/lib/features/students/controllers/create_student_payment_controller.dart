@@ -17,6 +17,7 @@ class CreateStudentPaymentController extends AsyncNotifier<void> {
     required String studentId,
     required double amount,
     required DateTime date,
+    DateTime? paidFrom,
     DateTime? paidUntil,
     int? sessionsAdded,
   }) async {
@@ -35,6 +36,7 @@ class CreateStudentPaymentController extends AsyncNotifier<void> {
             studentId: studentId,
             amount: amount,
             date: date,
+            paidFrom: paidFrom,
             paidUntil: paidUntil,
             sessionsAdded: sessionsAdded,
           );

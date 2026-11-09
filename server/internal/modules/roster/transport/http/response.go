@@ -11,5 +11,4 @@ type RosterResponse = domain.Roster
 // @name ParticipantResponse
 type ParticipantResponse = domain.Participant
 
-// @name StudentResponse
 type StudentResponse = studenthttp.StudentResponse

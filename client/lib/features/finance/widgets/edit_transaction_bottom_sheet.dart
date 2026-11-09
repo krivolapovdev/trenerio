@@ -6,6 +6,7 @@ import 'package:phone/core/errors/dio_error_mapper.dart';
 import 'package:phone/core/widgets/app_snack_bar.dart';
 import 'package:phone/core/widgets/date_input_field.dart';
 import 'package:phone/features/finance/controllers/update_transaction_controller.dart';
+import 'package:phone/features/finance/widgets/paid_from_field.dart';
 import 'package:phone/features/finance/widgets/paid_until_field.dart';
 import 'package:phone/features/finance/widgets/sessions_count_field.dart';
 import 'package:phone/features/finance/widgets/student_payment_mode_selector.dart';
@@ -30,6 +31,7 @@ class _EditTransactionBottomSheetState
 
   late DateTime _selectedDate;
   late DateTime? _paidUntil;
+  DateTime? _paidFrom;
   late StudentPaymentMode _paymentMode;
 
   late final String _initialAmountText;
@@ -65,21 +67,33 @@ class _EditTransactionBottomSheetState
       final initialPaidUntil = widget.transaction.paymentDetails?.paidUntil;
       final paidUntil = _paidUntil;
 
-      if (initialPaidUntil == null || paidUntil == null) {
-        return initialPaidUntil != paidUntil;
-      }
+      final isPaidUntilChanged = (initialPaidUntil == null || paidUntil == null)
+          ? initialPaidUntil != paidUntil
+          : DateUtils.dateOnly(paidUntil) !=
+                DateUtils.dateOnly(initialPaidUntil);
 
-      return DateUtils.dateOnly(paidUntil) !=
-          DateUtils.dateOnly(initialPaidUntil);
+      final initialPaidFrom = widget.transaction.paymentDetails?.paidFrom;
+      final paidFrom = _paidFrom;
+
+      final isPaidFromChanged = (initialPaidFrom == null || paidFrom == null)
+          ? initialPaidFrom != paidFrom
+          : DateUtils.dateOnly(paidFrom) != DateUtils.dateOnly(initialPaidFrom);
+
+      return isPaidUntilChanged || isPaidFromChanged;
     }
 
     return _parsedSessionsAdded !=
         widget.transaction.paymentDetails?.sessionsAdded;
   }
 
+  bool get _isDateRangeInvalid =>
+      _paidFrom != null &&
+      _paidUntil != null &&
+      DateUtils.dateOnly(_paidFrom!).isAfter(DateUtils.dateOnly(_paidUntil!));
+
   bool get _isPaymentFieldInvalid {
     if (!_isStudentPayment) return false;
-    if (_isPaidUntilMode) return _paidUntil == null;
+    if (_isPaidUntilMode) return _paidUntil == null || _isDateRangeInvalid;
     final sessions = _parsedSessionsAdded;
     return sessions == null || sessions <= 0;
   }
@@ -100,6 +114,7 @@ class _EditTransactionBottomSheetState
     final details = widget.transaction.paymentDetails;
     _selectedDate = widget.transaction.date;
     _paidUntil = details?.paidUntil;
+    _paidFrom = details?.paidFrom;
 
     final initialSessions = details?.sessionsAdded;
     final initialSessionsText = initialSessions != null && initialSessions > 0
@@ -146,13 +161,26 @@ class _EditTransactionBottomSheetState
     });
   }
 
+  DateTime _oneMonthAfter(DateTime date) =>
+      DateTime(date.year, date.month + 1, date.day);
+
+  void _onPaidFromChanged(DateTime? date) {
+    setState(() {
+      _paidFrom = date;
+      if (date != null) {
+        _paidUntil = _oneMonthAfter(date);
+      }
+    });
+  }
+
   void _onPaymentModeChanged(StudentPaymentMode mode) {
     FocusScope.of(context).unfocus();
     setState(() {
       _paymentMode = mode;
-      if (mode == StudentPaymentMode.paidUntil && _paidUntil == null) {
-        _paidUntil =
+      if (mode == StudentPaymentMode.paidUntil) {
+        _paidUntil ??=
             widget.transaction.paymentDetails?.paidUntil ?? _defaultPaidUntil;
+        _paidFrom ??= widget.transaction.paymentDetails?.paidFrom;
       }
     });
   }
@@ -163,12 +191,19 @@ class _EditTransactionBottomSheetState
     if (_isPaymentFieldInvalid) return;
 
     final details = widget.transaction.paymentDetails;
+    final paidFrom = _isStudentPayment && _isPaidUntilMode ? _paidFrom : null;
+    final clearPaidFrom =
+        _isStudentPayment &&
+        ((!_isPaidUntilMode && details?.paidFrom != null) ||
+            (_isPaidUntilMode &&
+                _paidFrom == null &&
+                details?.paidFrom != null));
     final paidUntil = _isStudentPayment && _isPaidUntilMode ? _paidUntil : null;
+    final clearPaidUntil =
+        _isStudentPayment && !_isPaidUntilMode && details?.paidUntil != null;
     final sessionsAdded = _isStudentPayment && !_isPaidUntilMode
         ? _parsedSessionsAdded
         : null;
-    final clearPaidUntil =
-        _isStudentPayment && !_isPaidUntilMode && details?.paidUntil != null;
     final clearSessionsAdded =
         _isStudentPayment && _isPaidUntilMode && details?.sessionsAdded != null;
 
@@ -185,6 +220,8 @@ class _EditTransactionBottomSheetState
           amount: amount,
           date: _selectedDate,
           studentId: details?.studentId,
+          paidFrom: paidFrom,
+          clearPaidFrom: clearPaidFrom,
           paidUntil: paidUntil,
           clearPaidUntil: clearPaidUntil,
           sessionsAdded: sessionsAdded,
@@ -300,11 +337,26 @@ class _EditTransactionBottomSheetState
                           onChanged: _onPaymentModeChanged,
                         ),
                         if (_isPaidUntilMode)
-                          PaidUntilField(
-                            initialDate: _paidUntil,
-                            lastDate: _maxPaidUntil,
-                            enabled: !_isLoading,
-                            onDateChanged: _onPaidUntilChanged,
+                          Row(
+                            children: [
+                              Expanded(
+                                child: PaidFromField(
+                                  initialDate: _paidFrom,
+                                  lastDate: _maxPaidUntil,
+                                  enabled: !_isLoading,
+                                  onDateChanged: _onPaidFromChanged,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: PaidUntilField(
+                                  initialDate: _paidUntil,
+                                  lastDate: _maxPaidUntil,
+                                  enabled: !_isLoading,
+                                  onDateChanged: _onPaidUntilChanged,
+                                ),
+                              ),
+                            ],
                           )
                         else
                           SessionsCountField(

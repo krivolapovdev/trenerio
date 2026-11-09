@@ -196,6 +196,7 @@
     "typeIncome": "Доход",
     "typeExpense": "Расход",
     "student": "Ученик",
+    "paidFrom": "Оплачено с",
     "paidUntil": "Оплачено до",
     "sessionsCount": "Количество занятий",
     "createdAt": "Создано",

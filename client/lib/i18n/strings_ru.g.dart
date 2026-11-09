@@ -287,6 +287,7 @@ class _Translations$finance$ru implements Translations$finance$en {
 	@override String get typeIncome => 'Доход';
 	@override String get typeExpense => 'Расход';
 	@override String get student => 'Ученик';
+	@override String get paidFrom => 'Оплачено с';
 	@override String get paidUntil => 'Оплачено до';
 	@override String get sessionsCount => 'Количество занятий';
 	@override String get createdAt => 'Создано';
@@ -533,6 +534,7 @@ extension on TranslationsRu {
 			'finance.typeIncome' => 'Доход',
 			'finance.typeExpense' => 'Расход',
 			'finance.student' => 'Ученик',
+			'finance.paidFrom' => 'Оплачено с',
 			'finance.paidUntil' => 'Оплачено до',
 			'finance.sessionsCount' => 'Количество занятий',
 			'finance.createdAt' => 'Создано',

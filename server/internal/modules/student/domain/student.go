@@ -7,6 +7,7 @@ import (
 	"github.com/krivolapovdev/trenerio/internal/core/types"
 )
 
+// @name StudentStatus
 type StudentStatus string
 
 const (
@@ -18,7 +19,7 @@ const (
 	StudentStatusFree     StudentStatus = "FREE"
 )
 
-// @name StudentResponse
+// @name Student
 type Student struct {
 	ID        uuid.UUID   `json:"id" binding:"required" format:"uuid"`
 	FullName  string      `json:"fullName" binding:"required"`
