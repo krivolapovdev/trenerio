@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -630,6 +631,23 @@ void main() {
         findsOneWidget,
       );
 
+      final indicator = tester.widget<CircularProgressIndicator>(
+        find.descendant(
+          of: paidFromFinder,
+          matching: find.byType(CircularProgressIndicator),
+        ),
+      );
+      expect(indicator.color, Colors.grey);
+
+      // Prefix calendar icon should be replaced while loading
+      expect(
+        find.descendant(
+          of: paidFromFinder,
+          matching: find.byIcon(FluentIcons.calendar_ltr_16_regular),
+        ),
+        findsNothing,
+      );
+
       delayedClient.visitsCompleter.complete([]);
       await tester.pumpAndSettle();
 
@@ -639,6 +657,15 @@ void main() {
           matching: find.byType(CircularProgressIndicator),
         ),
         findsNothing,
+      );
+
+      // Prefix calendar icon is restored once loaded
+      expect(
+        find.descendant(
+          of: paidFromFinder,
+          matching: find.byIcon(FluentIcons.calendar_ltr_16_regular),
+        ),
+        findsOneWidget,
       );
 
       expect(

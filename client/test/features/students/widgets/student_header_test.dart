@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:phone/features/students/extensions/student_balance_extension.dart';
 import 'package:phone/features/students/extensions/student_status_extension.dart';
+import 'package:phone/features/students/widgets/student_badges.dart';
 import 'package:phone/features/students/widgets/student_header.dart';
 import 'package:phone/generated/models/student_payment_details_response.dart';
 import 'package:phone/generated/models/student_status.dart';
@@ -199,7 +200,7 @@ void main() {
     });
   });
 
-  group('StudentBalanceVisibility (second line)', () {
+  group('StudentBalanceVisibility', () {
     final fixedNow = DateTime(2026, 11, 8, 12, 0);
 
     test('sessions left > 0 -> always show', () {
@@ -226,69 +227,14 @@ void main() {
       expect(negative.showSessions, isFalse);
     });
 
-    test('current date < paid until -> always show', () {
-      final futurePaidUntil = DateTime(2026, 11, 20);
-      final visibility = StudentBalanceVisibility.of(
-        _student(paidUntil: futurePaidUntil),
-        const [],
-        fixedNow,
-      );
-
-      expect(visibility.showPaidUntil, isTrue);
-    });
-
-    test('current date == paid until -> show', () {
-      final sameDayPaidUntil = DateTime(2026, 11, 8, 0, 0);
-      final visibility = StudentBalanceVisibility.of(
-        _student(paidUntil: sameDayPaidUntil),
-        const [],
-        fixedNow,
-      );
-
-      expect(visibility.showPaidUntil, isTrue);
-    });
-
-    test('current date > paid until -> hide it', () {
-      final pastPaidUntil = DateTime(2026, 11, 7);
-      final visibility = StudentBalanceVisibility.of(
-        _student(paidUntil: pastPaidUntil),
-        [_payment(paidUntil: pastPaidUntil)],
-        fixedNow,
-      );
-
-      expect(visibility.showPaidUntil, isFalse);
-    });
-
-    test('paid until null -> hide it', () {
-      final visibility = StudentBalanceVisibility.of(
-        _student(paidUntil: null),
-        const [],
-        fixedNow,
-      );
-
-      expect(visibility.showPaidUntil, isFalse);
-    });
-
-    test('free student hides both balance badges', () {
+    test('free student hides balance badges', () {
       final free = StudentBalanceVisibility.of(
         _student(paidUntil: DateTime(2026, 12, 7), sessionsLeft: 8, free: true),
         const [],
         fixedNow,
       );
 
-      expect(free.showPaidUntil, isFalse);
       expect(free.showSessions, isFalse);
-    });
-
-    test('hybrid shows both when both conditions are met', () {
-      final visibility = StudentBalanceVisibility.of(
-        _student(paidUntil: DateTime(2026, 11, 20), sessionsLeft: 4),
-        const [],
-        fixedNow,
-      );
-
-      expect(visibility.showPaidUntil, isTrue);
-      expect(visibility.showSessions, isTrue);
     });
   });
 
@@ -300,29 +246,35 @@ void main() {
     const paidUntilLabel = '07.12.2026';
     const sessionsLabel = '8';
 
-    testWidgets('shows both lines with status badges and balance badges', (
-      tester,
-    ) async {
-      await _pumpHeader(
-        tester,
-        _student(
-          statuses: const [StudentStatus.present, StudentStatus.paid],
-          paidUntil: futurePaidUntil,
-          sessionsLeft: 8,
-        ),
-        now: fixedNow,
-      );
+    testWidgets(
+      'shows all badges in one wrapped row without paid until badge',
+      (tester) async {
+        await _pumpHeader(
+          tester,
+          _student(
+            statuses: const [StudentStatus.present, StudentStatus.paid],
+            paidUntil: futurePaidUntil,
+            sessionsLeft: 8,
+          ),
+          now: fixedNow,
+        );
 
-      // Line 1: Present, Paid
-      expect(find.text(t.students.status.present), findsOneWidget);
-      expect(find.text(t.students.status.paid), findsOneWidget);
+        // Single wrapped row of badges
+        expect(find.byType(StudentBadges), findsOneWidget);
 
-      // Line 2: 8 sessions left, Paid until 07.12.2026
-      expect(find.text(sessionsLabel), findsOneWidget);
-      expect(find.text(paidUntilLabel), findsOneWidget);
-    });
+        // Status badges: Present, Paid
+        expect(find.text(t.students.status.present), findsOneWidget);
+        expect(find.text(t.students.status.paid), findsOneWidget);
 
-    testWidgets('hides sessions left when <= 0, shows paid until when valid', (
+        // Balance badge: 8 sessions left
+        expect(find.text(sessionsLabel), findsOneWidget);
+
+        // Paid until is NOT shown
+        expect(find.text(paidUntilLabel), findsNothing);
+      },
+    );
+
+    testWidgets('hides sessions left when <= 0, and does not show paid until', (
       tester,
     ) async {
       await _pumpHeader(
@@ -335,13 +287,14 @@ void main() {
         now: fixedNow,
       );
 
+      expect(find.byType(StudentBadges), findsOneWidget);
       expect(find.text(t.students.status.present), findsOneWidget);
       expect(find.text(t.students.status.paid), findsOneWidget);
-      expect(find.text(paidUntilLabel), findsOneWidget);
+      expect(find.text(paidUntilLabel), findsNothing);
       expect(find.textContaining('session'), findsNothing);
     });
 
-    testWidgets('hides paid until when expired, shows sessions left when > 0', (
+    testWidgets('shows sessions left when > 0, and never shows paid until', (
       tester,
     ) async {
       await _pumpHeader(
@@ -354,6 +307,7 @@ void main() {
         now: fixedNow,
       );
 
+      expect(find.byType(StudentBadges), findsOneWidget);
       expect(find.text(t.students.status.missing), findsOneWidget);
       expect(find.text(t.students.status.unpaid), findsOneWidget);
       expect(find.text(sessionsLabel), findsOneWidget);
@@ -385,12 +339,13 @@ void main() {
       );
 
       expect(tester.takeException(), isNull);
+      expect(find.byType(StudentBadges), findsOneWidget);
       expect(find.text('333'), findsOneWidget);
       expect(find.text('+7 999 123-45-67'), findsOneWidget);
       expect(find.text(t.students.status.present), findsOneWidget);
       expect(find.text(t.students.status.paid), findsOneWidget);
       expect(find.text('23'), findsOneWidget);
-      expect(find.text('30.11.2026'), findsOneWidget);
+      expect(find.text('30.11.2026'), findsNothing);
     });
   });
 }

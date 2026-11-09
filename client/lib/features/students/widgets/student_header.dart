@@ -59,8 +59,10 @@ class StudentHeaderDelegate extends SliverPersistentHeaderDelegate {
       curveProgress,
     )!;
 
-    final firstLineBadges = student.toHeaderStatusBadges(context);
-    final secondLineBadges = student.toBalanceBadges(context, payments, now);
+    final badges = [
+      ...student.toHeaderStatusBadges(context),
+      ...student.toBalanceBadges(context, payments, now),
+    ];
     final hasNote = student.note != null && student.note!.trim().isNotEmpty;
     final hasPhone = student.phone != null && student.phone!.isNotEmpty;
 
@@ -117,19 +119,10 @@ class StudentHeaderDelegate extends SliverPersistentHeaderDelegate {
                                   overflow: TextOverflow.ellipsis,
                                   textAlign: TextAlign.center,
                                 ),
-                                if (firstLineBadges.isNotEmpty) ...[
+                                if (badges.isNotEmpty) ...[
                                   const SizedBox(height: 10),
                                   StudentBadges(
-                                    badges: firstLineBadges,
-                                    alignment: WrapAlignment.center,
-                                  ),
-                                ],
-                                if (secondLineBadges.isNotEmpty) ...[
-                                  SizedBox(
-                                    height: firstLineBadges.isNotEmpty ? 6 : 10,
-                                  ),
-                                  StudentBadges(
-                                    badges: secondLineBadges,
+                                    badges: badges,
                                     alignment: WrapAlignment.center,
                                   ),
                                 ],

@@ -172,20 +172,23 @@ class _DateInputFieldState extends State<DateInputField> {
     decoration: InputDecoration(
       labelText: widget.labelText,
       hintText: DateInputField.hint,
-      prefixIcon: widget.icon == null ? null : Icon(widget.icon),
-      errorText: _errorText,
-      suffixIcon: widget.isLoading
-          ? const Padding(
-              padding: EdgeInsets.all(12),
+      prefixIcon: widget.isLoading
+          ? const UnconstrainedBox(
               child: SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.grey,
+                ),
               ),
             )
-          : (widget.allowClear && widget.enabled && _controller.text.isNotEmpty
-                ? _ClearButton(onClear: _clear)
-                : null),
+          : (widget.icon == null ? null : Icon(widget.icon)),
+      errorText: _errorText,
+      suffixIcon:
+          widget.allowClear && widget.enabled && _controller.text.isNotEmpty
+          ? _ClearButton(onClear: _clear)
+          : null,
     ),
   );
 }
