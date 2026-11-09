@@ -17,6 +17,7 @@
   "noData": "Нет данных",
   "noTransactions": "Нет операций",
   "noStudents": "Нет учеников",
+  "noGroups": "Нет групп",
   "pleaseUpdateApp": "Пожалуйста, обновите приложение",
   "invalidDate": "Некорректная дата",
   "titleWithCount": "$title: $count",

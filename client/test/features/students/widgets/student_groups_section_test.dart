@@ -151,12 +151,28 @@ void main() {
     expect(find.text('Group A'), findsOneWidget);
   });
 
-  testWidgets('a student without a group keeps no card', (tester) async {
-    await _pumpSection(tester, _studentWithoutGroup, groups: _listedGroups);
+  testWidgets(
+    'shows empty card with title, edit button, and no groups text when empty',
+    (tester) async {
+      var updated = false;
 
-    expect(find.text(t.groups.title), findsNothing);
-    expect(find.byType(GroupCard), findsNothing);
-  });
+      await _pumpSection(
+        tester,
+        _studentWithoutGroup,
+        groups: _listedGroups,
+        onUpdate: () => updated = true,
+      );
+
+      expect(find.text(t.groups.title), findsOneWidget);
+      expect(find.text(t.edit), findsOneWidget);
+      expect(find.text(t.noGroups), findsOneWidget);
+
+      await tester.tap(find.text(t.edit));
+      await tester.pumpAndSettle();
+
+      expect(updated, isTrue);
+    },
+  );
 
   testWidgets('the card hides the note of the group', (tester) async {
     await _pumpSection(tester, _studentInNotedGroup);

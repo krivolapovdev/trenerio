@@ -56,6 +56,7 @@ class TranslationsRu with BaseTranslations<AppLocale, Translations> implements T
 	@override String get noData => 'Нет данных';
 	@override String get noTransactions => 'Нет операций';
 	@override String get noStudents => 'Нет учеников';
+	@override String get noGroups => 'Нет групп';
 	@override String get pleaseUpdateApp => 'Пожалуйста, обновите приложение';
 	@override String get invalidDate => 'Некорректная дата';
 	@override String titleWithCount({required Object title, required Object count}) => '${title}: ${count}';
@@ -383,6 +384,7 @@ extension on TranslationsRu {
 			'noData' => 'Нет данных',
 			'noTransactions' => 'Нет операций',
 			'noStudents' => 'Нет учеников',
+			'noGroups' => 'Нет групп',
 			'pleaseUpdateApp' => 'Пожалуйста, обновите приложение',
 			'invalidDate' => 'Некорректная дата',
 			'titleWithCount' => ({required Object title, required Object count}) => '${title}: ${count}',

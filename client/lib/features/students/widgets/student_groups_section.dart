@@ -21,15 +21,11 @@ class StudentGroupsSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final groups = _groupsOf(student);
 
-    if (groups.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
     final groupsState = ref.watch(groupListControllerProvider);
     final listedGroups = groupsState.value ?? const <GroupSummaryResponse>[];
 
     return Skeletonizer(
-      enabled: groupsState.isLoading,
+      enabled: groups.isNotEmpty && groupsState.isLoading,
       ignorePointers: false,
       child: StudentGroupsCard(
         groups: groups,

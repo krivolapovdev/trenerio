@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:phone/core/widgets/empty_groups.dart';
 import 'package:phone/features/groups/pages/group_page.dart';
 import 'package:phone/features/groups/widgets/group_card.dart';
 import 'package:phone/generated/models/group_response.dart';
@@ -49,31 +50,38 @@ class StudentGroupsCard extends StatelessWidget {
             ],
           ),
         ),
-        ListView.separated(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          padding: EdgeInsets.zero,
-          itemCount: groups.length,
-          separatorBuilder: (context, index) =>
-              const Divider(height: 1, thickness: 1, indent: 16, endIndent: 16),
-          itemBuilder: (context, index) {
-            final group = _summaryOf(groups[index], listedGroups);
+        if (groups.isEmpty)
+          const EmptyGroups()
+        else
+          ListView.separated(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: EdgeInsets.zero,
+            itemCount: groups.length,
+            separatorBuilder: (context, index) => const Divider(
+              height: 1,
+              thickness: 1,
+              indent: 16,
+              endIndent: 16,
+            ),
+            itemBuilder: (context, index) {
+              final group = _summaryOf(groups[index], listedGroups);
 
-            return GroupCard(
-              key: ValueKey(group.id),
-              group: group,
-              noteVisible: false,
-              borderRadius: BorderRadius.zero,
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => GroupPage(group: group),
-                  ),
-                );
-              },
-            );
-          },
-        ),
+              return GroupCard(
+                key: ValueKey(group.id),
+                group: group,
+                noteVisible: false,
+                borderRadius: BorderRadius.zero,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => GroupPage(group: group),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
       ],
     ),
   );
