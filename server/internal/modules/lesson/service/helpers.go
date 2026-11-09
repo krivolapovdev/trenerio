@@ -49,6 +49,7 @@ func deduplicateStudentVisits(visits []visitmodel.StudentVisit) []visitmodel.Stu
 	seen := make(map[uuid.UUID]int, len(visits))
 	unique := make([]visitmodel.StudentVisit, 0, len(visits))
 	for _, sv := range visits {
+		sv.Normalize()
 		if idx, exists := seen[sv.StudentID]; exists {
 			unique[idx] = sv
 		} else {

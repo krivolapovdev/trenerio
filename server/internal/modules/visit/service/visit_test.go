@@ -55,7 +55,14 @@ func TestToVisitResponse_Variants(t *testing.T) {
 			dbStatus:   db.VisitsModuleVisitStatusEXCUSED,
 			dbType:     db.VisitsModuleVisitTypeREGULAR,
 			wantStatus: domain.VisitStatusExcused,
-			wantType:   domain.VisitTypeRegular,
+			wantType:   domain.VisitTypeFree,
+		},
+		{
+			name:       "ExcusedFree",
+			dbStatus:   db.VisitsModuleVisitStatusEXCUSED,
+			dbType:     db.VisitsModuleVisitTypeFREE,
+			wantStatus: domain.VisitStatusExcused,
+			wantType:   domain.VisitTypeFree,
 		},
 		{
 			name:       "Free",
@@ -137,4 +144,22 @@ func TestIsBillableVisit(t *testing.T) {
 	assert.False(t, domain.IsBillableVisit(domain.VisitStatusAbsent, domain.VisitTypeFree, false))
 	assert.False(t, domain.IsBillableVisit(domain.VisitStatusPresent, domain.VisitTypeRegular, true))
 	assert.False(t, domain.IsBillableVisit(domain.VisitStatusAbsent, domain.VisitTypeRegular, true))
+}
+
+func TestStudentVisit_Normalize(t *testing.T) {
+	svExcused := domain.StudentVisit{
+		StudentID: uuid.New(),
+		Status:    domain.VisitStatusExcused,
+		Type:      domain.VisitTypeRegular,
+	}
+	svExcused.Normalize()
+	assert.Equal(t, domain.VisitTypeFree, svExcused.Type)
+
+	svPresent := domain.StudentVisit{
+		StudentID: uuid.New(),
+		Status:    domain.VisitStatusPresent,
+		Type:      domain.VisitTypeRegular,
+	}
+	svPresent.Normalize()
+	assert.Equal(t, domain.VisitTypeRegular, svPresent.Type)
 }

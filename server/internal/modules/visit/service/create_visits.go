@@ -23,6 +23,7 @@ func (s *Service) CreateVisits(ctx context.Context, lessonID uuid.UUID, studentV
 
 func (s *Service) CreateVisitsTx(ctx context.Context, qtx *db.Queries, lessonID uuid.UUID, studentVisits []StudentVisit, ownerID uuid.UUID) error {
 	for _, sv := range studentVisits {
+		sv.Normalize()
 		_, err := qtx.CreateVisit(ctx, db.CreateVisitParams{
 			OwnerID:   ownerID,
 			LessonID:  lessonID,

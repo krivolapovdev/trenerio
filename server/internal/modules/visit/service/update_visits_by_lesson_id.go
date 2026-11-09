@@ -42,6 +42,7 @@ func (s *Service) UpdateVisitsByLessonIDTx(ctx context.Context, qtx *db.Queries,
 
 	reqMap := make(map[uuid.UUID]StudentVisit, len(requests))
 	for _, req := range requests {
+		req.Normalize()
 		reqMap[req.StudentID] = req
 	}
 

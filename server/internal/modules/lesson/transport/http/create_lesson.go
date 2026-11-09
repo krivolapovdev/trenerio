@@ -40,6 +40,10 @@ func (h *Handler) CreateLesson(c *gin.Context) {
 		return
 	}
 
+	for i := range req.Students {
+		req.Students[i].Normalize()
+	}
+
 	if err := validator.ValidateDateNotFuture(req.Date, "date"); err != nil {
 		pkgerrors.HandleError(c, err)
 		return

@@ -41,6 +41,10 @@ func (h *Handler) UpdateLesson(c *gin.Context) {
 		return
 	}
 
+	for i := range req.Students {
+		req.Students[i].Normalize()
+	}
+
 	if req.Date != nil {
 		if err := validator.ValidateDateNotFuture(*req.Date, "date"); err != nil {
 			pkgerrors.HandleError(c, err)

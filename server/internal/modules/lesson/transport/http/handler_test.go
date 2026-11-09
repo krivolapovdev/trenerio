@@ -213,6 +213,30 @@ func TestLessonHandler_CreateLesson(t *testing.T) {
 		assert.Equal(t, nethttp.StatusCreated, w.Code)
 	})
 
+	t.Run("NormalizesExcusedVisitsToFree", func(t *testing.T) {
+		lessonDate := time.Date(2026, 10, 17, 10, 0, 0, 0, time.UTC)
+		expectedID := uuid.New()
+		studentID := uuid.New()
+
+		mockSvc := &mockLessonService{
+			createLessonFn: func(ctx context.Context, groupID *uuid.UUID, date time.Time, studentVisits []visitmodel.StudentVisit, ownerID uuid.UUID) (domain.Lesson, error) {
+				assert.Len(t, studentVisits, 1)
+				assert.Equal(t, visitmodel.VisitStatusExcused, studentVisits[0].Status)
+				assert.Equal(t, visitmodel.VisitTypeFree, studentVisits[0].Type)
+				return domain.Lesson{ID: expectedID, Date: date}, nil
+			},
+		}
+
+		r := setupLessonRouter(mockSvc, testUser)
+		w := httptest.NewRecorder()
+		payload := `{"date":"` + lessonDate.Format(time.RFC3339) + `","students":[{"studentId":"` + studentID.String() + `","status":"EXCUSED","type":"REGULAR"}]}`
+		req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/lessons", bytes.NewBufferString(payload))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusCreated, w.Code)
+	})
+
 	t.Run("InternalServerError", func(t *testing.T) {
 		lessonDate := time.Date(2026, 10, 17, 10, 0, 0, 0, time.UTC)
 		mockSvc := &mockLessonService{
@@ -312,6 +336,29 @@ func TestLessonHandler_UpdateLesson(t *testing.T) {
 		r := setupLessonRouter(mockSvc, testUser)
 		w := httptest.NewRecorder()
 		payload := `{"date":"` + newDate.Format(time.RFC3339) + `"}`
+		req := httptest.NewRequest(nethttp.MethodPatch, "/api/v1/lessons/"+lessonID.String(), bytes.NewBufferString(payload))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusOK, w.Code)
+	})
+
+	t.Run("NormalizesExcusedVisitsToFree", func(t *testing.T) {
+		lessonID := uuid.New()
+		studentID := uuid.New()
+
+		mockSvc := &mockLessonService{
+			updateLessonFn: func(ctx context.Context, lID, ownerID uuid.UUID, date *time.Time, studentVisits []visitmodel.StudentVisit) (domain.Lesson, error) {
+				assert.Len(t, studentVisits, 1)
+				assert.Equal(t, visitmodel.VisitStatusExcused, studentVisits[0].Status)
+				assert.Equal(t, visitmodel.VisitTypeFree, studentVisits[0].Type)
+				return domain.Lesson{ID: lessonID}, nil
+			},
+		}
+
+		r := setupLessonRouter(mockSvc, testUser)
+		w := httptest.NewRecorder()
+		payload := `{"students":[{"studentId":"` + studentID.String() + `","status":"EXCUSED","type":"REGULAR"}]}`
 		req := httptest.NewRequest(nethttp.MethodPatch, "/api/v1/lessons/"+lessonID.String(), bytes.NewBufferString(payload))
 		req.Header.Set("Content-Type", "application/json")
 		r.ServeHTTP(w, req)
