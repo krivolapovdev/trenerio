@@ -44,6 +44,7 @@ class StudentPaymentTile extends StatelessWidget {
         Checkbox(
           value: isSelected,
           activeColor: student.free ? freeCheckColor : null,
+          side: student.free ? freeCheckSide : null,
           onChanged: (_) => onToggle(),
           visualDensity: VisualDensity.compact,
         ),

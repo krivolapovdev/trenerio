@@ -35,9 +35,11 @@ class AttendanceMark extends StatelessWidget {
         child: Icon(
           isPresent ? Icons.check_box : Icons.check_box_outline_blank,
           size: _iconSize,
-          color: isPresent
-              ? (isFree ? freeCheckColor : colorScheme.primary)
-              : colorScheme.onSurfaceVariant,
+          color: isFree
+              ? freeCheckColor
+              : (isPresent
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant),
         ),
       ),
     );

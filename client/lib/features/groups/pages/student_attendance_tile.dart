@@ -46,6 +46,7 @@ class StudentAttendanceTile extends StatelessWidget {
           Checkbox(
             value: isPresent,
             activeColor: isFree ? freeCheckColor : null,
+            side: isFree ? freeCheckSide : null,
             onChanged: (_) => onToggle(),
             visualDensity: VisualDensity.compact,
           )

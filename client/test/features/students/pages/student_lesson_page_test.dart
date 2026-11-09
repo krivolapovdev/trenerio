@@ -180,8 +180,21 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text(t.lessons.freeLesson), findsOneWidget);
-    final checkbox = tester.widget<Checkbox>(find.byType(Checkbox));
+    var checkbox = tester.widget<Checkbox>(find.byType(Checkbox));
+    expect(checkbox.value, isTrue);
     expect(checkbox.activeColor, freeCheckColor);
+    expect(checkbox.side, freeCheckSide);
+
+    await tester.tap(find.byType(Checkbox));
+    await tester.pumpAndSettle();
+
+    checkbox = tester.widget<Checkbox>(find.byType(Checkbox));
+    expect(checkbox.value, isFalse);
+    expect(checkbox.activeColor, freeCheckColor);
+    expect(checkbox.side, freeCheckSide);
+
+    await tester.tap(find.byType(Checkbox));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text(t.create));
     await tester.pumpAndSettle();
@@ -380,6 +393,7 @@ void main() {
       final checkbox = tester.widget<Checkbox>(find.byType(Checkbox));
       expect(checkbox.value, isTrue);
       expect(checkbox.activeColor, freeCheckColor);
+      expect(checkbox.side, freeCheckSide);
     },
   );
 
