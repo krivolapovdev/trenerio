@@ -8,6 +8,7 @@ class PaidUntilField extends StatelessWidget {
   final DateTime? firstDate;
   final DateTime lastDate;
   final bool enabled;
+  final String? errorText;
   final ValueChanged<DateTime?> onDateChanged;
 
   const new({
@@ -15,6 +16,7 @@ class PaidUntilField extends StatelessWidget {
     required this.initialDate,
     this.firstDate,
     required this.lastDate,
+    this.errorText,
     required this.enabled,
     required this.onDateChanged,
   });
@@ -27,6 +29,7 @@ class PaidUntilField extends StatelessWidget {
     firstDate: firstDate,
     lastDate: lastDate,
     enabled: enabled,
+    errorText: errorText,
     onDateChanged: onDateChanged,
   );
 }

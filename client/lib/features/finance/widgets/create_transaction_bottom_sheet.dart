@@ -16,7 +16,6 @@ import 'package:phone/features/finance/widgets/submit_button.dart';
 import 'package:phone/features/finance/widgets/transaction_type_selector.dart';
 import 'package:phone/features/students/controllers/create_student_payment_controller.dart';
 import 'package:phone/features/students/controllers/student_list_controller.dart';
-import 'package:phone/features/students/repositories/student_repository.dart';
 import 'package:phone/generated/models/student_summary_response.dart';
 import 'package:phone/generated/models/transaction_type.dart';
 import 'package:phone/i18n/strings.g.dart';
@@ -59,7 +58,6 @@ class _CreateTransactionBottomSheetState
   DateTime? _paidFrom;
   DateTime? _paidUntil;
   bool _isLoading = false;
-  bool _isLoadingPaidFrom = false;
   bool _isStudentExpanded = false;
 
   double? _autoFilledAmount;
@@ -80,8 +78,8 @@ class _CreateTransactionBottomSheetState
     final initialStudentId = widget.initialStudentId;
     if (initialStudentId != null) {
       _selectedStudentId = initialStudentId;
+      _paidFrom = _defaultPaidFrom;
       _paidUntil = _defaultPaidUntil;
-      _loadLastPaidLesson(initialStudentId);
     }
   }
 
@@ -105,8 +103,12 @@ class _CreateTransactionBottomSheetState
   int? get _parsedSessionsAdded =>
       int.tryParse(_sessionsController.text.trim());
 
-  DateTime get _defaultPaidUntil =>
-      DateTime(_selectedDate.year, _selectedDate.month + 1, _selectedDate.day);
+  DateTime get _defaultPaidFrom => DateUtils.dateOnly(DateTime.now());
+
+  DateTime get _defaultPaidUntil {
+    final today = _defaultPaidFrom;
+    return DateTime(today.year, today.month + 1, today.day);
+  }
 
   DateTime get _maxPaidUntil =>
       DateTime.now().add(const Duration(days: 365 * 3));
@@ -132,36 +134,14 @@ class _CreateTransactionBottomSheetState
     });
   }
 
-  Future<void> _loadLastPaidLesson(String studentId) async {
-    setState(() {
-      _isLoadingPaidFrom = true;
-    });
-
-    try {
-      final lastPaid = await ref
-          .read(studentRepositoryProvider)
-          .getLastPaidLessonDate(studentId);
-      if (!mounted || _selectedStudentId != studentId) return;
-      setState(() {
-        _paidFrom = lastPaid;
-      });
-    } catch (_) {
-    } finally {
-      if (mounted && _selectedStudentId == studentId) {
-        setState(() {
-          _isLoadingPaidFrom = false;
-        });
-      }
-    }
-  }
-
   void _onPaymentModeChanged(StudentPaymentMode mode) {
     FocusScope.of(context).unfocus();
     setState(() {
       _paymentMode = mode;
       _isStudentExpanded = false;
-      if (mode == StudentPaymentMode.paidUntil && _paidUntil == null) {
-        _paidUntil = _defaultPaidUntil;
+      if (mode == StudentPaymentMode.paidUntil) {
+        _paidFrom ??= _defaultPaidFrom;
+        _paidUntil ??= _defaultPaidUntil;
       }
     });
   }
@@ -192,22 +172,19 @@ class _CreateTransactionBottomSheetState
   }
 
   void _selectStudent(String? studentId) {
-    final paidUntil = studentId == null
-        ? null
-        : (_paidUntil ?? _defaultPaidUntil);
-
     _applyGroupDefaultAmount(studentId);
 
     setState(() {
       _selectedStudentId = studentId;
       _isStudentExpanded = false;
-      _paidUntil = paidUntil;
-      _paidFrom = null;
+      if (studentId != null) {
+        _paidFrom ??= _defaultPaidFrom;
+        _paidUntil ??= _defaultPaidUntil;
+      } else {
+        _paidFrom = null;
+        _paidUntil = null;
+      }
     });
-
-    if (studentId != null) {
-      _loadLastPaidLesson(studentId);
-    }
   }
 
   bool get _isDateRangeInvalid =>
@@ -425,7 +402,6 @@ class _CreateTransactionBottomSheetState
                                   initialDate: _paidFrom,
                                   lastDate: _maxPaidUntil,
                                   enabled: !_isLoading,
-                                  isLoading: _isLoadingPaidFrom,
                                   errorText: _isDateRangeInvalid
                                       ? context.t.invalidDate
                                       : null,
@@ -438,6 +414,9 @@ class _CreateTransactionBottomSheetState
                                   initialDate: _paidUntil,
                                   lastDate: _maxPaidUntil,
                                   enabled: !_isLoading,
+                                  errorText: _isDateRangeInvalid
+                                      ? context.t.invalidDate
+                                      : null,
                                   onDateChanged: _onPaidUntilChanged,
                                 ),
                               ),

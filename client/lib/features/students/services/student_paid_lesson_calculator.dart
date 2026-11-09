@@ -4,25 +4,25 @@ import 'package:phone/generated/models/visit_status.dart';
 import 'package:phone/generated/models/visit_type.dart';
 import 'package:phone/generated/models/visit_with_lesson_response.dart';
 
-/// Finds the date of the student's last paid lesson based on visits and payment history.
-///
-/// A lesson is considered paid if:
-/// 1. Its date falls within an active date-range subscription (`paidFrom`..`paidUntil`).
-/// 2. Or, if not covered by a date-range, it is covered by the available session wallet.
-DateTime? findLastPaidLessonDate({
+DateTime _nextDay(DateTime date) =>
+    DateTime(date.year, date.month, date.day + 1);
+
+enum _PaidLessonCoverage { session, paidUntil }
+
+/// Calculates the automatic `paidFrom` date for a student payment based on:
+/// 1) If last `paidUntil` is bigger than current date, use `paidUntil + 1 day`.
+/// 2) If last paid lesson used a session, use `lastPaidLessonDate + 1 day`.
+/// 3) If last paid lesson used `paidUntil`, use `paidUntil + 1 day`.
+DateTime? findAutoPaidFromDate({
   required List<VisitWithLessonResponse> visits,
   required List<TransactionResponse> payments,
+  DateTime? currentDate,
   bool isStudentFree = false,
 }) {
   if (isStudentFree) return null;
 
-  final billableVisits = visits.where((v) {
-    if (v.visit.type != VisitType.regular) return false;
-    final status = v.visit.status;
-    return status == VisitStatus.present || status == VisitStatus.absent;
-  }).toList()..sort((a, b) => a.lesson.date.compareTo(b.lesson.date));
-
-  if (billableVisits.isEmpty) return null;
+  final now = currentDate ?? DateTime.now();
+  final today = DateUtils.dateOnly(now);
 
   final subscriptions = <({DateTime? paidFrom, DateTime paidUntil})>[];
   var totalSessions = 0;
@@ -41,7 +41,27 @@ DateTime? findLastPaidLessonDate({
     }
   }
 
-  bool isCoveredByDateRange(DateTime lessonDate) {
+  DateTime? lastPaidUntil;
+  if (subscriptions.isNotEmpty) {
+    lastPaidUntil = subscriptions
+        .map((s) => DateUtils.dateOnly(s.paidUntil))
+        .reduce((a, b) => a.isAfter(b) ? a : b);
+  }
+
+  // 1) if last `paid until` is bigger than current date, use paid until + 1day
+  if (lastPaidUntil != null && lastPaidUntil.isAfter(today)) {
+    return _nextDay(lastPaidUntil);
+  }
+
+  final billableVisits = visits.where((v) {
+    if (v.visit.type != VisitType.regular) return false;
+    final status = v.visit.status;
+    return status == VisitStatus.present || status == VisitStatus.absent;
+  }).toList()..sort((a, b) => a.lesson.date.compareTo(b.lesson.date));
+
+  ({DateTime? paidFrom, DateTime paidUntil})? findCoveringSubscription(
+    DateTime lessonDate,
+  ) {
     final lessonDay = DateUtils.dateOnly(lessonDate);
     for (final sub in subscriptions) {
       final untilDay = DateUtils.dateOnly(sub.paidUntil);
@@ -50,25 +70,65 @@ DateTime? findLastPaidLessonDate({
         final fromDay = DateUtils.dateOnly(sub.paidFrom!);
         if (lessonDay.isBefore(fromDay)) continue;
       }
-      return true;
+      return sub;
     }
-    return false;
+    return null;
   }
 
   var sessionsLeft = totalSessions;
-  DateTime? lastPaidLessonDate;
+  ({_PaidLessonCoverage type, DateTime lessonDate, DateTime? paidUntil})?
+  lastPaidLesson;
 
   for (final v in billableVisits) {
     final lessonDate = v.lesson.date;
-    if (isCoveredByDateRange(lessonDate)) {
-      lastPaidLessonDate = lessonDate;
+    final coveringSub = findCoveringSubscription(lessonDate);
+    if (coveringSub != null) {
+      lastPaidLesson = (
+        type: _PaidLessonCoverage.paidUntil,
+        lessonDate: lessonDate,
+        paidUntil: coveringSub.paidUntil,
+      );
     } else if (sessionsLeft > 0) {
       sessionsLeft--;
-      lastPaidLessonDate = lessonDate;
+      lastPaidLesson = (
+        type: _PaidLessonCoverage.session,
+        lessonDate: lessonDate,
+        paidUntil: null,
+      );
     }
   }
 
-  return lastPaidLessonDate != null
-      ? DateUtils.dateOnly(lastPaidLessonDate)
-      : null;
+  if (lastPaidLesson != null) {
+    // 2) if last paid lesson used session, use last paid lesson date + 1day
+    if (lastPaidLesson.type == _PaidLessonCoverage.session) {
+      return _nextDay(DateUtils.dateOnly(lastPaidLesson.lessonDate));
+    }
+
+    // 3) if last paid lesson used `paid until`, use `paid until` + 1day
+    if (lastPaidLesson.type == _PaidLessonCoverage.paidUntil) {
+      final until = lastPaidLesson.paidUntil ?? lastPaidUntil;
+      if (until != null) {
+        return _nextDay(DateUtils.dateOnly(until));
+      }
+    }
+  }
+
+  if (lastPaidUntil != null) {
+    return _nextDay(lastPaidUntil);
+  }
+
+  return null;
 }
+
+/// Alias for backwards compatibility with existing callers.
+DateTime? findLastPaidLessonDate({
+  required List<VisitWithLessonResponse> visits,
+  required List<TransactionResponse> payments,
+  DateTime? currentDate,
+  bool isStudentFree = false,
+}) => findAutoPaidFromDate(
+  visits: visits,
+  payments: payments,
+  currentDate: currentDate,
+  isStudentFree: isStudentFree,
+);

@@ -1,6 +1,4 @@
 -- +goose Up
-DROP TABLE IF EXISTS payments_module.student_balances;
-
 ALTER TABLE payments_module.student_payments
     ALTER COLUMN paid_until DROP NOT NULL;
 
@@ -46,8 +44,6 @@ CREATE INDEX idx_student_payments_student_paid_from
     ON payments_module.student_payments USING btree (student_id, paid_from NULLS FIRST);
 
 -- +goose Down
-DROP TABLE IF EXISTS payments_module.student_balances;
-
 DROP INDEX IF EXISTS payments_module.idx_student_payments_student_paid_from;
 DROP INDEX IF EXISTS payments_module.idx_student_payments_student_paid_until;
 

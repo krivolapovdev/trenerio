@@ -47,8 +47,12 @@ class _EditTransactionBottomSheetState
   int? get _parsedSessionsAdded =>
       int.tryParse(_sessionsController.text.trim());
 
-  DateTime get _defaultPaidUntil =>
-      DateTime(_selectedDate.year, _selectedDate.month + 1, _selectedDate.day);
+  DateTime get _defaultPaidFrom => DateUtils.dateOnly(DateTime.now());
+
+  DateTime get _defaultPaidUntil {
+    final today = _defaultPaidFrom;
+    return DateTime(today.year, today.month + 1, today.day);
+  }
 
   DateTime get _maxPaidUntil =>
       DateTime.now().add(const Duration(days: 365 * 3));
@@ -174,7 +178,8 @@ class _EditTransactionBottomSheetState
       if (mode == StudentPaymentMode.paidUntil) {
         _paidUntil ??=
             widget.transaction.paymentDetails?.paidUntil ?? _defaultPaidUntil;
-        _paidFrom ??= widget.transaction.paymentDetails?.paidFrom;
+        _paidFrom ??=
+            widget.transaction.paymentDetails?.paidFrom ?? _defaultPaidFrom;
       }
     });
   }
@@ -350,6 +355,9 @@ class _EditTransactionBottomSheetState
                                   initialDate: _paidUntil,
                                   lastDate: _maxPaidUntil,
                                   enabled: !_isLoading,
+                                  errorText: _isDateRangeInvalid
+                                      ? context.t.invalidDate
+                                      : null,
                                   onDateChanged: _onPaidUntilChanged,
                                 ),
                               ),

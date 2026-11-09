@@ -1,6 +1,3 @@
-import 'dart:async';
-
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,17 +11,12 @@ import 'package:phone/features/finance/widgets/student_payment_mode_selector.dar
 import 'package:phone/features/students/services/student_service.dart';
 import 'package:phone/generated/metric_controller/metric_controller_client.dart';
 import 'package:phone/generated/models/create_student_payment_request.dart';
-import 'package:phone/generated/models/lesson_response.dart';
 import 'package:phone/generated/models/metric_scope.dart';
 import 'package:phone/generated/models/page_transaction_response.dart';
 import 'package:phone/generated/models/payment_metric_response.dart';
-import 'package:phone/generated/models/student_payment_details_response.dart';
 import 'package:phone/generated/models/student_summary_response.dart';
 import 'package:phone/generated/models/transaction_response.dart';
 import 'package:phone/generated/models/transaction_type.dart';
-import 'package:phone/generated/models/visit_response.dart';
-import 'package:phone/generated/models/visit_status.dart';
-import 'package:phone/generated/models/visit_type.dart';
 import 'package:phone/generated/models/visit_with_lesson_response.dart';
 import 'package:phone/generated/student_controller/student_controller_client.dart';
 import 'package:phone/generated/transaction_controller/transaction_controller_client.dart';
@@ -72,19 +64,6 @@ class _FakeStudentClient implements StudentControllerClient {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-class _DelayedStudentClient extends _FakeStudentClient {
-  new([super.students]);
-
-  Completer<List<VisitWithLessonResponse>> visitsCompleter = Completer();
-
-  @override
-  Future<List<VisitWithLessonResponse>> getStudentVisits({
-    required String studentId,
-    DateTime? from,
-    DateTime? to,
-  }) => visitsCompleter.future;
 }
 
 class _FakeTransactionClient implements TransactionControllerClient {
@@ -254,9 +233,14 @@ void main() {
     await _pump(tester, initialAmount: 1000);
 
     final now = DateTime.now();
+    final previousMonthStart = DateTime(now.year, now.month - 1, 1);
     final previousMonth = DateTime(now.year, now.month - 1, 15);
     final earlierPaymentDate = DateTime(now.year, now.month, 1);
 
+    await tester.enterText(
+      _field(t.finance.paidFrom),
+      _digits(previousMonthStart),
+    );
     await tester.enterText(_field(_paidUntilLabel), _digits(previousMonth));
     await tester.pumpAndSettle();
 
@@ -544,56 +528,26 @@ void main() {
   });
 
   testWidgets(
-    'automatically substitutes paid from with the last paid lesson date',
+    'prefills paid from with today and paid until with today + 1 month',
     (tester) async {
-      final lastPaidDate = DateTime(2025, 8, 15);
-      final client = _FakeStudentClient([_student])
-        ..visits = [
-          VisitWithLessonResponse(
-            visit: VisitResponse(
-              id: 'v-1',
-              studentId: 'student-1',
-              lessonId: 'l-1',
-              status: VisitStatus.present,
-              type: VisitType.regular,
-              createdAt: DateTime(2025, 8, 15),
-            ),
-            lesson: LessonResponse(
-              id: 'l-1',
-              date: lastPaidDate,
-              createdAt: DateTime(2025, 8, 15),
-            ),
-          ),
-        ]
-        ..payments = [
-          TransactionResponse(
-            id: 'p-1',
-            amount: 3000,
-            date: DateTime(2025, 8, 1),
-            type: TransactionType.income,
-            createdAt: DateTime(2025, 8, 1),
-            paymentDetails: StudentPaymentDetailsResponse(
-              detailsType: 'STUDENT',
-              studentId: 'student-1',
-              paidFrom: DateTime(2025, 8, 1),
-              paidUntil: DateTime(2025, 8, 31),
-            ),
-          ),
-        ];
-
-      await _pump(
-        tester,
-        initialAmount: 3000,
-        studentClient: client,
-        initialStudentId: 'student-1',
-      );
+      await _pump(tester, initialAmount: 3000, initialStudentId: 'student-1');
 
       final now = DateTime.now();
       final expectedPaidUntil = DateTime(now.year, now.month + 1, now.day);
-      expect(_textOf(tester, t.finance.paidFrom), '15.08.2025');
+      expect(_textOf(tester, t.finance.paidFrom), _formatDate(now));
       expect(_textOf(tester, _paidUntilLabel), _formatDate(expectedPaidUntil));
     },
   );
+
+  testWidgets('paid from field does not have a clear button', (tester) async {
+    await _pump(tester, initialAmount: 3000, initialStudentId: 'student-1');
+
+    final paidFromFinder = find.byType(PaidFromField);
+    expect(
+      find.descendant(of: paidFromFinder, matching: find.byIcon(Icons.clear)),
+      findsNothing,
+    );
+  });
 
   testWidgets('entering paidFrom does not auto-update paidUntil', (
     tester,
@@ -606,76 +560,6 @@ void main() {
 
     expect(_textOf(tester, _paidUntilLabel), initialPaidUntil);
   });
-
-  testWidgets(
-    'shows loading icon for paidFrom while getting data and hides clear button',
-    (tester) async {
-      final delayedClient = _DelayedStudentClient([_student]);
-      tester.view.physicalSize = const Size(1200, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.reset);
-
-      await tester.pumpWidget(
-        _wrap(
-          initialAmount: 3000,
-          studentClient: delayedClient,
-          initialStudentId: 'student-1',
-        ),
-      );
-      await tester.pump();
-
-      final paidFromFinder = find.byType(PaidFromField);
-      expect(
-        find.descendant(
-          of: paidFromFinder,
-          matching: find.byType(CircularProgressIndicator),
-        ),
-        findsOneWidget,
-      );
-
-      final indicator = tester.widget<CircularProgressIndicator>(
-        find.descendant(
-          of: paidFromFinder,
-          matching: find.byType(CircularProgressIndicator),
-        ),
-      );
-      expect(indicator.color, Colors.grey);
-
-      // Prefix calendar icon should be replaced while loading
-      expect(
-        find.descendant(
-          of: paidFromFinder,
-          matching: find.byIcon(FluentIcons.calendar_ltr_16_regular),
-        ),
-        findsNothing,
-      );
-
-      delayedClient.visitsCompleter.complete([]);
-      await tester.pumpAndSettle();
-
-      expect(
-        find.descendant(
-          of: paidFromFinder,
-          matching: find.byType(CircularProgressIndicator),
-        ),
-        findsNothing,
-      );
-
-      // Prefix calendar icon is restored once loaded
-      expect(
-        find.descendant(
-          of: paidFromFinder,
-          matching: find.byIcon(FluentIcons.calendar_ltr_16_regular),
-        ),
-        findsOneWidget,
-      );
-
-      expect(
-        find.descendant(of: paidFromFinder, matching: find.byIcon(Icons.clear)),
-        findsNothing,
-      );
-    },
-  );
 
   testWidgets('submitting payment sends both paidFrom and paidUntil', (
     tester,
@@ -696,7 +580,7 @@ void main() {
   });
 
   testWidgets(
-    'when paidFrom is after paidUntil shows error under paidFrom and blocks saving',
+    'when paidFrom is after paidUntil shows error under both date fields and blocks saving',
     (tester) async {
       final client = _FakeStudentClient([_student]);
       await _pump(tester, initialAmount: 3500, studentClient: client);
@@ -706,8 +590,16 @@ void main() {
       await tester.pump();
 
       final paidFromFinder = find.byType(PaidFromField);
+      final paidUntilFinder = find.byType(PaidUntilField);
       expect(
         find.descendant(of: paidFromFinder, matching: find.text(t.invalidDate)),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: paidUntilFinder,
+          matching: find.text(t.invalidDate),
+        ),
         findsOneWidget,
       );
 
@@ -716,12 +608,19 @@ void main() {
 
       expect(client.createdPayments, isEmpty);
 
-      // Once paidUntil is corrected to be after paidFrom, error under paidFrom is cleared
+      // Once paidUntil is corrected to be after paidFrom, error under both fields is cleared
       await tester.enterText(_field(_paidUntilLabel), '20092025');
       await tester.pump();
 
       expect(
         find.descendant(of: paidFromFinder, matching: find.text(t.invalidDate)),
+        findsNothing,
+      );
+      expect(
+        find.descendant(
+          of: paidUntilFinder,
+          matching: find.text(t.invalidDate),
+        ),
         findsNothing,
       );
     },
