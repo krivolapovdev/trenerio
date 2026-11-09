@@ -9,6 +9,7 @@ class PaidFromField extends StatelessWidget {
   final DateTime? lastDate;
   final bool enabled;
   final bool isLoading;
+  final String? errorText;
   final ValueChanged<DateTime?> onDateChanged;
 
   const new({
@@ -17,6 +18,7 @@ class PaidFromField extends StatelessWidget {
     this.firstDate,
     this.lastDate,
     this.isLoading = false,
+    this.errorText,
     required this.enabled,
     required this.onDateChanged,
   });
@@ -31,6 +33,7 @@ class PaidFromField extends StatelessWidget {
     enabled: enabled,
     allowClear: false,
     isLoading: isLoading,
+    errorText: errorText,
     onDateChanged: onDateChanged,
   );
 }

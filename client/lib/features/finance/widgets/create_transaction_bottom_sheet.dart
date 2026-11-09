@@ -120,9 +120,6 @@ class _CreateTransactionBottomSheetState
     });
   }
 
-  DateTime _oneMonthAfter(DateTime date) =>
-      DateTime(date.year, date.month + 1, date.day);
-
   void _onPaidUntilChanged(DateTime? date) {
     setState(() {
       _paidUntil = date;
@@ -132,9 +129,6 @@ class _CreateTransactionBottomSheetState
   void _onPaidFromChanged(DateTime? date) {
     setState(() {
       _paidFrom = date;
-      if (date != null) {
-        _paidUntil = _oneMonthAfter(date);
-      }
     });
   }
 
@@ -150,9 +144,6 @@ class _CreateTransactionBottomSheetState
       if (!mounted || _selectedStudentId != studentId) return;
       setState(() {
         _paidFrom = lastPaid;
-        if (lastPaid != null) {
-          _paidUntil = _oneMonthAfter(lastPaid);
-        }
       });
     } catch (_) {
     } finally {
@@ -170,9 +161,7 @@ class _CreateTransactionBottomSheetState
       _paymentMode = mode;
       _isStudentExpanded = false;
       if (mode == StudentPaymentMode.paidUntil && _paidUntil == null) {
-        _paidUntil = _paidFrom != null
-            ? _oneMonthAfter(_paidFrom!)
-            : _defaultPaidUntil;
+        _paidUntil = _defaultPaidUntil;
       }
     });
   }
@@ -437,6 +426,9 @@ class _CreateTransactionBottomSheetState
                                   lastDate: _maxPaidUntil,
                                   enabled: !_isLoading,
                                   isLoading: _isLoadingPaidFrom,
+                                  errorText: _isDateRangeInvalid
+                                      ? context.t.invalidDate
+                                      : null,
                                   onDateChanged: _onPaidFromChanged,
                                 ),
                               ),

@@ -161,15 +161,9 @@ class _EditTransactionBottomSheetState
     });
   }
 
-  DateTime _oneMonthAfter(DateTime date) =>
-      DateTime(date.year, date.month + 1, date.day);
-
   void _onPaidFromChanged(DateTime? date) {
     setState(() {
       _paidFrom = date;
-      if (date != null) {
-        _paidUntil = _oneMonthAfter(date);
-      }
     });
   }
 
@@ -344,6 +338,9 @@ class _EditTransactionBottomSheetState
                                   initialDate: _paidFrom,
                                   lastDate: _maxPaidUntil,
                                   enabled: !_isLoading,
+                                  errorText: _isDateRangeInvalid
+                                      ? context.t.invalidDate
+                                      : null,
                                   onDateChanged: _onPaidFromChanged,
                                 ),
                               ),

@@ -588,22 +588,24 @@ void main() {
         initialStudentId: 'student-1',
       );
 
+      final now = DateTime.now();
+      final expectedPaidUntil = DateTime(now.year, now.month + 1, now.day);
       expect(_textOf(tester, t.finance.paidFrom), '15.08.2025');
-      expect(_textOf(tester, _paidUntilLabel), '15.09.2025');
+      expect(_textOf(tester, _paidUntilLabel), _formatDate(expectedPaidUntil));
     },
   );
 
-  testWidgets(
-    'entering paidFrom automatically updates paidUntil to paidFrom + 1 month',
-    (tester) async {
-      await _pump(tester, initialAmount: 3500);
+  testWidgets('entering paidFrom does not auto-update paidUntil', (
+    tester,
+  ) async {
+    await _pump(tester, initialAmount: 3500);
 
-      await tester.enterText(_field(t.finance.paidFrom), '10042025');
-      await tester.pump();
+    final initialPaidUntil = _textOf(tester, _paidUntilLabel);
+    await tester.enterText(_field(t.finance.paidFrom), '10042025');
+    await tester.pump();
 
-      expect(_textOf(tester, _paidUntilLabel), '10.05.2025');
-    },
-  );
+    expect(_textOf(tester, _paidUntilLabel), initialPaidUntil);
+  });
 
   testWidgets(
     'shows loading icon for paidFrom while getting data and hides clear button',
@@ -694,7 +696,7 @@ void main() {
   });
 
   testWidgets(
-    'invalid date range where paidFrom is after paidUntil blocks saving',
+    'when paidFrom is after paidUntil shows error under paidFrom and blocks saving',
     (tester) async {
       final client = _FakeStudentClient([_student]);
       await _pump(tester, initialAmount: 3500, studentClient: client);
@@ -703,10 +705,25 @@ void main() {
       await tester.enterText(_field(_paidUntilLabel), '01092025');
       await tester.pump();
 
+      final paidFromFinder = find.byType(PaidFromField);
+      expect(
+        find.descendant(of: paidFromFinder, matching: find.text(t.invalidDate)),
+        findsOneWidget,
+      );
+
       await tester.tap(find.text(t.create));
       await tester.pumpAndSettle();
 
       expect(client.createdPayments, isEmpty);
+
+      // Once paidUntil is corrected to be after paidFrom, error under paidFrom is cleared
+      await tester.enterText(_field(_paidUntilLabel), '20092025');
+      await tester.pump();
+
+      expect(
+        find.descendant(of: paidFromFinder, matching: find.text(t.invalidDate)),
+        findsNothing,
+      );
     },
   );
 }

@@ -17,6 +17,7 @@ class DateInputField extends StatefulWidget {
 
   final bool allowClear;
   final bool isLoading;
+  final String? errorText;
 
   static const String hint = '31.12.1999';
 
@@ -33,6 +34,7 @@ class DateInputField extends StatefulWidget {
     this.lastDate,
     this.allowClear = false,
     this.isLoading = false,
+    this.errorText,
   });
 
   static String format(DateTime date) {
@@ -184,7 +186,7 @@ class _DateInputFieldState extends State<DateInputField> {
               ),
             )
           : (widget.icon == null ? null : Icon(widget.icon)),
-      errorText: _errorText,
+      errorText: widget.errorText ?? _errorText,
       suffixIcon:
           widget.allowClear && widget.enabled && _controller.text.isNotEmpty
           ? _ClearButton(onClear: _clear)
