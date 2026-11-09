@@ -19,7 +19,7 @@ type StudentResponse = domain.Student
 type StudentSummaryResponse struct {
 	ID            uuid.UUID              `json:"id" binding:"required" format:"uuid"`
 	FullName      string                 `json:"fullName" binding:"required"`
-	Birthdate     *types.Date            `json:"birthdate,omitempty" swaggertype:"string" format:"date"`
+	Birthdate     *types.Date            `json:"birthdate,omitempty" format:"date"`
 	Phone         *string                `json:"phone,omitempty"`
 	Note          *string                `json:"note,omitempty"`
 	CreatedAt     time.Time              `json:"createdAt" binding:"required" format:"date-time"`
