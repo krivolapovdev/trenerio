@@ -16,3 +16,6 @@ swag:
 
 slang:
 	cd ./client && dart run slang
+
+client-release:
+	cd ./client && flutter build appbundle --release
