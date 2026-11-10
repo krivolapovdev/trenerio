@@ -58,7 +58,7 @@ class _GroupPageState extends ConsumerState<GroupPage> {
     if (position.outOfRange) return;
 
     final offset = position.pixels;
-    const snapOffset = GroupHeaderDelegate.contentHeight;
+    final snapOffset = GroupHeaderDelegate.computeContentHeight(_group);
 
     if (offset > 1.0 && offset < snapOffset - 1.0) {
       final target = offset < (snapOffset / 2) ? 0.0 : snapOffset;
@@ -101,8 +101,8 @@ class _GroupPageState extends ConsumerState<GroupPage> {
     });
 
     final topPadding = MediaQuery.paddingOf(context).top;
-    final headerMaxHeight =
-        topPadding + kToolbarHeight + GroupHeaderDelegate.contentHeight;
+    final snapOffset = GroupHeaderDelegate.computeContentHeight(currentGroup);
+    final headerMaxHeight = topPadding + kToolbarHeight + snapOffset;
 
     const overlayStyle = SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -152,9 +152,9 @@ class _GroupPageState extends ConsumerState<GroupPage> {
             child: CustomScrollView(
               controller: _scrollController,
               clipBehavior: Clip.none,
-              physics: const HeaderSnapScrollPhysics(
-                snapOffset: GroupHeaderDelegate.contentHeight,
-                parent: BouncingScrollPhysics(
+              physics: HeaderSnapScrollPhysics(
+                snapOffset: snapOffset,
+                parent: const BouncingScrollPhysics(
                   parent: AlwaysScrollableScrollPhysics(),
                 ),
               ),
@@ -186,9 +186,7 @@ class _GroupPageState extends ConsumerState<GroupPage> {
                     ],
                   ),
                 ),
-                const HeaderBottomSpacer(
-                  snapOffset: GroupHeaderDelegate.contentHeight,
-                ),
+                HeaderBottomSpacer(snapOffset: snapOffset),
               ],
             ),
           ),

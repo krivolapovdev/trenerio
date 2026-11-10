@@ -497,12 +497,12 @@ void main() {
       await tester.pumpAndSettle();
       expect(scrollable.position.pixels, equals(0.0));
 
-      // Drag past midpoint (90px) and release -> should snap to short (contentHeight)
+      // Drag past midpoint (90px) and release -> should snap to short (computed height)
       await tester.drag(find.byType(CustomScrollView), const Offset(0, -90));
       await tester.pumpAndSettle();
       expect(
         scrollable.position.pixels,
-        equals(GroupHeaderDelegate.contentHeight),
+        equals(GroupHeaderDelegate.computeContentHeight(_group)),
       );
     },
   );
