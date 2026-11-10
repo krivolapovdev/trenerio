@@ -210,7 +210,7 @@ class _StudentFormSheetState extends State<StudentFormSheet> {
                         }) => null,
                         decoration: InputDecoration(
                           labelText: context.t.students.phone,
-                          hintText: '+7 999 123-45-67',
+                          hintText: '8 800 555 35 35',
                           prefixIcon: const Icon(FluentIcons.call_16_regular),
                           suffixIcon: _buildCharCounter(
                             _phoneController.text.length,
