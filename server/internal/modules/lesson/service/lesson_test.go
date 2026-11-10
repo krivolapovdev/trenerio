@@ -42,7 +42,7 @@ func TestToLessonResponse(t *testing.T) {
 }
 
 func TestLessonService_DateValidation(t *testing.T) {
-	svc := NewService(nil, nil, nil, nil, nil)
+	svc := NewService(nil, nil, nil, nil)
 	ctx := context.Background()
 	ownerID := uuid.New()
 

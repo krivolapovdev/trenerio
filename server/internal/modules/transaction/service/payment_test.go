@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/krivolapovdev/trenerio/internal/modules/transaction/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -147,77 +146,5 @@ func TestIsDateRangeActive_Rule(t *testing.T) {
 		}
 		assert.True(t, balWithWallet.IsPaidAt(lessonCovered))
 		assert.True(t, balWithWallet.IsPaidAt(lessonUncovered))
-	})
-}
-
-func TestResolveAttendanceSessionBalance(t *testing.T) {
-	paidUntil := time.Date(2026, 5, 10, 0, 0, 0, 0, time.UTC)
-	coveredDate := time.Date(2026, 5, 5, 0, 0, 0, 0, time.UTC)
-	uncoveredDate := time.Date(2026, 5, 15, 0, 0, 0, 0, time.UTC)
-	sID := uuid.New()
-
-	t.Run("UncoveredMarked_DeductsSession", func(t *testing.T) {
-		change := AttendanceBalanceChange{
-			StudentID:     sID,
-			OldBillable:   false,
-			OldLessonDate: coveredDate,
-			NewBillable:   true,
-			NewLessonDate: uncoveredDate,
-		}
-		newLeft, changed := ResolveAttendanceSessionBalance(change, &paidUntil, 5, 10, 0)
-		assert.True(t, changed)
-		assert.Equal(t, int64(4), newLeft)
-	})
-
-	t.Run("UncoveredMarked_ZeroBalanceFloorsAtZero", func(t *testing.T) {
-		change := AttendanceBalanceChange{
-			StudentID:     sID,
-			OldBillable:   false,
-			OldLessonDate: coveredDate,
-			NewBillable:   true,
-			NewLessonDate: uncoveredDate,
-		}
-		newLeft, changed := ResolveAttendanceSessionBalance(change, &paidUntil, 0, 10, 0)
-		assert.False(t, changed)
-		assert.Equal(t, int64(0), newLeft)
-	})
-
-	t.Run("UncoveredUnmarked_RefundsSessionWhenAllowed", func(t *testing.T) {
-		change := AttendanceBalanceChange{
-			StudentID:     sID,
-			OldBillable:   true,
-			OldLessonDate: uncoveredDate,
-			NewBillable:   false,
-			NewLessonDate: uncoveredDate,
-		}
-		newLeft, changed := ResolveAttendanceSessionBalance(change, &paidUntil, 3, 10, 2)
-		assert.True(t, changed)
-		assert.Equal(t, int64(4), newLeft)
-	})
-
-	t.Run("UncoveredUnmarked_DoesNotRefundDebtVisits", func(t *testing.T) {
-		change := AttendanceBalanceChange{
-			StudentID:     sID,
-			OldBillable:   true,
-			OldLessonDate: uncoveredDate,
-			NewBillable:   false,
-			NewLessonDate: uncoveredDate,
-		}
-		newLeft, changed := ResolveAttendanceSessionBalance(change, &paidUntil, 0, 5, 5)
-		assert.False(t, changed)
-		assert.Equal(t, int64(0), newLeft)
-	})
-
-	t.Run("CoveredAttendance_NoBalanceChange", func(t *testing.T) {
-		change := AttendanceBalanceChange{
-			StudentID:     sID,
-			OldBillable:   false,
-			OldLessonDate: coveredDate,
-			NewBillable:   true,
-			NewLessonDate: coveredDate,
-		}
-		newLeft, changed := ResolveAttendanceSessionBalance(change, &paidUntil, 5, 10, 0)
-		assert.False(t, changed)
-		assert.Equal(t, int64(5), newLeft)
 	})
 }

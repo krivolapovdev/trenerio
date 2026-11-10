@@ -54,7 +54,6 @@ func wireServer(dbConn *sql.DB, cfg Config) *server.Server {
 		dbConn,
 		visitService,
 		studentService,
-		txService,
 	)
 
 	groupService := groupsvc.NewService(

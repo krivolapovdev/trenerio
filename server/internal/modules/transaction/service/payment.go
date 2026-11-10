@@ -3,7 +3,6 @@ package service
 import (
 	"time"
 
-	"github.com/google/uuid"
 	pkgerrors "github.com/krivolapovdev/trenerio/internal/core/errors"
 	"github.com/krivolapovdev/trenerio/internal/modules/transaction/domain"
 )
@@ -20,14 +19,6 @@ func IsSubscriptionActive(maxPaidUntil *time.Time, referenceDate time.Time) bool
 
 func IsDateRangeActive(paidFrom, paidUntil *time.Time, date time.Time) bool {
 	return domain.IsDateRangeActive(paidFrom, paidUntil, date)
-}
-
-type AttendanceBalanceChange struct {
-	StudentID     uuid.UUID
-	OldBillable   bool
-	OldLessonDate time.Time
-	NewBillable   bool
-	NewLessonDate time.Time
 }
 
 func ValidateStudentPaymentFields(paidUntil *time.Time, sessionsAdded *int64) error {
@@ -73,36 +64,4 @@ func NeedsSessionForAttendanceRange(paidFrom, paidUntil *time.Time, lessonDate t
 		return false
 	}
 	return !domain.IsDateRangeActive(paidFrom, paidUntil, lessonDate)
-}
-
-// ResolveAttendanceSessionBalance calculates the updated sessionsLeft balance
-// for a single attendance change (recording, editing, or deleting a visit).
-func ResolveAttendanceSessionBalance(
-	change AttendanceBalanceChange,
-	paidUntil *time.Time,
-	currentSessionsLeft int64,
-	totalSessionsAdded int64,
-	remainingUncoveredBillableVisits int64,
-) (newSessionsLeft int64, changed bool) {
-	oldNeeds := NeedsSessionForAttendance(paidUntil, change.OldLessonDate, change.OldBillable)
-	newNeeds := NeedsSessionForAttendance(paidUntil, change.NewLessonDate, change.NewBillable)
-
-	switch {
-	case !oldNeeds && newNeeds:
-		if currentSessionsLeft > 0 {
-			return currentSessionsLeft - 1, true
-		}
-		return 0, false
-	case oldNeeds && !newNeeds:
-		maxAllowed := totalSessionsAdded - remainingUncoveredBillableVisits
-		if maxAllowed < 0 {
-			maxAllowed = 0
-		}
-		if currentSessionsLeft < maxAllowed {
-			return currentSessionsLeft + 1, true
-		}
-		return currentSessionsLeft, false
-	default:
-		return currentSessionsLeft, false
-	}
 }

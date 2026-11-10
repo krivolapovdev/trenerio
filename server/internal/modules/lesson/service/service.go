@@ -7,7 +7,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/krivolapovdev/trenerio/internal/db"
 	studentmodel "github.com/krivolapovdev/trenerio/internal/modules/student/domain"
-	txservice "github.com/krivolapovdev/trenerio/internal/modules/transaction/service"
 	visitmodel "github.com/krivolapovdev/trenerio/internal/modules/visit/domain"
 )
 
@@ -25,16 +24,11 @@ type StudentProvider interface {
 	GetStudentsByIDs(ctx context.Context, studentIDs []uuid.UUID, ownerID uuid.UUID) ([]studentmodel.Student, error)
 }
 
-type BalanceProvider interface {
-	SyncLessonAttendanceBalancesTx(ctx context.Context, qtx *db.Queries, ownerID uuid.UUID, changes []txservice.AttendanceBalanceChange) error
-}
-
 type Service struct {
 	db              *db.Queries
 	sqlDB           *sql.DB
 	visitProvider   VisitProvider
 	studentProvider StudentProvider
-	balanceProvider BalanceProvider
 }
 
 func NewService(
@@ -42,14 +36,12 @@ func NewService(
 	sqlDB *sql.DB,
 	visitProvider VisitProvider,
 	studentProvider StudentProvider,
-	balanceProvider BalanceProvider,
 ) *Service {
 	return &Service{
 		db:              queries,
 		sqlDB:           sqlDB,
 		visitProvider:   visitProvider,
 		studentProvider: studentProvider,
-		balanceProvider: balanceProvider,
 	}
 }
 
