@@ -14,6 +14,7 @@ const (
 	StudentStatusInactive StudentStatus = "INACTIVE"
 	StudentStatusPresent  StudentStatus = "PRESENT"
 	StudentStatusMissing  StudentStatus = "MISSING"
+	StudentStatusExcused  StudentStatus = "EXCUSED"
 	StudentStatusPaid     StudentStatus = "PAID"
 	StudentStatusUnpaid   StudentStatus = "UNPAID"
 	StudentStatusFree     StudentStatus = "FREE"

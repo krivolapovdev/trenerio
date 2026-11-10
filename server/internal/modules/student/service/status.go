@@ -48,9 +48,12 @@ func ComputeStudentStatusesWithVisitLessons(
 	lastVisitLesson := lessonsvc.FindLatestLesson(studentVisitLessons)
 	if lastVisitLesson != nil {
 		if v := visitmodel.FindVisitByLessonID(visits, lastVisitLesson.ID); v != nil {
-			if v.Status.IsPresent() {
+			switch v.Status {
+			case visitmodel.VisitStatusPresent:
 				statuses = append(statuses, studentmodel.StudentStatusPresent)
-			} else {
+			case visitmodel.VisitStatusExcused:
+				statuses = append(statuses, studentmodel.StudentStatusExcused)
+			default:
 				statuses = append(statuses, studentmodel.StudentStatusMissing)
 			}
 		}

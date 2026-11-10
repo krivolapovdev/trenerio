@@ -10,6 +10,7 @@ extension StudentStatusLabelExtension on StudentStatus {
     StudentStatus.inactive => context.t.students.status.inactive,
     StudentStatus.present => context.t.students.status.present,
     StudentStatus.missing => context.t.students.status.missing,
+    StudentStatus.excused => context.t.students.status.excused,
     StudentStatus.paid => context.t.students.status.paid,
     StudentStatus.unpaid => context.t.students.status.unpaid,
     StudentStatus.free => context.t.students.status.free,
@@ -42,6 +43,13 @@ extension StudentStatusExtension on List<StudentStatus> {
           label: status.label(context),
           backgroundColor: AppColors.warningSurface.withValues(alpha: 0.8),
           foregroundColor: AppColors.warningOn,
+        ),
+
+        StudentStatus.excused => StudentBadgeData(
+          id: status.name,
+          label: status.label(context),
+          backgroundColor: AppColors.neutralSurface,
+          foregroundColor: AppColors.neutralOn,
         ),
 
         StudentStatus.paid => StudentBadgeData(
@@ -78,17 +86,19 @@ extension StudentStatusExtension on List<StudentStatus> {
 
 extension StudentSummaryHeaderBadgesExtension on StudentSummaryResponse {
   /// First line header badges:
-  /// - present / missing
+  /// - present / missing / excused
   /// - paid / unpaid / free (or inactive)
   List<StudentBadgeData> toHeaderStatusBadges(BuildContext context) {
     final statusSet = statuses.toSet();
 
-    // 1. Attendance status: present / missing
+    // 1. Attendance status: present / missing / excused
     final StudentStatus? attendance;
     if (statusSet.contains(StudentStatus.present)) {
       attendance = StudentStatus.present;
     } else if (statusSet.contains(StudentStatus.missing)) {
       attendance = StudentStatus.missing;
+    } else if (statusSet.contains(StudentStatus.excused)) {
+      attendance = StudentStatus.excused;
     } else {
       attendance = null;
     }

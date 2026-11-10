@@ -92,6 +92,47 @@ func TestStudentStatus_GroupLessonLast(t *testing.T) {
 	assert.NotContains(t, statuses, studentmodel.StudentStatusPresent)
 }
 
+func TestStudentStatus_ExcusedLessonLast(t *testing.T) {
+	studentID := uuid.New()
+	groupID := uuid.New()
+	groupLessonID := uuid.New()
+	individualLessonID := uuid.New()
+	createdAt := time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
+
+	st := studentmodel.Student{
+		ID:        studentID,
+		FullName:  "Test Student",
+		Free:      false,
+		CreatedAt: createdAt,
+	}
+
+	visits := []visitmodel.Visit{
+		{ID: uuid.New(), LessonID: individualLessonID, StudentID: studentID, Status: visitmodel.VisitStatusPresent},
+		{ID: uuid.New(), LessonID: groupLessonID, StudentID: studentID, Status: visitmodel.VisitStatusExcused},
+	}
+
+	lessonsMap := map[uuid.UUID]lessonmodel.Lesson{
+		individualLessonID: {
+			ID:        individualLessonID,
+			GroupID:   nil,
+			Date:      time.Date(2026, 9, 1, 10, 0, 0, 0, time.UTC),
+			CreatedAt: createdAt,
+		},
+		groupLessonID: {
+			ID:        groupLessonID,
+			GroupID:   &groupID,
+			Date:      time.Date(2026, 10, 8, 10, 0, 0, 0, time.UTC),
+			CreatedAt: createdAt,
+		},
+	}
+
+	statuses := ComputeStudentStatuses(st, visits, nil, lessonsMap, time.Now().UTC())
+
+	assert.Contains(t, statuses, studentmodel.StudentStatusExcused)
+	assert.NotContains(t, statuses, studentmodel.StudentStatusMissing)
+	assert.NotContains(t, statuses, studentmodel.StudentStatusPresent)
+}
+
 func TestStudentStatus_PrefersLessonCreatedLastOnSameDay(t *testing.T) {
 	studentID := uuid.New()
 	groupID := uuid.New()

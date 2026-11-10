@@ -679,6 +679,9 @@ class Translations$students$status$en {
 	/// en: 'Missing'
 	String get missing => 'Missing';
 
+	/// en: 'Excused'
+	String get excused => 'Excused';
+
 	/// en: 'Paid'
 	String get paid => 'Paid';
 
@@ -850,6 +853,7 @@ extension on Translations {
 			'students.status.inactive' => 'Inactive',
 			'students.status.present' => 'Present',
 			'students.status.missing' => 'Missing',
+			'students.status.excused' => 'Excused',
 			'students.status.paid' => 'Paid',
 			'students.status.unpaid' => 'Unpaid',
 			'students.status.free' => 'Free',

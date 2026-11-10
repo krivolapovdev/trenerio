@@ -134,6 +134,23 @@ void main() {
       );
     });
 
+    testWidgets('orders excused before paid', (tester) async {
+      await tester.pumpWidget(
+        TranslationProvider(
+          child: Builder(
+            builder: (context) {
+              final student = _student(
+                statuses: const [StudentStatus.excused, StudentStatus.paid],
+              );
+              final badges = student.toHeaderStatusBadges(context);
+              expect(badges.map((b) => b.id).toList(), ['excused', 'paid']);
+              return const SizedBox();
+            },
+          ),
+        ),
+      );
+    });
+
     testWidgets('orders present before free', (tester) async {
       await tester.pumpWidget(
         TranslationProvider(
@@ -294,6 +311,19 @@ void main() {
       expect(find.text(t.students.status.paid), findsOneWidget);
       expect(find.text(paidUntilLabel), findsNothing);
       expect(find.textContaining('session'), findsNothing);
+    });
+
+    testWidgets('shows excused and paid badges', (tester) async {
+      await _pumpHeader(
+        tester,
+        _student(statuses: const [StudentStatus.excused, StudentStatus.paid]),
+        now: fixedNow,
+      );
+
+      expect(find.byType(StudentBadges), findsOneWidget);
+      expect(find.text(t.students.status.excused), findsOneWidget);
+      expect(find.text(t.students.status.paid), findsOneWidget);
+      expect(find.text(t.students.status.missing), findsNothing);
     });
 
     testWidgets('shows sessions left when > 0, and never shows paid until', (

@@ -324,6 +324,7 @@ class _Translations$students$status$ru implements Translations$students$status$e
 	@override String get inactive => 'Неактивен';
 	@override String get present => 'Посетил';
 	@override String get missing => 'Пропустил';
+	@override String get excused => 'Уважительная причина';
 	@override String get paid => 'Оплачено';
 	@override String get unpaid => 'Не оплачено';
 	@override String get free => 'Бесплатно';
@@ -480,6 +481,7 @@ extension on TranslationsRu {
 			'students.status.inactive' => 'Неактивен',
 			'students.status.present' => 'Посетил',
 			'students.status.missing' => 'Пропустил',
+			'students.status.excused' => 'Уважительная причина',
 			'students.status.paid' => 'Оплачено',
 			'students.status.unpaid' => 'Не оплачено',
 			'students.status.free' => 'Бесплатно',

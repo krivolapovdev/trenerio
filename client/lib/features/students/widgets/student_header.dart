@@ -69,7 +69,8 @@ class StudentHeaderDelegate extends SliverPersistentHeaderDelegate {
     int badgeCount = 0;
     final statusSet = student.statuses.toSet();
     if (statusSet.contains(StudentStatus.present) ||
-        statusSet.contains(StudentStatus.missing)) {
+        statusSet.contains(StudentStatus.missing) ||
+        statusSet.contains(StudentStatus.excused)) {
       badgeCount++;
     }
     if (student.free ||

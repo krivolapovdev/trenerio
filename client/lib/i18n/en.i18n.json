@@ -125,6 +125,7 @@
       "inactive": "Inactive",
       "present": "Present",
       "missing": "Missing",
+      "excused": "Excused",
       "paid": "Paid",
       "unpaid": "Unpaid",
       "free": "Free"

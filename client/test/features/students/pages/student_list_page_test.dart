@@ -177,6 +177,7 @@ void main() {
       'Inactive',
       'Present',
       'Missing',
+      'Excused',
       'Paid',
       'Unpaid',
       'Free',
@@ -225,6 +226,7 @@ void main() {
 
     await tester.tap(_optionTile('Group A'));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(_optionTile('Unpaid'));
     await tester.tap(_optionTile('Unpaid'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Apply'));
@@ -264,6 +266,7 @@ void main() {
 
     await tester.tap(_optionTile('Group A'));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(_optionTile('Unpaid'));
     await tester.tap(_optionTile('Unpaid'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Apply'));
