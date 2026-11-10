@@ -15,7 +15,7 @@ import (
 // @Tags         student-controller
 // @Security     BearerAuth
 // @Param        studentId  path      string  true  "Student ID"  Format(uuid)
-// @Success      200        {array}   TransactionResponse
+// @Success      200        {array}   txhttp.TransactionResponse
 // @Router       /api/v1/students/{studentId}/payments [get]
 func (h *Handler) GetStudentPayments(c *gin.Context) {
 	jwtUser, ok := authhttp.GetUserFromContext(c)
@@ -34,7 +34,7 @@ func (h *Handler) GetStudentPayments(c *gin.Context) {
 		return
 	}
 
-	resp := make([]TransactionResponse, len(payments))
+	resp := make([]txhttp.TransactionResponse, len(payments))
 	for i, p := range payments {
 		resp[i] = txhttp.ToTransactionResponse(p)
 	}

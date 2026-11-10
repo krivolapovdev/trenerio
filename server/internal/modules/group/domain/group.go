@@ -8,8 +8,8 @@ import (
 	studentmodel "github.com/krivolapovdev/trenerio/internal/modules/student/domain"
 )
 
-// @name GroupResponse
-type GroupResponse struct {
+// @name Group
+type Group struct {
 	ID           uuid.UUID `json:"id" binding:"required" format:"uuid"`
 	Name         string    `json:"name" binding:"required"`
 	DefaultPrice *float64  `json:"defaultPrice,omitempty"`
@@ -17,14 +17,16 @@ type GroupResponse struct {
 	CreatedAt    time.Time `json:"createdAt" binding:"required" format:"date-time"`
 }
 
-type Group = GroupResponse
+type GroupResponse = Group
 
+// @name GroupStudent
 type GroupStudent struct {
 	ID        uuid.UUID `json:"id" format:"uuid"`
 	GroupID   uuid.UUID `json:"groupId" format:"uuid"`
 	StudentID uuid.UUID `json:"studentId" format:"uuid"`
 }
 
+// @name GroupSummary
 type GroupSummary struct {
 	ID              uuid.UUID `json:"id" binding:"required" format:"uuid"`
 	Name            string    `json:"name" binding:"required"`
@@ -35,10 +37,11 @@ type GroupSummary struct {
 	CountOfDebtors  int64     `json:"countOfDebtors"`
 }
 
+// @name GroupStudentSummary
 type GroupStudentSummary struct {
 	ID        uuid.UUID                    `json:"id" binding:"required" format:"uuid"`
 	FullName  string                       `json:"fullName" binding:"required"`
-	Birthdate *types.Date                  `json:"birthdate,omitempty" format:"date"`
+	Birthdate *types.Date                  `json:"birthdate,omitempty" swaggertype:"string" format:"date"`
 	Phone     *string                      `json:"phone,omitempty"`
 	Note      *string                      `json:"note,omitempty"`
 	CreatedAt time.Time                    `json:"createdAt" binding:"required" format:"date-time"`
@@ -46,13 +49,14 @@ type GroupStudentSummary struct {
 	Statuses  []studentmodel.StudentStatus `json:"statuses" binding:"required"`
 }
 
+// @name GroupReportDayMark
 type GroupReportDayMark struct {
 	Day   int    `json:"day" binding:"required"`
 	Marks []bool `json:"marks" binding:"required"`
 }
 
-// @name GroupReportStudentResponse
-type GroupReportStudentResponse struct {
+// @name GroupReportStudent
+type GroupReportStudent struct {
 	StudentID    uuid.UUID            `json:"studentId" binding:"required" format:"uuid"`
 	FullName     string               `json:"fullName" binding:"required"`
 	Paid         bool                 `json:"paid" binding:"required"`
@@ -62,8 +66,9 @@ type GroupReportStudentResponse struct {
 	LessonCount  int                  `json:"lessonCount" binding:"required"`
 }
 
-type GroupReportStudent = GroupReportStudentResponse
+type GroupReportStudentResponse = GroupReportStudent
 
+// @name GroupReport
 type GroupReport struct {
 	GroupID      uuid.UUID            `json:"groupId" binding:"required" format:"uuid"`
 	GroupName    string               `json:"groupName" binding:"required"`

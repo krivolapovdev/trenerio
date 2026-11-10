@@ -15,7 +15,7 @@ import (
 // @name CreateStudentRequest
 type CreateStudentRequest struct {
 	FullName  string      `json:"fullName" binding:"required,max=255"`
-	Birthdate *types.Date `json:"birthdate,omitempty" swaggertype:"string"`
+	Birthdate *types.Date `json:"birthdate,omitempty" swaggertype:"string" format:"date"`
 	Phone     *string     `json:"phone,omitempty" binding:"omitempty,max=255"`
 	Note      *string     `json:"note,omitempty" binding:"omitempty,max=255"`
 	Free      bool        `json:"free"`

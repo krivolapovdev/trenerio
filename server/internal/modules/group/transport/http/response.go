@@ -2,7 +2,7 @@ package http
 
 import (
 	"github.com/krivolapovdev/trenerio/internal/modules/group/domain"
-	lessonhttp "github.com/krivolapovdev/trenerio/internal/modules/lesson/transport/http"
+	lessonmodel "github.com/krivolapovdev/trenerio/internal/modules/lesson/domain"
 )
 
 type GroupResponse = domain.Group
@@ -24,4 +24,4 @@ type GroupReportStudentResponse = domain.GroupReportStudent
 // @name GroupReportResponse
 type GroupReportResponse = domain.GroupReport
 
-type LessonResponse = lessonhttp.LessonResponse
+type Lesson = lessonmodel.Lesson

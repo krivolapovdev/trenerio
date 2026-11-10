@@ -18,6 +18,7 @@ const (
 	DetailsTypeStudent = "STUDENT"
 )
 
+// @name StudentPaymentDetails
 type StudentPaymentDetails struct {
 	DetailsType   string
 	StudentID     uuid.UUID
@@ -27,6 +28,7 @@ type StudentPaymentDetails struct {
 	StudentName   *string
 }
 
+// @name Transaction
 type Transaction struct {
 	ID             uuid.UUID
 	Amount         float64
@@ -36,6 +38,7 @@ type Transaction struct {
 	PaymentDetails *StudentPaymentDetails
 }
 
+// @name PageTransaction
 type PageTransaction struct {
 	TotalPages       int
 	TotalElements    int64

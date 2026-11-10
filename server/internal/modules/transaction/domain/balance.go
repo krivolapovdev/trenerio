@@ -7,11 +7,13 @@ import (
 	"github.com/krivolapovdev/trenerio/internal/core/clock"
 )
 
+// @name SubscriptionRange
 type SubscriptionRange struct {
 	PaidFrom  *time.Time
 	PaidUntil *time.Time
 }
 
+// @name StudentBalance
 type StudentBalance struct {
 	StudentID          uuid.UUID
 	PaidFrom           *time.Time

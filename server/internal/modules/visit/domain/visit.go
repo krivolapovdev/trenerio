@@ -6,8 +6,8 @@ import (
 	"github.com/google/uuid"
 )
 
-// @name VisitResponse
-type VisitResponse struct {
+// @name Visit
+type Visit struct {
 	ID        uuid.UUID   `json:"id" binding:"required" format:"uuid"`
 	Status    VisitStatus `json:"status" binding:"required"`
 	Type      VisitType   `json:"type" binding:"required"`
@@ -16,7 +16,7 @@ type VisitResponse struct {
 	CreatedAt time.Time   `json:"createdAt" binding:"required" format:"date-time"`
 }
 
-type Visit = VisitResponse
+type VisitResponse = Visit
 
 // FindVisitByLessonID finds a visit associated with the given lesson ID.
 func FindVisitByLessonID(visits []Visit, lessonID uuid.UUID) *Visit {

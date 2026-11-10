@@ -9,7 +9,7 @@ sqlc:
 	cd ./server && sqlc generate
 
 swag:
-	cd ./server && swag init -g ./cmd/api/main.go -o docs
+	cd ./server && swag init -g ./cmd/api/main.go -o docs --useStructName --parseInternal --parseDependency
 	cd ./client && rm -rf lib/generated
 	cd ./client && dart run swagger_parser
 	cd ./client && dart run build_runner build --build-filter="lib/generated/**"

@@ -8,7 +8,6 @@ import (
 	groupmodel "github.com/krivolapovdev/trenerio/internal/modules/group/domain"
 	lessonmodel "github.com/krivolapovdev/trenerio/internal/modules/lesson/domain"
 	"github.com/krivolapovdev/trenerio/internal/modules/student/domain"
-	txhttp "github.com/krivolapovdev/trenerio/internal/modules/transaction/transport/http"
 	visitmodel "github.com/krivolapovdev/trenerio/internal/modules/visit/domain"
 )
 
@@ -19,7 +18,7 @@ type StudentResponse = domain.Student
 type StudentSummaryResponse struct {
 	ID            uuid.UUID              `json:"id" binding:"required" format:"uuid"`
 	FullName      string                 `json:"fullName" binding:"required"`
-	Birthdate     *types.Date            `json:"birthdate,omitempty" format:"date"`
+	Birthdate     *types.Date            `json:"birthdate,omitempty" swaggertype:"string" format:"date"`
 	Phone         *string                `json:"phone,omitempty"`
 	Note          *string                `json:"note,omitempty"`
 	CreatedAt     time.Time              `json:"createdAt" binding:"required" format:"date-time"`
@@ -35,5 +34,3 @@ type VisitWithLessonResponse struct {
 	Visit  visitmodel.Visit   `json:"visit" binding:"required"`
 	Lesson lessonmodel.Lesson `json:"lesson" binding:"required"`
 }
-
-type TransactionResponse = txhttp.TransactionResponse

@@ -18,6 +18,7 @@ type Roster struct {
 	Students        []studentmodel.Student `json:"students,omitempty"`
 }
 
+// @name Participant
 type Participant struct {
 	ID        uuid.UUID `json:"id" format:"uuid"`
 	RosterID  uuid.UUID `json:"rosterId" format:"uuid"`

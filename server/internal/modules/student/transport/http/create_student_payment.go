@@ -27,7 +27,7 @@ type CreateStudentPaymentRequest struct {
 // @Security     BearerAuth
 // @Param        studentId  path      string                       true  "Student ID"              Format(uuid)
 // @Param        body       body      CreateStudentPaymentRequest  true  "Student payment request"
-// @Success      201        {object}  TransactionResponse
+// @Success      201        {object}  txhttp.TransactionResponse
 // @Router       /api/v1/students/{studentId}/payments [post]
 func (h *Handler) CreateStudentPayment(c *gin.Context) {
 	jwtUser, ok := authhttp.GetUserFromContext(c)

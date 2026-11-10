@@ -60,6 +60,10 @@ swagger_parser:
   language: dart
   json_serializer: json_serializable
   replacement_rules:
+    - pattern: "^[Dd]omain"
+      replacement: ""
+    - pattern: "^[Hh]ttp"
+      replacement: ""
     - pattern: "^[Mm]odels"
       replacement: ""
     - pattern: "^[Tt]ypes"
