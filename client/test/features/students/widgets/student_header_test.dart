@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:phone/core/constants/app_radius.dart';
 import 'package:phone/features/students/extensions/student_balance_extension.dart';
 import 'package:phone/features/students/extensions/student_status_extension.dart';
 import 'package:phone/features/students/widgets/student_badges.dart';
@@ -63,6 +64,7 @@ Future<void> _pumpHeader(
                   now: now,
                 ),
               ),
+              const SliverToBoxAdapter(child: SizedBox(height: 1000)),
             ],
           ),
         ),
@@ -347,5 +349,46 @@ void main() {
       expect(find.text('23'), findsOneWidget);
       expect(find.text('30.11.2026'), findsNothing);
     });
+
+    testWidgets(
+      'border radius is zero when uncollapsed and bottomRounded when collapsed',
+      (tester) async {
+        await _pumpHeader(
+          tester,
+          _student(statuses: const [StudentStatus.present]),
+          now: fixedNow,
+        );
+
+        // Uncollapsed: border radius is zero
+        final uncollapsedMaterial = tester.widget<Material>(
+          find
+              .descendant(
+                of: find.byType(SliverPersistentHeader),
+                matching: find.byType(Material),
+              )
+              .first,
+        );
+        final uncollapsedBorder =
+            uncollapsedMaterial.shape as RoundedRectangleBorder;
+        expect(uncollapsedBorder.borderRadius, equals(BorderRadius.zero));
+
+        // Scroll to collapse
+        await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
+        await tester.pumpAndSettle();
+
+        // Collapsed: border radius is bottomRounded
+        final collapsedMaterial = tester.widget<Material>(
+          find
+              .descendant(
+                of: find.byType(SliverPersistentHeader),
+                matching: find.byType(Material),
+              )
+              .first,
+        );
+        final collapsedBorder =
+            collapsedMaterial.shape as RoundedRectangleBorder;
+        expect(collapsedBorder.borderRadius, equals(AppRadius.bottomRounded));
+      },
+    );
   });
 }

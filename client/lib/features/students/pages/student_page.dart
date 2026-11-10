@@ -169,7 +169,13 @@ class _StudentPageState extends ConsumerState<StudentPage> {
     if (position.outOfRange) return;
 
     final offset = position.pixels;
-    const snapOffset = StudentHeaderDelegate.contentHeight;
+    final payments =
+        ref.read(studentPaymentsControllerProvider(_student.id)).value ??
+        const <TransactionResponse>[];
+    final snapOffset = StudentHeaderDelegate.computeContentHeight(
+      _student,
+      payments: payments,
+    );
 
     if (offset > 1.0 && offset < snapOffset - 1.0) {
       final target = offset < (snapOffset / 2) ? 0.0 : snapOffset;
@@ -212,8 +218,12 @@ class _StudentPageState extends ConsumerState<StudentPage> {
     });
 
     final topPadding = MediaQuery.paddingOf(context).top;
-    final headerMaxHeight =
-        topPadding + kToolbarHeight + StudentHeaderDelegate.contentHeight;
+    final payments = paymentsAsync.value ?? const <TransactionResponse>[];
+    final snapOffset = StudentHeaderDelegate.computeContentHeight(
+      currentStudent,
+      payments: payments,
+    );
+    final headerMaxHeight = topPadding + kToolbarHeight + snapOffset;
 
     const overlayStyle = SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -235,9 +245,9 @@ class _StudentPageState extends ConsumerState<StudentPage> {
             child: CustomScrollView(
               controller: _scrollController,
               clipBehavior: Clip.none,
-              physics: const HeaderSnapScrollPhysics(
-                snapOffset: StudentHeaderDelegate.contentHeight,
-                parent: BouncingScrollPhysics(
+              physics: HeaderSnapScrollPhysics(
+                snapOffset: snapOffset,
+                parent: const BouncingScrollPhysics(
                   parent: AlwaysScrollableScrollPhysics(),
                 ),
               ),
@@ -295,9 +305,7 @@ class _StudentPageState extends ConsumerState<StudentPage> {
                     ],
                   ),
                 ),
-                const HeaderBottomSpacer(
-                  snapOffset: StudentHeaderDelegate.contentHeight,
-                ),
+                HeaderBottomSpacer(snapOffset: snapOffset),
               ],
             ),
           ),

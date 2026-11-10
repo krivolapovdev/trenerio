@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:phone/core/extensions/string_extension.dart';
 import 'package:phone/core/widgets/date_input_field.dart';
 import 'package:phone/features/students/extensions/student_status_extension.dart';
+import 'package:phone/features/students/models/student_badge_data.dart';
 import 'package:phone/features/students/widgets/student_badges.dart';
 import 'package:phone/generated/models/student_summary_response.dart';
 
@@ -11,6 +12,7 @@ class StudentCard extends StatelessWidget {
   final VoidCallback? onLongPress;
 
   final String? overrideInitials;
+  final List<StudentBadgeData>? overrideBadges;
   final bool showBirthdate;
   final bool noteVisible;
   final bool groupsVisible;
@@ -22,6 +24,7 @@ class StudentCard extends StatelessWidget {
     required this.onTap,
     this.onLongPress,
     this.overrideInitials,
+    this.overrideBadges,
     this.showBirthdate = false,
     this.noteVisible = true,
     this.groupsVisible = true,
@@ -38,7 +41,7 @@ class StudentCard extends StatelessWidget {
     final birthdate = student.birthdate;
     final groupLabels = _groupLabels(student);
     final hasGroup = groupsVisible && groupLabels.isNotEmpty;
-    final badges = student.statuses.toBadges(context);
+    final badges = overrideBadges ?? student.statuses.toBadges(context);
     final cardRadius = borderRadius ?? BorderRadius.circular(16);
 
     return Card(

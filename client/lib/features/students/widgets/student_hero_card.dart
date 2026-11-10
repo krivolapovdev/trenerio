@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:phone/features/students/models/student_badge_data.dart';
 import 'package:phone/features/students/widgets/student_card.dart';
 import 'package:phone/generated/models/student_summary_response.dart';
 
 class StudentHeroCard extends StatelessWidget {
   final StudentSummaryResponse student;
   final Animation<double>? routeAnimation;
+  final List<StudentBadgeData>? overrideBadges;
 
-  const new({super.key, required this.student, this.routeAnimation});
+  const new({
+    super.key,
+    required this.student,
+    this.routeAnimation,
+    this.overrideBadges,
+  });
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
@@ -19,7 +26,12 @@ class StudentHeroCard extends StatelessWidget {
       tag: 'student-card-${student.id}',
       child: Material(
         type: MaterialType.transparency,
-        child: StudentCard(student: student, onTap: () {}, showBirthdate: true),
+        child: StudentCard(
+          student: student,
+          onTap: () {},
+          showBirthdate: true,
+          overrideBadges: overrideBadges,
+        ),
       ),
     ),
   );

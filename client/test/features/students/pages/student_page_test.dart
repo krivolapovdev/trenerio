@@ -14,6 +14,7 @@ import 'package:phone/features/groups/controllers/group_students_controller.dart
 import 'package:phone/features/groups/pages/lesson_page.dart';
 import 'package:phone/features/students/pages/student_lesson_page.dart';
 import 'package:phone/features/students/pages/student_page.dart';
+import 'package:phone/features/students/widgets/student_card.dart';
 import 'package:phone/features/students/widgets/student_day_lessons_bottom_sheet.dart';
 import 'package:phone/features/students/widgets/student_header.dart';
 import 'package:phone/features/students/widgets/student_report_bottom_sheet.dart';
@@ -244,7 +245,8 @@ void main() {
       await _pumpPage(tester, studentWithStatus);
 
       // Unscrolled:
-      // Large name is visible
+      // Student card is visible
+      expect(find.byType(StudentCard), findsOneWidget);
       expect(find.text('Anna Smirnova'), findsOneWidget);
       // Status badge is visible
       expect(find.text(t.students.status.paid), findsOneWidget);
@@ -257,14 +259,17 @@ void main() {
       );
       expect(
         indicator.edgeOffset,
-        greaterThan(StudentHeaderDelegate.contentHeight),
+        greaterThan(
+          StudentHeaderDelegate.computeContentHeight(studentWithStatus),
+        ),
       );
 
       // Scroll down to collapse header
       await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
       await tester.pumpAndSettle();
 
-      // Scrolled:
+      // Scrolled: student card is hidden, keeps only title in app bar
+      expect(find.byType(StudentCard), findsNothing);
       expect(find.text('Anna Smirnova'), findsOneWidget);
       expect(find.byType(BackButton), findsOneWidget);
       expect(find.byType(PopupMenuButton<String>), findsOneWidget);
@@ -295,7 +300,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(
         scrollable.position.pixels,
-        equals(StudentHeaderDelegate.contentHeight),
+        equals(StudentHeaderDelegate.computeContentHeight(_studentWithGroup)),
       );
     },
   );
