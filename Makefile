@@ -19,3 +19,6 @@ slang:
 
 client-release:
 	cd ./client && flutter build appbundle --release
+
+client-debug:
+	cd ./client && flutter build apk --debug
