@@ -33,7 +33,7 @@ jobs:
         run: go install github.com/swaggo/swag/cmd/swag@v1.16.4
 
       - name: Generate Swagger docs
-        run: swag init -g ./cmd/api/main.go -o docs
+        run: swag init -g ./cmd/api/main.go -o docs --useStructName --parseInternal --parseDependency
 
       - name: Run go vet
         run: go vet ./...
@@ -67,7 +67,7 @@ jobs:
         run: go install github.com/swaggo/swag/cmd/swag@v1.16.4
 
       - name: Generate Swagger schema
-        run: swag init -g ./cmd/api/main.go -o docs
+        run: swag init -g ./cmd/api/main.go -o docs --useStructName --parseInternal --parseDependency
         working-directory: server
 
       - name: Set up Flutter

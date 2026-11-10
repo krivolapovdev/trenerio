@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phone/core/errors/app_exception.dart';
+import 'package:phone/core/extensions/date_time_extension.dart';
 import 'package:phone/core/extensions/string_extension.dart';
 import 'package:phone/features/students/controllers/student_list_controller.dart';
 import 'package:phone/features/students/controllers/student_mutation_refresh.dart';
@@ -41,7 +42,7 @@ class CreateStudentController extends AsyncNotifier<void> {
 
       final request = CreateStudentRequest(
         fullName: trimmedName,
-        birthdate: birthdate,
+        birthdate: birthdate?.toIsoDateString(),
         phone: phone.trimmedOrNull,
         note: note.trimmedOrNull,
         free: free,
