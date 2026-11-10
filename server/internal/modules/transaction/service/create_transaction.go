@@ -64,19 +64,10 @@ func (s *Service) CreateTransaction(ctx context.Context, txToCreate domain.Trans
 		}
 
 		if txToCreate.PaymentDetails != nil {
-			paidFrom := txToCreate.PaymentDetails.PaidFrom
-			if paidFrom == nil && txToCreate.PaymentDetails.PaidUntil != nil {
-				prevPaidUntil, err := findLatestPaidUntilTx(ctx, qtx, txToCreate.PaymentDetails.StudentID, ownerID)
-				if err == nil && prevPaidUntil.Valid {
-					t := prevPaidUntil.Time
-					paidFrom = &t
-				}
-			}
-
 			sp, err := qtx.CreateStudentPayment(ctx, db.CreateStudentPaymentParams{
 				TransactionID: createdTx.ID,
 				StudentID:     txToCreate.PaymentDetails.StudentID,
-				PaidFrom:      mapper.ToNullTime(paidFrom),
+				PaidFrom:      mapper.ToNullTime(txToCreate.PaymentDetails.PaidFrom),
 				PaidUntil:     mapper.ToNullTime(txToCreate.PaymentDetails.PaidUntil),
 				SessionsAdded: mapper.ToNullInt64(txToCreate.PaymentDetails.SessionsAdded),
 			})

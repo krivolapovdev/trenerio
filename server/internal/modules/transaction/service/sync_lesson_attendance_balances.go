@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"math"
@@ -18,20 +17,6 @@ import (
 // Kept for backward compatibility with the lesson service balanceProvider interface.
 func (s *Service) SyncLessonAttendanceBalancesTx(ctx context.Context, qtx *db.Queries, ownerID uuid.UUID, changes []AttendanceBalanceChange) error {
 	return nil
-}
-
-func findLatestPaidUntilTx(ctx context.Context, qtx *db.Queries, studentID, ownerID uuid.UUID) (sql.NullTime, error) {
-	pu, err := qtx.FindLatestPaidUntilByStudentID(ctx, db.FindLatestPaidUntilByStudentIDParams{
-		StudentID: studentID,
-		OwnerID:   ownerID,
-	})
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return sql.NullTime{}, nil
-		}
-		return sql.NullTime{}, err
-	}
-	return pu, nil
 }
 
 func extractPaymentUpdateFields(updates map[string]any) map[string]any {

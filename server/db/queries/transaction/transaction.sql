@@ -83,14 +83,6 @@ JOIN finance_module.transactions t ON sp.transaction_id = t.id
 WHERE t.owner_id = $1 AND sp.student_id = ANY($2::uuid[])
 ORDER BY t.date DESC, t.created_at DESC;
 
--- name: FindLatestPaidUntilByStudentID :one
-SELECT sp.paid_until
-FROM finance_module.student_payments sp
-JOIN finance_module.transactions t ON sp.transaction_id = t.id
-WHERE sp.student_id = $1 AND t.owner_id = $2 AND sp.paid_until IS NOT NULL
-ORDER BY sp.paid_until DESC NULLS LAST
-LIMIT 1;
-
 -- name: SumSessionsAddedByStudentIDAndOwnerID :one
 SELECT COALESCE(SUM(sp.sessions_added), 0)::bigint AS total_sessions_added
 FROM finance_module.student_payments sp

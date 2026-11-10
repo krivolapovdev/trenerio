@@ -164,27 +164,6 @@ func (q *Queries) FindAllTransactionsByOwnerID(ctx context.Context, ownerID uuid
 	return items, nil
 }
 
-const findLatestPaidUntilByStudentID = `-- name: FindLatestPaidUntilByStudentID :one
-SELECT sp.paid_until
-FROM finance_module.student_payments sp
-JOIN finance_module.transactions t ON sp.transaction_id = t.id
-WHERE sp.student_id = $1 AND t.owner_id = $2 AND sp.paid_until IS NOT NULL
-ORDER BY sp.paid_until DESC NULLS LAST
-LIMIT 1
-`
-
-type FindLatestPaidUntilByStudentIDParams struct {
-	StudentID uuid.UUID `json:"student_id"`
-	OwnerID   uuid.UUID `json:"owner_id"`
-}
-
-func (q *Queries) FindLatestPaidUntilByStudentID(ctx context.Context, arg FindLatestPaidUntilByStudentIDParams) (sql.NullTime, error) {
-	row := q.db.QueryRowContext(ctx, findLatestPaidUntilByStudentID, arg.StudentID, arg.OwnerID)
-	var paid_until sql.NullTime
-	err := row.Scan(&paid_until)
-	return paid_until, err
-}
-
 const findStudentPaymentByTransactionIDAndOwnerID = `-- name: FindStudentPaymentByTransactionIDAndOwnerID :one
 SELECT sp.transaction_id, sp.student_id, sp.paid_from, sp.paid_until, sp.sessions_added
 FROM finance_module.student_payments sp

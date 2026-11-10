@@ -61,19 +61,10 @@ func (s *Service) CreateStudentPayment(ctx context.Context, studentID uuid.UUID,
 			return err
 		}
 
-		effectivePaidFrom := paidFrom
-		if effectivePaidFrom == nil && paidUntil != nil {
-			prevPaidUntil, err := findLatestPaidUntilTx(ctx, qtx, studentID, ownerID)
-			if err == nil && prevPaidUntil.Valid {
-				t := prevPaidUntil.Time
-				effectivePaidFrom = &t
-			}
-		}
-
 		sp, err = qtx.CreateStudentPayment(ctx, db.CreateStudentPaymentParams{
 			TransactionID: createdTx.ID,
 			StudentID:     studentID,
-			PaidFrom:      mapper.ToNullTime(effectivePaidFrom),
+			PaidFrom:      mapper.ToNullTime(paidFrom),
 			PaidUntil:     mapper.ToNullTime(paidUntil),
 			SessionsAdded: mapper.ToNullInt64(sessionsAdded),
 		})
