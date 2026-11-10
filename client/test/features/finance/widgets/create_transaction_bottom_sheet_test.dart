@@ -539,15 +539,34 @@ void main() {
     },
   );
 
-  testWidgets('paid from field does not have a clear button', (tester) async {
-    await _pump(tester, initialAmount: 3000, initialStudentId: 'student-1');
+  testWidgets(
+    'paid from and paid until fields have a clear button that clears the value',
+    (tester) async {
+      await _pump(tester, initialAmount: 3000, initialStudentId: 'student-1');
 
-    final paidFromFinder = find.byType(PaidFromField);
-    expect(
-      find.descendant(of: paidFromFinder, matching: find.byIcon(Icons.clear)),
-      findsNothing,
-    );
-  });
+      final paidFromFinder = find.byType(PaidFromField);
+      final paidUntilFinder = find.byType(PaidUntilField);
+
+      final clearPaidFrom = find.descendant(
+        of: paidFromFinder,
+        matching: find.byIcon(Icons.clear),
+      );
+      final clearPaidUntil = find.descendant(
+        of: paidUntilFinder,
+        matching: find.byIcon(Icons.clear),
+      );
+
+      expect(clearPaidFrom, findsOneWidget);
+      expect(clearPaidUntil, findsOneWidget);
+
+      await tester.tap(clearPaidFrom);
+      await tester.tap(clearPaidUntil);
+      await tester.pump();
+
+      expect(_textOf(tester, t.finance.paidFrom), isEmpty);
+      expect(_textOf(tester, _paidUntilLabel), isEmpty);
+    },
+  );
 
   testWidgets('entering paidFrom does not auto-update paidUntil', (
     tester,

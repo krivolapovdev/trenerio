@@ -29,6 +29,7 @@ class PaidUntilField extends StatelessWidget {
     firstDate: firstDate,
     lastDate: lastDate,
     enabled: enabled,
+    allowClear: true,
     errorText: errorText,
     onDateChanged: onDateChanged,
   );

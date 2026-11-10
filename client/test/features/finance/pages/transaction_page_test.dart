@@ -426,6 +426,59 @@ void main() {
   });
 
   testWidgets(
+    'clearing paid from in a student payment sends paidFrom as null',
+    (tester) async {
+      final transaction = _transaction(
+        paymentDetails: StudentPaymentDetailsResponse(
+          detailsType: 'STUDENT',
+          studentId: 'student-1',
+          studentName: 'Ivan Petrov',
+          paidFrom: DateTime(2025, 8),
+          paidUntil: DateTime(2025, 9),
+        ),
+      );
+      final client = _FakeTransactionClient(transaction: transaction);
+
+      await tester.pumpWidget(
+        _wrapWithApi(TransactionPage(transaction: transaction), client),
+      );
+
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(t.edit));
+      await tester.pumpAndSettle();
+
+      final paidFromFinder = find.widgetWithText(TextField, t.finance.paidFrom);
+      expect(paidFromFinder, findsOneWidget);
+
+      final clearPaidFrom = find.descendant(
+        of: paidFromFinder,
+        matching: find.byIcon(Icons.clear),
+      );
+      expect(clearPaidFrom, findsOneWidget);
+
+      await tester.tap(clearPaidFrom);
+      await tester.pump();
+
+      await tester.tap(find.text(t.update));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle();
+
+      final expectedDate = DateTime(2025, 8, 22).toIso8601StringWithOffset();
+      final expectedPaidUntil = DateTime(2025, 9).toIso8601StringWithOffset();
+      expect(client.updateBodies, hasLength(1));
+      expect(client.updateBodies.single, {
+        'amount': 3800.0,
+        'date': expectedDate,
+        'paidFrom': null,
+        'paidUntil': expectedPaidUntil,
+      });
+      expect(find.byType(EditTransactionBottomSheet), findsNothing);
+    },
+  );
+
+  testWidgets(
     'editing a student payment allows paid until in the previous month',
     (tester) async {
       final transaction = _transaction(

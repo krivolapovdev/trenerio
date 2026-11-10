@@ -31,7 +31,7 @@ class PaidFromField extends StatelessWidget {
     firstDate: firstDate,
     lastDate: lastDate,
     enabled: enabled,
-    allowClear: false,
+    allowClear: true,
     isLoading: isLoading,
     errorText: errorText,
     onDateChanged: onDateChanged,

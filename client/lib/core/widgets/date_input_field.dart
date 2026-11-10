@@ -191,6 +191,7 @@ class _DateInputFieldState extends State<DateInputField> {
           widget.allowClear && widget.enabled && _controller.text.isNotEmpty
           ? _ClearButton(onClear: _clear)
           : null,
+      suffixIconConstraints: const BoxConstraints(),
     ),
   );
 }
@@ -201,8 +202,12 @@ class _ClearButton extends StatelessWidget {
   const new({required this.onClear});
 
   @override
-  Widget build(BuildContext context) =>
-      IconButton(onPressed: onClear, icon: const Icon(Icons.clear));
+  Widget build(BuildContext context) => IconButton(
+    onPressed: onClear,
+    icon: const Icon(Icons.clear, size: 18),
+    padding: const EdgeInsets.all(8),
+    constraints: const BoxConstraints(),
+  );
 }
 
 class DateInputFormatter extends TextInputFormatter {
