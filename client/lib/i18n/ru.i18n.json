@@ -109,6 +109,7 @@
     "noStudent": "Без ученика",
     "free": "Учится бесплатно",
     "payment": "Платёж",
+    "payments": "Платежи",
     "paymentTitle": "Платежи: $name",
     "noPayments": "У студента нет платежей",
     "errorLoading": "Ошибка загрузки учеников: $error",

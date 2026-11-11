@@ -1,15 +1,13 @@
 import 'package:custom_refresh_indicator/custom_refresh_indicator.dart';
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:phone/core/widgets/app_bottom_sheet.dart';
 import 'package:phone/core/widgets/shell_page.dart';
 import 'package:phone/features/students/controllers/student_lessons_controller.dart';
 import 'package:phone/features/students/controllers/student_list_controller.dart';
 import 'package:phone/features/students/controllers/student_payment_list_controller.dart';
-import 'package:phone/features/students/widgets/create_student_bottom_sheet.dart';
 import 'package:phone/features/students/widgets/student_filter_button.dart';
 import 'package:phone/features/students/widgets/student_list_body.dart';
+import 'package:phone/features/students/widgets/student_list_popup_menu.dart';
 import 'package:phone/features/students/widgets/student_search_button.dart';
 
 class StudentListPage extends ShellPage {
@@ -30,13 +28,7 @@ class StudentListPage extends ShellPage {
   List<Widget> actions(BuildContext context) => [
     const StudentSearchButton(),
     const StudentFilterButton(),
-    IconButton(
-      icon: const Icon(FluentIcons.person_add_24_regular),
-      onPressed: () => AppBottomSheet.show(
-        context: context,
-        child: const CreateStudentBottomSheet(),
-      ),
-    ),
+    const StudentListPopupMenu(),
     const SizedBox(width: 8),
   ];
 

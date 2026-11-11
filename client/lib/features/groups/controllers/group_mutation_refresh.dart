@@ -58,14 +58,11 @@ void refreshAfterGroupLessonsMutation(
   }
 }
 
-Future<void> refreshAfterGroupPaymentsMutation(
+Future<void> refreshAfterStudentPaymentsMutation(
   Ref ref, {
-  required String groupId,
   required Iterable<String> studentIds,
 }) async {
-  ref
-    ..invalidate(groupReportProvider)
-    ..invalidate(groupStudentsProvider(groupId));
+  ref.invalidate(groupReportProvider);
 
   for (final studentId in studentIds) {
     ref.invalidate(studentPaymentsControllerProvider(studentId));
@@ -78,7 +75,7 @@ Future<void> refreshAfterGroupPaymentsMutation(
         .read(paymentMetricsControllerProvider.notifier)
         .loadMetrics()
         .catchError((error, _) {
-          log('Error refreshing metrics after group payments: $error');
+          log('Error refreshing metrics after payments: $error');
         }),
   );
 
@@ -90,6 +87,15 @@ Future<void> refreshAfterGroupPaymentsMutation(
         .read(groupListControllerProvider.notifier)
         .getAllGroups(forceRefresh: true),
   ]);
+}
+
+Future<void> refreshAfterGroupPaymentsMutation(
+  Ref ref, {
+  required String groupId,
+  required Iterable<String> studentIds,
+}) async {
+  ref.invalidate(groupStudentsProvider(groupId));
+  await refreshAfterStudentPaymentsMutation(ref, studentIds: studentIds);
 }
 
 void refreshAfterGroupStudentsMutation(Ref ref, {required String groupId}) {

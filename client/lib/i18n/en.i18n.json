@@ -109,6 +109,7 @@
     "noStudent": "No student",
     "free": "Studies for free",
     "payment": "Payment",
+    "payments": "Payments",
     "paymentTitle": "Payments: $name",
     "noPayments": "The student has no payments yet",
     "errorLoading": "Error loading students: $error",
