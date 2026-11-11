@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:phone/core/extensions/number_extension.dart';
+import 'package:phone/features/finance/widgets/student_payment_mode_selector.dart';
 import 'package:phone/features/groups/pages/lesson_ui.dart';
 import 'package:phone/features/students/extensions/student_status_extension.dart';
 import 'package:phone/features/students/widgets/student_badges.dart';
@@ -13,8 +14,11 @@ class StudentPaymentTile extends StatelessWidget {
   final bool canEdit;
   final VoidCallback onToggle;
   final VoidCallback onEdit;
+  final StudentPaymentMode? customPaymentMode;
   final double? customAmount;
+  final DateTime? customPaidFrom;
   final DateTime? customPaidUntil;
+  final int? customSessionsAdded;
 
   const new({
     super.key,
@@ -24,8 +28,11 @@ class StudentPaymentTile extends StatelessWidget {
     required this.canEdit,
     required this.onToggle,
     required this.onEdit,
+    this.customPaymentMode,
     this.customAmount,
+    this.customPaidFrom,
     this.customPaidUntil,
+    this.customSessionsAdded,
   });
 
   String _formatDate(DateTime date) {
@@ -37,7 +44,12 @@ class StudentPaymentTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final isCustom = customAmount != null || customPaidUntil != null;
+    final isCustom =
+        customPaymentMode != null ||
+        customAmount != null ||
+        customPaidFrom != null ||
+        customPaidUntil != null ||
+        customSessionsAdded != null;
 
     final trailingWidgets = <Widget>[
       if (canEdit)
@@ -62,8 +74,25 @@ class StudentPaymentTile extends StatelessWidget {
       if (customAmount != null) {
         parts.add(customAmount!.toFormattedAmount(showSign: false));
       }
-      if (customPaidUntil != null) {
-        parts.add(_formatDate(customPaidUntil!));
+      if (customSessionsAdded != null) {
+        parts.add(
+          context.t.titleWithCount(
+            title: context.t.finance.sessionsCount,
+            count: customSessionsAdded!,
+          ),
+        );
+      } else {
+        if (customPaidFrom != null && customPaidUntil != null) {
+          parts.add(
+            '${_formatDate(customPaidFrom!)} - ${_formatDate(customPaidUntil!)}',
+          );
+        } else if (customPaidUntil != null) {
+          parts.add(_formatDate(customPaidUntil!));
+        } else if (customPaidFrom != null) {
+          parts.add(
+            '${context.t.finance.paidFrom} ${_formatDate(customPaidFrom!)}',
+          );
+        }
       }
       subtitleWidget = Text(
         '${context.t.groups.customAmount}: ${parts.join(' • ')}',
@@ -102,9 +131,9 @@ class StudentPaymentTile extends StatelessWidget {
         style: const TextStyle(fontSize: 16),
       ),
       subtitle: subtitleWidget,
-      trailing: trailingWidgets.isEmpty
-          ? null
-          : Row(mainAxisSize: MainAxisSize.min, children: trailingWidgets),
+      trailing: trailingWidgets.isNotEmpty
+          ? Row(mainAxisSize: MainAxisSize.min, children: trailingWidgets)
+          : null,
     );
   }
 }

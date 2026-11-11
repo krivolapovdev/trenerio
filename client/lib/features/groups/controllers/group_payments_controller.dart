@@ -29,7 +29,9 @@ class GroupPaymentsController extends AsyncNotifier<void> {
           studentId: payment.studentId,
           amount: payment.amount,
           date: paymentDate,
+          paidFrom: payment.paidFrom,
           paidUntil: payment.paidUntil,
+          sessionsAdded: payment.sessionsAdded,
         );
       }
 

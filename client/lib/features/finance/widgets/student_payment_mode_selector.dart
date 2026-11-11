@@ -14,6 +14,7 @@ class StudentPaymentModeSelector extends StatelessWidget {
   Widget build(BuildContext context) => SizedBox(
     width: double.infinity,
     child: SegmentedButton<StudentPaymentMode>(
+      style: SegmentedButton.styleFrom(backgroundColor: Colors.white),
       showSelectedIcon: false,
       segments: [
         ButtonSegment<StudentPaymentMode>(

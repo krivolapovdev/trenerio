@@ -161,6 +161,59 @@ void main() {
     expect(fakeStudentClient.createdPayments[1].paidUntil, paidUntil2);
   });
 
+  test(
+    'GroupPaymentsController passes paidFrom and sessionsAdded when provided',
+    () async {
+      final fakeStudentClient = _FakeStudentClient();
+      final fakeTransactionClient = _FakeTransactionClient();
+      final fakeMetricClient = _FakeMetricClient();
+
+      final container = _createContainer(
+        studentClient: fakeStudentClient,
+        transactionClient: fakeTransactionClient,
+        metricClient: fakeMetricClient,
+      );
+
+      final controller = container.read(
+        groupPaymentsControllerProvider.notifier,
+      );
+
+      final paymentDate = DateTime(2026, 10, 30);
+      final paidFrom = DateTime(2026, 10, 15);
+      final paidUntil = DateTime(2026, 11, 15);
+
+      final success = await controller.createPayments(
+        groupId: 'group-1',
+        paymentDate: paymentDate,
+        payments: [
+          GroupStudentPaymentItem(
+            studentId: 'student-1',
+            amount: 3000,
+            paidFrom: paidFrom,
+            paidUntil: paidUntil,
+          ),
+          const GroupStudentPaymentItem(
+            studentId: 'student-2',
+            amount: 2500,
+            sessionsAdded: 10,
+          ),
+        ],
+      );
+
+      expect(success, isTrue);
+      expect(fakeStudentClient.createdPayments.length, 2);
+      expect(fakeStudentClient.createdPayments[0].amount, 3000);
+      expect(fakeStudentClient.createdPayments[0].paidFrom, paidFrom);
+      expect(fakeStudentClient.createdPayments[0].paidUntil, paidUntil);
+      expect(fakeStudentClient.createdPayments[0].sessionsAdded, isNull);
+
+      expect(fakeStudentClient.createdPayments[1].amount, 2500);
+      expect(fakeStudentClient.createdPayments[1].sessionsAdded, 10);
+      expect(fakeStudentClient.createdPayments[1].paidFrom, isNull);
+      expect(fakeStudentClient.createdPayments[1].paidUntil, isNull);
+    },
+  );
+
   test('GroupPaymentsController returns false on error', () async {
     final fakeStudentClient = _FakeStudentClient()..shouldThrow = true;
     final fakeTransactionClient = _FakeTransactionClient();

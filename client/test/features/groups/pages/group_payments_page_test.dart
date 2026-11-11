@@ -363,7 +363,7 @@ void main() {
     // Enter custom amount
     final amountInput = find.descendant(
       of: find.byType(StudentPaymentBottomSheet),
-      matching: find.byType(TextField),
+      matching: find.widgetWithText(TextField, '${t.finance.amount}*'),
     );
     await tester.enterText(amountInput, '2500');
     await tester.pumpAndSettle();
@@ -387,4 +387,146 @@ void main() {
 
     expect(studentClient.createdPayments.single.amount, 2500);
   });
+
+  testWidgets(
+    'clearing paid from date card sends payments with null paidFrom',
+    (tester) async {
+      final groupClient = _FakeGroupClient(students: [_student1]);
+      final studentClient = _FakeStudentClient();
+
+      await tester.pumpWidget(
+        _wrap(
+          child: GroupPaymentsPage(group: _testGroup),
+          groupClient: groupClient,
+          studentClient: studentClient,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Tap clear on paid from card
+      final clearPaidFrom = find.descendant(
+        of: find.byWidgetPredicate(
+          (w) =>
+              w is InputDecorator &&
+              w.decoration.labelText == t.finance.paidFrom,
+        ),
+        matching: find.byIcon(Icons.clear),
+      );
+      expect(clearPaidFrom, findsOneWidget);
+      await tester.tap(clearPaidFrom);
+      await tester.pumpAndSettle();
+
+      // Submit group payments
+      await tester.tap(
+        find.descendant(of: find.byType(AppBar), matching: find.text(t.create)),
+      );
+      await tester.pumpAndSettle();
+
+      expect(studentClient.createdPayments.single.amount, 3000);
+      expect(studentClient.createdPayments.single.paidFrom, isNull);
+      expect(studentClient.createdPayments.single.paidUntil, isNotNull);
+    },
+  );
+
+  testWidgets(
+    'switching to sessions mode and entering count sends sessionsAdded',
+    (tester) async {
+      final groupClient = _FakeGroupClient(students: [_student1]);
+      final studentClient = _FakeStudentClient();
+
+      await tester.pumpWidget(
+        _wrap(
+          child: GroupPaymentsPage(group: _testGroup),
+          groupClient: groupClient,
+          studentClient: studentClient,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Switch to sessions count
+      await tester.tap(find.text(t.finance.sessionsCount));
+      await tester.pumpAndSettle();
+
+      // Type sessions count
+      final sessionsInput = find.widgetWithText(
+        TextField,
+        '${t.finance.sessionsCount}*',
+      );
+      expect(sessionsInput, findsOneWidget);
+      await tester.enterText(sessionsInput, '8');
+      await tester.pumpAndSettle();
+
+      // Submit group payments
+      await tester.tap(
+        find.descendant(of: find.byType(AppBar), matching: find.text(t.create)),
+      );
+      await tester.pumpAndSettle();
+
+      expect(studentClient.createdPayments.single.amount, 3000);
+      expect(studentClient.createdPayments.single.sessionsAdded, 8);
+      expect(studentClient.createdPayments.single.paidUntil, isNull);
+      expect(studentClient.createdPayments.single.paidFrom, isNull);
+    },
+  );
+
+  testWidgets(
+    'can customize individual student sessions count via bottom sheet',
+    (tester) async {
+      final groupClient = _FakeGroupClient(students: [_student1]);
+      final studentClient = _FakeStudentClient();
+
+      await tester.pumpWidget(
+        _wrap(
+          child: GroupPaymentsPage(group: _testGroup),
+          groupClient: groupClient,
+          studentClient: studentClient,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Tap more button on Alice Johnson
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(StudentPaymentBottomSheet), findsOneWidget);
+
+      // In bottom sheet, switch to sessions count mode
+      final sessionsModeInSheet = find.descendant(
+        of: find.byType(StudentPaymentBottomSheet),
+        matching: find.text(t.finance.sessionsCount),
+      );
+      await tester.tap(sessionsModeInSheet);
+      await tester.pumpAndSettle();
+
+      final sheetSessionsInput = find.descendant(
+        of: find.byType(StudentPaymentBottomSheet),
+        matching: find.widgetWithText(TextField, '${t.finance.sessionsCount}*'),
+      );
+      await tester.enterText(sheetSessionsInput, '12');
+      await tester.pumpAndSettle();
+
+      // Save in bottom sheet
+      final saveButton = find.descendant(
+        of: find.byType(StudentPaymentBottomSheet),
+        matching: find.text(t.create),
+      );
+      await tester.tap(saveButton);
+      await tester.pumpAndSettle();
+
+      // Custom sessions should be visible in subtitle
+      expect(
+        find.textContaining('${t.finance.sessionsCount}: 12'),
+        findsOneWidget,
+      );
+
+      // Submit group payments
+      await tester.tap(
+        find.descendant(of: find.byType(AppBar), matching: find.text(t.create)),
+      );
+      await tester.pumpAndSettle();
+
+      expect(studentClient.createdPayments.single.sessionsAdded, 12);
+      expect(studentClient.createdPayments.single.paidUntil, isNull);
+    },
+  );
 }

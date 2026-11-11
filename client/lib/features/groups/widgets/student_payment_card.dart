@@ -121,8 +121,12 @@ class StudentPaymentCard extends StatelessWidget {
                   student: student,
                   number: index + 1,
                   isSelected: payments[student.id]?.selected ?? false,
+                  customPaymentMode: payments[student.id]?.customPaymentMode,
                   customAmount: payments[student.id]?.customAmount,
+                  customPaidFrom: payments[student.id]?.customPaidFrom,
                   customPaidUntil: payments[student.id]?.customPaidUntil,
+                  customSessionsAdded:
+                      payments[student.id]?.customSessionsAdded,
                   canEdit: canEdit,
                   onToggle: () => onToggle(student),
                   onEdit: () => onEdit(student),
