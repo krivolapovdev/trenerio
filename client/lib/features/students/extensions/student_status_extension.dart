@@ -6,21 +6,28 @@ import 'package:phone/generated/models/student_summary_response.dart';
 import 'package:phone/i18n/strings.g.dart';
 
 extension StudentStatusLabelExtension on StudentStatus {
-  String label(BuildContext context) => switch (this) {
-    StudentStatus.inactive => context.t.students.status.inactive,
-    StudentStatus.present => context.t.students.status.present,
-    StudentStatus.missing => context.t.students.status.missing,
-    StudentStatus.excused => context.t.students.status.excused,
-    StudentStatus.paid => context.t.students.status.paid,
-    StudentStatus.unpaid => context.t.students.status.unpaid,
-    StudentStatus.free => context.t.students.status.free,
+  String label([BuildContext? context]) => switch (this) {
+    StudentStatus.inactive =>
+      context?.t.students.status.inactive ?? t.students.status.inactive,
+    StudentStatus.present =>
+      context?.t.students.status.present ?? t.students.status.present,
+    StudentStatus.missing =>
+      context?.t.students.status.missing ?? t.students.status.missing,
+    StudentStatus.excused =>
+      context?.t.students.status.excused ?? t.students.status.excused,
+    StudentStatus.paid =>
+      context?.t.students.status.paid ?? t.students.status.paid,
+    StudentStatus.unpaid =>
+      context?.t.students.status.unpaid ?? t.students.status.unpaid,
+    StudentStatus.free =>
+      context?.t.students.status.free ?? t.students.status.free,
     StudentStatus.$unknown => '',
   };
 }
 
 extension StudentStatusExtension on List<StudentStatus> {
-  List<StudentBadgeData> toBadges(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+  List<StudentBadgeData> toBadges([BuildContext? context]) {
+    final colorScheme = context != null ? Theme.of(context).colorScheme : null;
 
     return map(
       (status) => switch (status) {
@@ -55,15 +62,19 @@ extension StudentStatusExtension on List<StudentStatus> {
         StudentStatus.paid => StudentBadgeData(
           id: status.name,
           label: status.label(context),
-          backgroundColor: colorScheme.primaryContainer.withValues(alpha: 0.5),
-          foregroundColor: colorScheme.primary,
+          backgroundColor: colorScheme != null
+              ? colorScheme.primaryContainer.withValues(alpha: 0.5)
+              : const Color(0xFFE8DEF8),
+          foregroundColor: colorScheme?.primary ?? const Color(0xFF6750A4),
         ),
 
         StudentStatus.unpaid => StudentBadgeData(
           id: status.name,
           label: status.label(context),
-          backgroundColor: colorScheme.errorContainer,
-          foregroundColor: colorScheme.onErrorContainer,
+          backgroundColor:
+              colorScheme?.errorContainer ?? const Color(0xFFFFD8D8),
+          foregroundColor:
+              colorScheme?.onErrorContainer ?? const Color(0xFFBA1A1A),
         ),
 
         StudentStatus.free => StudentBadgeData(
@@ -88,7 +99,7 @@ extension StudentSummaryHeaderBadgesExtension on StudentSummaryResponse {
   /// First line header badges:
   /// - present / missing / excused
   /// - paid / unpaid / free (or inactive)
-  List<StudentBadgeData> toHeaderStatusBadges(BuildContext context) {
+  List<StudentBadgeData> toHeaderStatusBadges([BuildContext? context]) {
     final statusSet = statuses.toSet();
 
     // 1. Attendance status: present / missing / excused

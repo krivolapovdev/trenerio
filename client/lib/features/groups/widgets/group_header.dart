@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:phone/core/constants/app_radius.dart';
+import 'package:phone/core/extensions/number_extension.dart';
 import 'package:phone/features/groups/widgets/group_hero_card.dart';
 import 'package:phone/features/groups/widgets/group_popup_menu.dart';
 import 'package:phone/generated/models/group_summary_response.dart';
@@ -24,43 +25,104 @@ class GroupHeaderDelegate extends SliverPersistentHeaderDelegate {
     this.customContentHeight,
   });
 
-  static double computeContentHeight(GroupSummaryResponse group) {
-    // Card vertical padding: 16 top + 16 bottom
-    double cardHeight = 32.0;
+  static double computeContentHeight(
+    GroupSummaryResponse group, {
+    BuildContext? context,
+    double? screenWidth,
+    TextScaler? textScaler,
+  }) {
+    final resolvedWidth =
+        screenWidth ??
+        (context != null ? MediaQuery.sizeOf(context).width : 360.0);
+    final resolvedScaler =
+        textScaler ??
+        (context != null
+            ? MediaQuery.textScalerOf(context)
+            : TextScaler.noScaling);
+
+    // Card padding: 16 top + 16 bottom = 32.0.
+    final contentWidth = math.max(100.0, resolvedWidth - 112.0);
+    final noteWidth = math.max(100.0, resolvedWidth - 64.0);
 
     const double avatarHeight = 36.0;
 
-    // Group name: fontSize 16, height 1.5 -> 24.0.
-    double columnHeight = 24.0;
+    // Group name
+    final namePainter = TextPainter(
+      text: TextSpan(
+        text: group.name,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          height: 1.5,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+      textScaler: resolvedScaler,
+    )..layout(maxWidth: contentWidth);
+
+    double columnHeight = namePainter.height;
 
     columnHeight += 8.0; // SizedBox(height: 8) before badges
 
-    int badgeCount = 1; // students count badge is always present
-    if (group.defaultPrice != null) {
-      badgeCount++;
-    }
-    if ((group.countOfDebtors ?? 0) > 0) {
-      badgeCount++;
-    }
+    final badgeLabels = <({String label, bool hasIcon})>[
+      (label: '${group.countOfStudents ?? 0}', hasIcon: true),
+      if (group.defaultPrice != null)
+        (
+          label: group.defaultPrice!.toFormattedAmount(showSign: false),
+          hasIcon: true,
+        ),
+      if ((group.countOfDebtors ?? 0) > 0)
+        (label: '${group.countOfDebtors}', hasIcon: true),
+    ];
 
-    final badgeLines = (badgeCount / 3).ceil().clamp(1, 3);
-    columnHeight += badgeLines * 28.0;
+    if (badgeLabels.isNotEmpty) {
+      int lines = 1;
+      double currentLineWidth = 0.0;
+
+      for (final badge in badgeLabels) {
+        final painter = TextPainter(
+          text: TextSpan(
+            text: badge.label,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          ),
+          textDirection: TextDirection.ltr,
+          textScaler: resolvedScaler,
+        )..layout();
+
+        final badgeWidth = 20.0 + (badge.hasIcon ? 22.0 : 0.0) + painter.width;
+
+        if (currentLineWidth == 0.0) {
+          currentLineWidth = badgeWidth;
+        } else if (currentLineWidth + 8.0 + badgeWidth <= contentWidth) {
+          currentLineWidth += 8.0 + badgeWidth;
+        } else {
+          lines++;
+          currentLineWidth = badgeWidth;
+        }
+      }
+
+      final singleBadgeHeight = 10.0 + resolvedScaler.scale(18.0);
+      const runSpacing = 6.0; // GroupCard uses runSpacing: 6
+      final badgesHeight =
+          (lines * singleBadgeHeight) + ((lines - 1) * runSpacing);
+      columnHeight += badgesHeight;
+    }
 
     final rowHeight = math.max(avatarHeight, columnHeight);
-    cardHeight += rowHeight;
+    double cardHeight = 32.0 + rowHeight + 5;
 
     final hasNote = group.note != null && group.note!.trim().isNotEmpty;
     if (hasNote) {
       cardHeight += 25.0; // 12 + 1 + 12
-
       final tp = TextPainter(
         text: TextSpan(text: group.note!, style: const TextStyle(fontSize: 14)),
         textDirection: TextDirection.ltr,
-      )..layout(maxWidth: 300);
+        textScaler: resolvedScaler,
+      )..layout(maxWidth: noteWidth);
       cardHeight += math.max(20.0, tp.height);
     }
 
-    return cardHeight;
+    return cardHeight.ceilToDouble();
   }
 
   double get effectiveContentHeight =>

@@ -29,13 +29,13 @@ class StudentBalanceVisibility {
 }
 
 extension StudentBalanceBadgesExtension on StudentSummaryResponse {
-  List<StudentBadgeData> toBalanceBadges(
-    BuildContext context, [
+  List<StudentBadgeData> toBalanceBadges([
+    BuildContext? context,
     Iterable<TransactionResponse>? payments,
     DateTime? now,
   ]) {
     final visibility = StudentBalanceVisibility.of(this, payments, now);
-    final colorScheme = Theme.of(context).colorScheme;
+    final colorScheme = context != null ? Theme.of(context).colorScheme : null;
 
     return [
       if (visibility.showSessions)
@@ -43,8 +43,10 @@ extension StudentBalanceBadgesExtension on StudentSummaryResponse {
           id: 'balance-sessions-left',
           icon: const Icon(FluentIcons.ticket_diagonal_24_regular),
           label: '$sessionsLeft',
-          backgroundColor: colorScheme.surface.withValues(alpha: 0.7),
-          foregroundColor: colorScheme.onSurface,
+          backgroundColor: colorScheme != null
+              ? colorScheme.surface.withValues(alpha: 0.7)
+              : Colors.white70,
+          foregroundColor: colorScheme?.onSurface ?? Colors.black87,
         ),
     ];
   }

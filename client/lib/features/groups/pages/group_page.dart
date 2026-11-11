@@ -58,7 +58,10 @@ class _GroupPageState extends ConsumerState<GroupPage> {
     if (position.outOfRange) return;
 
     final offset = position.pixels;
-    final snapOffset = GroupHeaderDelegate.computeContentHeight(_group);
+    final snapOffset = GroupHeaderDelegate.computeContentHeight(
+      _group,
+      context: context,
+    );
 
     if (offset > 1.0 && offset < snapOffset - 1.0) {
       final target = offset < (snapOffset / 2) ? 0.0 : snapOffset;
@@ -101,7 +104,10 @@ class _GroupPageState extends ConsumerState<GroupPage> {
     });
 
     final topPadding = MediaQuery.paddingOf(context).top;
-    final snapOffset = GroupHeaderDelegate.computeContentHeight(currentGroup);
+    final snapOffset = GroupHeaderDelegate.computeContentHeight(
+      currentGroup,
+      context: context,
+    );
     final headerMaxHeight = topPadding + kToolbarHeight + snapOffset;
 
     const overlayStyle = SystemUiOverlayStyle(
@@ -165,6 +171,7 @@ class _GroupPageState extends ConsumerState<GroupPage> {
                     group: currentGroup,
                     topPadding: topPadding,
                     isRefreshing: isGroupRefreshing,
+                    customContentHeight: snapOffset,
                   ),
                 ),
                 SliverPadding(

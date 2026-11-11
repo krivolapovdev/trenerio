@@ -5,7 +5,9 @@ import 'package:phone/core/constants/app_radius.dart';
 import 'package:phone/features/students/extensions/student_balance_extension.dart';
 import 'package:phone/features/students/extensions/student_status_extension.dart';
 import 'package:phone/features/students/widgets/student_badges.dart';
+import 'package:phone/features/students/widgets/student_card.dart';
 import 'package:phone/features/students/widgets/student_header.dart';
+import 'package:phone/generated/models/group_response.dart';
 import 'package:phone/generated/models/student_payment_details_response.dart';
 import 'package:phone/generated/models/student_status.dart';
 import 'package:phone/generated/models/student_summary_response.dart';
@@ -379,6 +381,47 @@ void main() {
       expect(find.text('23'), findsOneWidget);
       expect(find.text('30.11.2026'), findsNothing);
     });
+
+    testWidgets(
+      'computes content height accurately when badges wrap on mobile screen in Russian',
+      (tester) async {
+        tester.view.physicalSize = const Size(360, 800);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        await tester.runAsync(() => LocaleSettings.setLocale(AppLocale.ru));
+        addTearDown(() => LocaleSettings.setLocaleSync(AppLocale.en));
+
+        final student = StudentSummaryResponse(
+          id: '1',
+          fullName: 'Hope hope',
+          createdAt: DateTime(2025, 8, 22),
+          free: false,
+          studentGroups: [
+            GroupResponse(
+              id: 'g1',
+              name: 'you hyyy',
+              createdAt: DateTime.now(),
+            ),
+          ],
+          statuses: const [StudentStatus.missing, StudentStatus.paid],
+        );
+
+        await _pumpHeader(tester, student, now: fixedNow);
+
+        final cardSize = tester.getSize(find.byType(StudentCard));
+        final computed = StudentHeaderDelegate.computeContentHeight(
+          student,
+          now: fixedNow,
+          screenWidth: 360,
+        );
+
+        // Header content height must be at least the card's rendered height so the bottom is never cut off
+        expect(computed, greaterThanOrEqualTo(cardSize.height));
+        expect((computed - cardSize.height).abs(), lessThanOrEqualTo(2.0));
+      },
+    );
 
     testWidgets(
       'border radius is zero when uncollapsed and bottomRounded when collapsed',

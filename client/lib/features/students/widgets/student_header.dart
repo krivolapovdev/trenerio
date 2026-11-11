@@ -4,10 +4,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:phone/core/constants/app_radius.dart';
+import 'package:phone/core/widgets/date_input_field.dart';
 import 'package:phone/features/students/extensions/student_balance_extension.dart';
 import 'package:phone/features/students/extensions/student_status_extension.dart';
 import 'package:phone/features/students/widgets/student_hero_card.dart';
-import 'package:phone/generated/models/student_status.dart';
 import 'package:phone/generated/models/student_summary_response.dart';
 import 'package:phone/generated/models/transaction_response.dart';
 import 'package:skeletonizer/skeletonizer.dart';
@@ -38,76 +38,155 @@ class StudentHeaderDelegate extends SliverPersistentHeaderDelegate {
     StudentSummaryResponse student, {
     List<TransactionResponse> payments = const [],
     DateTime? now,
+    BuildContext? context,
+    double? screenWidth,
+    TextScaler? textScaler,
   }) {
-    // Card vertical padding: 16 top + 16 bottom
-    double cardHeight = 32.0;
+    final resolvedWidth =
+        screenWidth ??
+        (context != null ? MediaQuery.sizeOf(context).width : 360.0);
+    final resolvedScaler =
+        textScaler ??
+        (context != null
+            ? MediaQuery.textScalerOf(context)
+            : TextScaler.noScaling);
+
+    // Card padding: 16 top + 16 bottom = 32.0.
+    // Horizontal space: screenWidth - 32 (card margins) - 32 (card padding) - 36 (avatar) - 12 (gap) = screenWidth - 112.0.
+    final contentWidth = math.max(100.0, resolvedWidth - 112.0);
+    final noteWidth = math.max(100.0, resolvedWidth - 64.0);
 
     const double avatarHeight = 36.0;
 
-    // Full name: fontSize 16, height 1.5 -> 24.0.
-    double columnHeight = 24.0;
+    // 1. Full name
+    final namePainter = TextPainter(
+      text: TextSpan(
+        text: student.fullName,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          height: 1.5,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+      textScaler: resolvedScaler,
+    )..layout(maxWidth: contentWidth);
 
+    double columnHeight = namePainter.height;
+
+    // 2. Groups
     final groups = student.studentGroups;
     if (groups != null && groups.isNotEmpty) {
-      for (final group in groups) {
-        if (group.name.trim().isNotEmpty) {
-          columnHeight += 2.0 + 20.0;
+      final validGroups = groups
+          .where((g) => g.name.trim().isNotEmpty)
+          .toList();
+      if (validGroups.isNotEmpty) {
+        columnHeight += 2.0; // SizedBox(height: 2)
+        for (final group in validGroups) {
+          final groupPainter = TextPainter(
+            text: TextSpan(
+              text: group.name,
+              style: const TextStyle(fontSize: 14, height: 1.43),
+            ),
+            textDirection: TextDirection.ltr,
+            textScaler: resolvedScaler,
+          )..layout(maxWidth: contentWidth);
+          columnHeight += groupPainter.height;
         }
       }
     }
 
+    // 3. Birthdate
     if (student.birthdate != null) {
-      columnHeight += 2.0 + 20.0;
+      columnHeight += 2.0;
+      final datePainter = TextPainter(
+        text: TextSpan(
+          text: DateInputField.format(student.birthdate!),
+          style: const TextStyle(fontSize: 14, height: 1.43),
+        ),
+        textDirection: TextDirection.ltr,
+        textScaler: resolvedScaler,
+      )..layout(maxWidth: contentWidth);
+      columnHeight += datePainter.height;
     }
 
+    // 4. Phone
     if (student.phone != null && student.phone!.isNotEmpty) {
-      columnHeight += 2.0 + 20.0;
+      columnHeight += 2.0;
+      final phonePainter = TextPainter(
+        text: TextSpan(
+          text: student.phone!,
+          style: const TextStyle(fontSize: 14, height: 1.43),
+        ),
+        textDirection: TextDirection.ltr,
+        textScaler: resolvedScaler,
+      )..layout(maxWidth: contentWidth);
+      columnHeight += phonePainter.height;
     }
 
-    columnHeight += 8.0; // SizedBox(height: 8) before badges
+    // 5. Badges
+    final badges = [
+      ...student.toHeaderStatusBadges(context),
+      ...student.toBalanceBadges(context, payments, now),
+    ];
 
-    int badgeCount = 0;
-    final statusSet = student.statuses.toSet();
-    if (statusSet.contains(StudentStatus.present) ||
-        statusSet.contains(StudentStatus.missing) ||
-        statusSet.contains(StudentStatus.excused)) {
-      badgeCount++;
-    }
-    if (student.free ||
-        statusSet.contains(StudentStatus.free) ||
-        statusSet.contains(StudentStatus.paid) ||
-        statusSet.contains(StudentStatus.unpaid) ||
-        statusSet.contains(StudentStatus.inactive)) {
-      badgeCount++;
-    }
-    final visibility = StudentBalanceVisibility.of(student, payments, now);
-    if (visibility.showSessions) {
-      badgeCount++;
-    }
+    if (badges.isNotEmpty) {
+      columnHeight += 8.0; // SizedBox(height: 8) before badges
 
-    if (badgeCount > 0) {
-      final badgeLines = (badgeCount / 3).ceil().clamp(1, 4);
-      columnHeight += badgeLines * 28.0;
+      int lines = 1;
+      double currentLineWidth = 0.0;
+
+      for (final badge in badges) {
+        final badgeLabelPainter = TextPainter(
+          text: TextSpan(
+            text: badge.label,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          ),
+          textDirection: TextDirection.ltr,
+          textScaler: resolvedScaler,
+        )..layout();
+
+        // 20.0 = horizontal padding (10 left + 10 right)
+        // 22.0 = icon (16) + gap (6)
+        final badgeWidth =
+            20.0 + (badge.icon != null ? 22.0 : 0.0) + badgeLabelPainter.width;
+
+        if (currentLineWidth == 0.0) {
+          currentLineWidth = badgeWidth;
+        } else if (currentLineWidth + 8.0 + badgeWidth <= contentWidth) {
+          currentLineWidth += 8.0 + badgeWidth;
+        } else {
+          lines++;
+          currentLineWidth = badgeWidth;
+        }
+      }
+
+      final singleBadgeHeight = 10.0 + resolvedScaler.scale(20.0);
+      const runSpacing = 8.0;
+      final badgesHeight =
+          (lines * singleBadgeHeight) + ((lines - 1) * runSpacing);
+      columnHeight += badgesHeight;
     }
 
     final rowHeight = math.max(avatarHeight, columnHeight);
-    cardHeight += rowHeight;
+    double cardHeight = 32.0 + rowHeight + 5;
 
+    // 6. Note
     final hasNote = student.note != null && student.note!.trim().isNotEmpty;
     if (hasNote) {
       cardHeight += 25.0; // 12 + 1 + 12
-
-      final tp = TextPainter(
+      final notePainter = TextPainter(
         text: TextSpan(
           text: student.note!,
           style: const TextStyle(fontSize: 14),
         ),
         textDirection: TextDirection.ltr,
-      )..layout(maxWidth: 300);
-      cardHeight += math.max(20.0, tp.height);
+        textScaler: resolvedScaler,
+      )..layout(maxWidth: noteWidth);
+      cardHeight += math.max(20.0, notePainter.height);
     }
 
-    return cardHeight;
+    return cardHeight.ceilToDouble();
   }
 
   double get effectiveContentHeight =>

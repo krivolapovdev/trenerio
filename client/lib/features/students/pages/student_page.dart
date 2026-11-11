@@ -175,6 +175,7 @@ class _StudentPageState extends ConsumerState<StudentPage> {
     final snapOffset = StudentHeaderDelegate.computeContentHeight(
       _student,
       payments: payments,
+      context: context,
     );
 
     if (offset > 1.0 && offset < snapOffset - 1.0) {
@@ -222,6 +223,7 @@ class _StudentPageState extends ConsumerState<StudentPage> {
     final snapOffset = StudentHeaderDelegate.computeContentHeight(
       currentStudent,
       payments: payments,
+      context: context,
     );
     final headerMaxHeight = topPadding + kToolbarHeight + snapOffset;
 
@@ -260,6 +262,7 @@ class _StudentPageState extends ConsumerState<StudentPage> {
                         paymentsAsync.value ?? const <TransactionResponse>[],
                     topPadding: topPadding,
                     isRefreshing: _isRefreshing,
+                    customContentHeight: snapOffset,
                     menu: StudentAppMenu(
                       onEdit: () => _openEditStudentSheet(currentStudent),
                       onCreateLesson: () =>
