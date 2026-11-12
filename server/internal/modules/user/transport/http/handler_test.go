@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	pkgerrors "github.com/krivolapovdev/trenerio/internal/core/errors"
 	"github.com/krivolapovdev/trenerio/internal/core/harness"
 	authmodel "github.com/krivolapovdev/trenerio/internal/modules/auth/domain"
 	usermodel "github.com/krivolapovdev/trenerio/internal/modules/user/domain"
@@ -49,6 +50,20 @@ func TestUserHandler_DeleteMyAccount(t *testing.T) {
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, nethttp.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("NotFound", func(t *testing.T) {
+		svc := &mockUserService{
+			deleteUserFn: func(ctx context.Context, jwtUser authmodel.JwtUser) error {
+				return pkgerrors.NewNotFound("User", jwtUser.ID, jwtUser.ID)
+			},
+		}
+		r := setupUserRouter(svc, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodDelete, "/api/v1/users/me", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusNotFound, w.Code)
 	})
 
 	t.Run("ServiceError", func(t *testing.T) {

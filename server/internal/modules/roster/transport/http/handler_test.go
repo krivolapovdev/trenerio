@@ -363,6 +363,16 @@ func TestRosterHandler_CreateRoster(t *testing.T) {
 		assert.Equal(t, nethttp.StatusUnauthorized, w.Code)
 	})
 
+	t.Run("InvalidJSON", func(t *testing.T) {
+		r := setupRosterRouter(&mockRosterService{}, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/rosters", bytes.NewBufferString(`{invalid-json`))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
+	})
+
 	t.Run("Validation_BlankName", func(t *testing.T) {
 		reqBody := map[string]any{
 			"name": "   ",
@@ -781,5 +791,21 @@ func TestRosterHandler_AddAndRemoveStudents(t *testing.T) {
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, nethttp.StatusNoContent, w.Code)
+	})
+
+	t.Run("UpdateStudentNote_NotFound", func(t *testing.T) {
+		mockSvc := &mockRosterService{
+			updateParticipantNoteFn: func(ctx context.Context, rID, sID, ownerID uuid.UUID, note *string) error {
+				return pkgerrors.NewNotFound("RosterStudent", sID, rID)
+			},
+		}
+
+		r := setupRosterRouter(mockSvc, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodPatch, "/api/v1/rosters/"+rosterID.String()+"/students/"+studentID.String(), bytes.NewBufferString(`{"note":"new"}`))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusNotFound, w.Code)
 	})
 }

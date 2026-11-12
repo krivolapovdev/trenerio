@@ -60,8 +60,8 @@ void main() {
     test('calculates height for basic group without note', () {
       final group = _group();
       final height = GroupHeaderDelegate.computeContentHeight(group);
-      // 32 padding + max(36 avatar, 24 name + 8 spacing + 28 1-line-badges) = 32 + 60 = 92.0
-      expect(height, equals(92.0));
+      // 32 padding + max(36 avatar, 24 name + 8 spacing + 28 1-line-badges) + 5 buffer = 32 + 60 + 5 = 97.0
+      expect(height, equals(97.0));
     });
 
     test(
@@ -69,8 +69,8 @@ void main() {
       () {
         final group = _group(defaultPrice: 3500, countOfDebtors: 2);
         final height = GroupHeaderDelegate.computeContentHeight(group);
-        // 3 badges still fit on 1 line: (3/3).ceil() = 1 -> 28.0
-        expect(height, equals(92.0));
+        // 3 badges still fit on 1 line: (3/3).ceil() = 1 -> 28.0 + 5 buffer = 97.0
+        expect(height, equals(97.0));
       },
     );
 

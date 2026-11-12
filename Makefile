@@ -18,7 +18,7 @@ slang:
 	cd ./client && dart run slang
 
 client-release:
-	cd ./client && flutter build appbundle --release
+	cd ./client && flutter test && flutter build appbundle --release
 
 client-debug:
 	cd ./client && flutter build apk --debug

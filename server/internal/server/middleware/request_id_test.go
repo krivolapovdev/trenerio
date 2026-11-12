@@ -39,4 +39,25 @@ func TestRequestIDMiddleware(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Equal(t, "custom-trace-id-12345", w.Header().Get("X-Request-ID"))
 	})
+
+	t.Run("PreservesIncomingRequestID_FromRequestIDHeader", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req.Header.Set("Request-ID", "fallback-request-id-999")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, "fallback-request-id-999", w.Header().Get("X-Request-ID"))
+	})
+
+	t.Run("PrefersXRequestIDOverRequestID", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/test", nil)
+		req.Header.Set("X-Request-ID", "preferred-id")
+		req.Header.Set("Request-ID", "ignored-id")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, "preferred-id", w.Header().Get("X-Request-ID"))
+	})
 }

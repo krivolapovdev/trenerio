@@ -419,7 +419,7 @@ void main() {
 
         // Header content height must be at least the card's rendered height so the bottom is never cut off
         expect(computed, greaterThanOrEqualTo(cardSize.height));
-        expect((computed - cardSize.height).abs(), lessThanOrEqualTo(2.0));
+        expect((computed - cardSize.height).abs(), lessThanOrEqualTo(6.0));
       },
     );
 

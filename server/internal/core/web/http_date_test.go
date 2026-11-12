@@ -62,6 +62,39 @@ func TestParseRequiredRFC3339Range(t *testing.T) {
 		assert.True(t, c.IsAborted())
 	})
 
+	t.Run("MissingEnd_ReturnsFalse", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/test?from=2026-05-10T00:00:00Z", nil)
+
+		_, _, ok := ParseRequiredRFC3339Range(c, "from", "to", "from and to query parameters are required")
+		assert.False(t, ok)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		assert.True(t, c.IsAborted())
+	})
+
+	t.Run("MissingBoth_UsesDefaultMessage", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/test", nil)
+
+		_, _, ok := ParseRequiredRFC3339Range(c, "start", "end", "")
+		assert.False(t, ok)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		assert.True(t, c.IsAborted())
+	})
+
+	t.Run("InvalidStartFormat_ReturnsFalse", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/test?from=bad&to=2026-05-10T00:00:00Z", nil)
+
+		_, _, ok := ParseRequiredRFC3339Range(c, "from", "to", "")
+		assert.False(t, ok)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		assert.True(t, c.IsAborted())
+	})
+
 	t.Run("InvalidEndFormat_ReturnsFalse", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)

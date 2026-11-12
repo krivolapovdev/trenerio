@@ -102,6 +102,53 @@ func TestTransactionHandler_GetPaginatedTransactions(t *testing.T) {
 		assert.Equal(t, nethttp.StatusOK, w.Code)
 	})
 
+	t.Run("CappedPageSize", func(t *testing.T) {
+		mockSvc := &mockTxService{
+			getPaginatedTransactionsFn: func(ctx context.Context, page, size int, ownerID uuid.UUID) (txmodel.PageTransaction, error) {
+				assert.Equal(t, 1, page)
+				assert.Equal(t, 100, size)
+				return txmodel.PageTransaction{Number: page, Size: size}, nil
+			},
+		}
+
+		r := setupTxRouter(mockSvc, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/transactions?page=1&size=500", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusOK, w.Code)
+	})
+
+	t.Run("EmptyTransactionsList", func(t *testing.T) {
+		mockSvc := &mockTxService{
+			getPaginatedTransactionsFn: func(ctx context.Context, page, size int, ownerID uuid.UUID) (txmodel.PageTransaction, error) {
+				return txmodel.PageTransaction{
+					Number:           0,
+					Size:             size,
+					TotalElements:    0,
+					TotalPages:       0,
+					First:            true,
+					Last:             true,
+					NumberOfElements: 0,
+					Empty:            true,
+					Content:          []txmodel.Transaction{},
+				}, nil
+			},
+		}
+
+		r := setupTxRouter(mockSvc, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/transactions", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusOK, w.Code)
+		var actual PageTransactionResponse
+		err := json.Unmarshal(w.Body.Bytes(), &actual)
+		require.NoError(t, err)
+		assert.True(t, actual.Empty)
+		assert.Empty(t, actual.Content)
+	})
+
 	t.Run("InternalServerError", func(t *testing.T) {
 		mockSvc := &mockTxService{
 			getPaginatedTransactionsFn: func(ctx context.Context, page, size int, ownerID uuid.UUID) (txmodel.PageTransaction, error) {

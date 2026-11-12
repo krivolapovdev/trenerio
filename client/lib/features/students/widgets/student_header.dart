@@ -169,7 +169,9 @@ class StudentHeaderDelegate extends SliverPersistentHeaderDelegate {
     }
 
     final rowHeight = math.max(avatarHeight, columnHeight);
-    double cardHeight = 32.0 + rowHeight + 5;
+    // Extra buffer to prevent subpixel rounding from clipping bottom card pixels
+    const bottomBuffer = 5.0;
+    double cardHeight = 32.0 + rowHeight + bottomBuffer;
 
     // 6. Note
     final hasNote = student.note != null && student.note!.trim().isNotEmpty;

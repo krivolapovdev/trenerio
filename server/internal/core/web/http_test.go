@@ -40,6 +40,18 @@ func TestParseUUIDParam(t *testing.T) {
 		assert.Equal(t, uuid.Nil, id)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
+
+	t.Run("EmptyUUID", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/test", nil)
+		c.Params = gin.Params{{Key: "id", Value: ""}}
+
+		id, ok := ParseUUIDParam(c, "id")
+		assert.False(t, ok)
+		assert.Equal(t, uuid.Nil, id)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
 }
 
 func TestBindJSON(t *testing.T) {
@@ -63,6 +75,30 @@ func TestBindJSON(t *testing.T) {
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
 		c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewBufferString(`{invalid-json`))
+		c.Request.Header.Set("Content-Type", "application/json")
+
+		var payload SamplePayload
+		ok := BindJSON(c, &payload)
+		assert.False(t, ok)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("EmptyBody", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/", nil)
+		c.Request.Header.Set("Content-Type", "application/json")
+
+		var payload SamplePayload
+		ok := BindJSON(c, &payload)
+		assert.False(t, ok)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("MissingRequiredField", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewBufferString(`{}`))
 		c.Request.Header.Set("Content-Type", "application/json")
 
 		var payload SamplePayload
@@ -97,6 +133,16 @@ func TestParsePagination(t *testing.T) {
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
 		c.Request = httptest.NewRequest(http.MethodGet, "/items?page=-1&size=0", nil)
+
+		page, size := ParsePagination(c, 1, 20)
+		assert.Equal(t, 1, page)
+		assert.Equal(t, 20, size)
+	})
+
+	t.Run("NonNumericValuesFallbackToDefaults", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/items?page=abc&size=xyz", nil)
 
 		page, size := ParsePagination(c, 1, 20)
 		assert.Equal(t, 1, page)

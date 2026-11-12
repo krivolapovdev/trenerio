@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	authmodel "github.com/krivolapovdev/trenerio/internal/modules/auth/domain"
+	authhttp "github.com/krivolapovdev/trenerio/internal/modules/auth/transport/http"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -45,5 +46,25 @@ func TestSetupTestRouter(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Equal(t, "anonymous", w.Body.String())
+	})
+
+	t.Run("ContextRetrievalInHandler", func(t *testing.T) {
+		var retrievedUser authmodel.JwtUser
+		var retrievedOk bool
+		r := SetupTestRouter(testUser, func(rg *gin.RouterGroup) {
+			rg.GET("/user", func(c *gin.Context) {
+				retrievedUser, retrievedOk = authhttp.GetUserFromContext(c)
+				c.Status(http.StatusOK)
+			})
+		})
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/user", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.True(t, retrievedOk)
+		assert.Equal(t, testUser.ID, retrievedUser.ID)
+		assert.Equal(t, testUser.Email, retrievedUser.Email)
 	})
 }

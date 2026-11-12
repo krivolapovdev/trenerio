@@ -101,4 +101,52 @@ func TestCorsMiddleware_WildcardAndDisallowedPreflight(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.Equal(t, "https://any-domain.com", w.Header().Get("Access-Control-Allow-Origin"))
 	})
+
+	t.Run("NoOriginHeader_PassesThrough", func(t *testing.T) {
+		r := gin.New()
+		r.Use(CorsMiddleware([]string{"https://app.trenerio.ru"}))
+		r.GET("/ping", func(c *gin.Context) {
+			c.String(http.StatusOK, "pong")
+		})
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/ping", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, "pong", w.Body.String())
+		assert.Empty(t, w.Header().Get("Access-Control-Allow-Origin"))
+	})
+
+	t.Run("MultipleAllowedOrigins", func(t *testing.T) {
+		allowed := []string{"https://app.trenerio.ru", "https://admin.trenerio.ru"}
+		r := gin.New()
+		r.Use(CorsMiddleware(allowed))
+		r.GET("/data", func(c *gin.Context) {
+			c.String(http.StatusOK, "data")
+		})
+
+		// First allowed origin
+		w1 := httptest.NewRecorder()
+		req1 := httptest.NewRequest(http.MethodGet, "/data", nil)
+		req1.Header.Set("Origin", "https://app.trenerio.ru")
+		r.ServeHTTP(w1, req1)
+		assert.Equal(t, http.StatusOK, w1.Code)
+		assert.Equal(t, "https://app.trenerio.ru", w1.Header().Get("Access-Control-Allow-Origin"))
+
+		// Second allowed origin
+		w2 := httptest.NewRecorder()
+		req2 := httptest.NewRequest(http.MethodGet, "/data", nil)
+		req2.Header.Set("Origin", "https://admin.trenerio.ru")
+		r.ServeHTTP(w2, req2)
+		assert.Equal(t, http.StatusOK, w2.Code)
+		assert.Equal(t, "https://admin.trenerio.ru", w2.Header().Get("Access-Control-Allow-Origin"))
+
+		// Third disallowed origin preflight
+		w3 := httptest.NewRecorder()
+		req3 := httptest.NewRequest(http.MethodOptions, "/data", nil)
+		req3.Header.Set("Origin", "https://other.com")
+		r.ServeHTTP(w3, req3)
+		assert.Equal(t, http.StatusForbidden, w3.Code)
+	})
 }

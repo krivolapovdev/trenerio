@@ -118,4 +118,48 @@ func TestAuthMiddleware(t *testing.T) {
 		assert.Equal(t, user.ID.String(), res["id"])
 		assert.Equal(t, user.Email, res["email"])
 	})
+
+	t.Run("ExpiredAccessToken", func(t *testing.T) {
+		expiredProvider := authsvc.NewTokenProvider("super-secret-key-32-bytes-long!", -1*time.Hour, 24*time.Hour, "reviewer-key")
+		expiredToken, err := expiredProvider.GenerateAccessToken(user)
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+		req.Header.Set("Authorization", "Bearer "+expiredToken)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("WrongSecretKeyToken", func(t *testing.T) {
+		differentProvider := authsvc.NewTokenProvider("another-different-32-byte-secret", time.Hour, 24*time.Hour, "reviewer-key")
+		differentToken, err := differentProvider.GenerateAccessToken(user)
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+		req.Header.Set("Authorization", "Bearer "+differentToken)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("NonBearerAuthHeader", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+		req.Header.Set("Authorization", "Basic dXNlcjpwYXNz")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("MalformedTokenString", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+		req.Header.Set("Authorization", "Bearer not.a.real.jwt.token")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
 }

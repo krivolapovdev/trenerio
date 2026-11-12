@@ -130,6 +130,29 @@ func TestStudentHandler_GetAllStudentsSummary(t *testing.T) {
 		assert.Equal(t, "Ivan Ivanov", actual[0].FullName)
 	})
 
+	t.Run("Success_RootRoute", func(t *testing.T) {
+		mockSvc := &mockStudentService{
+			getAllStudentsSummaryFn: func(ctx context.Context, ownerID uuid.UUID) ([]studentservice.StudentSummary, error) {
+				assert.Equal(t, testUser.ID, ownerID)
+				return []studentservice.StudentSummary{
+					{ID: uuid.New(), FullName: "Maria Petrova"},
+				}, nil
+			},
+		}
+
+		r := setupStudentRouter(mockSvc, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/students", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusOK, w.Code)
+		var actual []StudentSummaryResponse
+		err := json.Unmarshal(w.Body.Bytes(), &actual)
+		require.NoError(t, err)
+		assert.Len(t, actual, 1)
+		assert.Equal(t, "Maria Petrova", actual[0].FullName)
+	})
+
 	t.Run("InternalServerError", func(t *testing.T) {
 		mockSvc := &mockStudentService{
 			getAllStudentsSummaryFn: func(ctx context.Context, ownerID uuid.UUID) ([]studentservice.StudentSummary, error) {
@@ -498,6 +521,21 @@ func TestStudentHandler_GetStudentPayments(t *testing.T) {
 		assert.Equal(t, nethttp.StatusOK, w.Code)
 	})
 
+	t.Run("NotFound", func(t *testing.T) {
+		mockSvc := &mockStudentService{
+			getStudentPaymentsFn: func(ctx context.Context, sID, ownerID uuid.UUID) ([]txmodel.Transaction, error) {
+				return nil, pkgerrors.NewNotFound("Student", sID, ownerID)
+			},
+		}
+
+		r := setupStudentRouter(mockSvc, testUser)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodGet, "/api/v1/students/"+studentID.String()+"/payments", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusNotFound, w.Code)
+	})
+
 	t.Run("InternalServerError", func(t *testing.T) {
 		mockSvc := &mockStudentService{
 			getStudentPaymentsFn: func(ctx context.Context, sID, ownerID uuid.UUID) ([]txmodel.Transaction, error) {
@@ -616,6 +654,50 @@ func TestStudentHandler_CreateStudentPayment(t *testing.T) {
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
+	})
+
+	t.Run("Success_WithPaidFromAndUntil", func(t *testing.T) {
+		expectedID := uuid.New()
+		paymentDate := time.Date(2026, 10, 17, 0, 0, 0, 0, time.UTC)
+		paidFrom := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+		paidUntil := time.Date(2026, 10, 31, 0, 0, 0, 0, time.UTC)
+
+		mockSvc := &mockStudentService{
+			createStudentPaymentFn: func(ctx context.Context, sID, ownerID uuid.UUID, amount float64, date time.Time, pFrom, pUntil *time.Time, sessionsAdded *int64) (txmodel.Transaction, error) {
+				assert.Equal(t, studentID, sID)
+				require.NotNil(t, pFrom)
+				require.NotNil(t, pUntil)
+				assert.True(t, paidFrom.Equal(*pFrom))
+				assert.True(t, paidUntil.Equal(*pUntil))
+				return txmodel.Transaction{ID: expectedID, Amount: amount}, nil
+			},
+		}
+
+		r := setupStudentRouter(mockSvc, testUser)
+		w := httptest.NewRecorder()
+		payload := `{"amount":5000.0,"date":"` + paymentDate.Format(time.RFC3339) + `","paidFrom":"` + paidFrom.Format(time.RFC3339) + `","paidUntil":"` + paidUntil.Format(time.RFC3339) + `"}`
+		req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/students/"+studentID.String()+"/payments", bytes.NewBufferString(payload))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusCreated, w.Code)
+	})
+
+	t.Run("NotFound", func(t *testing.T) {
+		mockSvc := &mockStudentService{
+			createStudentPaymentFn: func(ctx context.Context, sID, ownerID uuid.UUID, amount float64, date time.Time, pFrom, pUntil *time.Time, sessionsAdded *int64) (txmodel.Transaction, error) {
+				return txmodel.Transaction{}, pkgerrors.NewNotFound("Student", sID, ownerID)
+			},
+		}
+
+		r := setupStudentRouter(mockSvc, testUser)
+		w := httptest.NewRecorder()
+		payload := `{"amount":4500.0,"date":"2026-10-17T00:00:00Z","paidUntil":"2026-11-17T00:00:00Z"}`
+		req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/students/"+studentID.String()+"/payments", bytes.NewBufferString(payload))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusNotFound, w.Code)
 	})
 
 	t.Run("InternalServerError", func(t *testing.T) {

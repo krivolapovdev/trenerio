@@ -109,7 +109,9 @@ class GroupHeaderDelegate extends SliverPersistentHeaderDelegate {
     }
 
     final rowHeight = math.max(avatarHeight, columnHeight);
-    double cardHeight = 32.0 + rowHeight + 5;
+    // Extra buffer to prevent subpixel rounding from clipping bottom card pixels
+    const bottomBuffer = 5.0;
+    double cardHeight = 32.0 + rowHeight + bottomBuffer;
 
     final hasNote = group.note != null && group.note!.trim().isNotEmpty;
     if (hasNote) {

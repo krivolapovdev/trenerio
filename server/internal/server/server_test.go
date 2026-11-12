@@ -278,6 +278,59 @@ func TestServer_MiddlewareIntegration(t *testing.T) {
 	})
 }
 
+type testDummyRouter struct {
+	path string
+}
+
+func (d *testDummyRouter) RegisterRoutes(rg *gin.RouterGroup) {
+	rg.GET(d.path, func(c *gin.Context) {
+		c.String(http.StatusOK, d.path)
+	})
+}
+
+func TestServer_MultipleProtectedRouters(t *testing.T) {
+	tokenProvider := authsvc.NewTokenProvider("super-secret-key-32-bytes-long!", time.Hour, 24*time.Hour, "reviewer-key")
+	testUser := authmodel.JwtUser{ID: uuid.New(), Email: "multi@trenerio.ru"}
+	accessToken, _, err := tokenProvider.GenerateTokenPair(testUser)
+	require.NoError(t, err)
+
+	router1 := &testDummyRouter{path: "/resource1"}
+	router2 := &testDummyRouter{path: "/resource2"}
+
+	srv := NewServer(tokenProvider, []string{"*"}, nil, router1, router2)
+
+	// Access first protected route
+	w1 := httptest.NewRecorder()
+	req1 := httptest.NewRequest(http.MethodGet, "/api/v1/resource1", nil)
+	req1.Header.Set("Authorization", "Bearer "+accessToken)
+	srv.Engine().ServeHTTP(w1, req1)
+	assert.Equal(t, http.StatusOK, w1.Code)
+	assert.Equal(t, "/resource1", w1.Body.String())
+
+	// Access second protected route
+	w2 := httptest.NewRecorder()
+	req2 := httptest.NewRequest(http.MethodGet, "/api/v1/resource2", nil)
+	req2.Header.Set("Authorization", "Bearer "+accessToken)
+	srv.Engine().ServeHTTP(w2, req2)
+	assert.Equal(t, http.StatusOK, w2.Code)
+	assert.Equal(t, "/resource2", w2.Body.String())
+}
+
+func TestServer_MethodNotAllowedOnHealth(t *testing.T) {
+	tokenProvider := authsvc.NewTokenProvider("super-secret-key-32-bytes-long!", time.Hour, 24*time.Hour, "reviewer-key")
+	srv := NewServer(tokenProvider, []string{"*"}, nil)
+
+	methods := []string{http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodPatch}
+	for _, m := range methods {
+		t.Run(m, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(m, "/health", nil)
+			srv.Engine().ServeHTTP(w, req)
+			assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
+		})
+	}
+}
+
 func TestServer_Run(t *testing.T) {
 	tokenProvider := authsvc.NewTokenProvider("super-secret-key-32-bytes-long!", time.Hour, 24*time.Hour, "reviewer-key")
 	srv := NewServer(tokenProvider, []string{"*"}, nil)

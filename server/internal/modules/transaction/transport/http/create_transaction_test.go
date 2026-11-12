@@ -156,6 +156,56 @@ func TestTransactionHandler_CreateTransaction(t *testing.T) {
 		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
 	})
 
+	t.Run("BadRequest_ZeroOrNegativeAmount", func(t *testing.T) {
+		r := setupTxRouter(&mockTxService{}, testUser)
+		w := httptest.NewRecorder()
+		payload := `{"amount":0,"type":"INCOME","date":"2026-10-17T10:00:00Z"}`
+		req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/transactions", bytes.NewBufferString(payload))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
+	})
+
+	t.Run("BadRequest_MissingRequiredFields", func(t *testing.T) {
+		r := setupTxRouter(&mockTxService{}, testUser)
+		w := httptest.NewRecorder()
+		payload := `{"amount":100}`
+		req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/transactions", bytes.NewBufferString(payload))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
+	})
+
+	t.Run("Success_WithPaidFromAndUntil", func(t *testing.T) {
+		txDate := time.Date(2026, 10, 17, 10, 0, 0, 0, time.UTC)
+		paidFrom := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+		paidUntil := time.Date(2026, 10, 31, 0, 0, 0, 0, time.UTC)
+		studentID := uuid.New()
+		expectedID := uuid.New()
+
+		mockSvc := &mockTxService{
+			createTransactionFn: func(ctx context.Context, txToCreate txmodel.Transaction, ownerID uuid.UUID) (txmodel.Transaction, error) {
+				require.NotNil(t, txToCreate.PaymentDetails)
+				require.NotNil(t, txToCreate.PaymentDetails.PaidFrom)
+				require.NotNil(t, txToCreate.PaymentDetails.PaidUntil)
+				assert.True(t, paidFrom.Equal(*txToCreate.PaymentDetails.PaidFrom))
+				assert.True(t, paidUntil.Equal(*txToCreate.PaymentDetails.PaidUntil))
+				return txmodel.Transaction{ID: expectedID, Amount: txToCreate.Amount}, nil
+			},
+		}
+
+		r := setupTxRouter(mockSvc, testUser)
+		w := httptest.NewRecorder()
+		payload := `{"amount":3000.0,"type":"INCOME","date":"` + txDate.Format(time.RFC3339) + `","paymentDetails":{"studentId":"` + studentID.String() + `","paidFrom":"` + paidFrom.Format(time.RFC3339) + `","paidUntil":"` + paidUntil.Format(time.RFC3339) + `"}}`
+		req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/transactions", bytes.NewBufferString(payload))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusCreated, w.Code)
+	})
+
 	t.Run("InternalServerError", func(t *testing.T) {
 		mockSvc := &mockTxService{
 			createTransactionFn: func(ctx context.Context, txToCreate txmodel.Transaction, ownerID uuid.UUID) (txmodel.Transaction, error) {

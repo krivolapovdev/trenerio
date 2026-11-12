@@ -120,6 +120,19 @@ func TestAuthHandler_GoogleLogin(t *testing.T) {
 
 		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
 	})
+
+	t.Run("EmptyToken", func(t *testing.T) {
+		svc := &mockAuthService{}
+		r := setupAuthRouter(svc)
+		body, _ := json.Marshal(map[string]string{"token": ""})
+		req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/oauth2/google", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
+	})
 }
 
 func TestAuthHandler_ReviewerLogin(t *testing.T) {
@@ -128,6 +141,17 @@ func TestAuthHandler_ReviewerLogin(t *testing.T) {
 		r := setupAuthRouter(mockSvc)
 		w := httptest.NewRecorder()
 		req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/reviewer/login", nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("EmptyHeader", func(t *testing.T) {
+		mockSvc := &mockAuthService{}
+		r := setupAuthRouter(mockSvc)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/reviewer/login", nil)
+		req.Header.Set(web.HeaderXReviewerKey, "")
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, nethttp.StatusUnauthorized, w.Code)
@@ -229,6 +253,20 @@ func TestAuthHandler_RefreshTokens(t *testing.T) {
 		r := setupAuthRouter(svc)
 
 		req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/jwt/refresh", bytes.NewBufferString("{invalid-json"))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, nethttp.StatusBadRequest, w.Code)
+	})
+
+	t.Run("EmptyRefreshToken", func(t *testing.T) {
+		svc := &mockAuthService{}
+		r := setupAuthRouter(svc)
+
+		body, _ := json.Marshal(map[string]string{"refreshToken": ""})
+		req := httptest.NewRequest(nethttp.MethodPost, "/api/v1/jwt/refresh", bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
