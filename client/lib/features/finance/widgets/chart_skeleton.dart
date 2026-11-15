@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:phone/features/finance/widgets/chart_skeleton_colors.dart';
 import 'package:phone/features/finance/widgets/chart_skeleton_painter.dart';
 import 'package:phone/features/finance/widgets/month_label_bone.dart';

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:phone/core/extensions/app_locale_extension.dart';
 import 'package:phone/i18n/strings.g.dart';
 

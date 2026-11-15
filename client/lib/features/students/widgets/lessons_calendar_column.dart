@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:phone/features/students/widgets/group_lesson_calendar.dart';
 import 'package:phone/features/students/widgets/student_lesson_calendar_section.dart';
 import 'package:phone/features/students/widgets/student_lessons_section.dart';

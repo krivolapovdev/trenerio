@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:phone/features/students/widgets/student_filter_button.dart';
 import 'package:phone/features/students/widgets/student_search_results.dart';
 import 'package:phone/generated/models/student_summary_response.dart';

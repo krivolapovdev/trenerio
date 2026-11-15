@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:phone/features/groups/models/lesson_attendance.dart';
 import 'package:phone/features/groups/widgets/choice_tile.dart';
 import 'package:phone/features/groups/widgets/section_title.dart';

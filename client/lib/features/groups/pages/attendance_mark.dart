@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:phone/features/groups/pages/lesson_ui.dart';
 import 'package:phone/generated/models/visit_status.dart';
 import 'package:phone/i18n/strings.g.dart';

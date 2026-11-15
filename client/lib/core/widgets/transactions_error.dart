@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:phone/core/constants/app_spacing.dart';
 import 'package:phone/core/errors/dio_error_mapper.dart';
 import 'package:phone/i18n/strings.g.dart';

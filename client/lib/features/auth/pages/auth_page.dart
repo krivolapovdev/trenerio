@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:phone/features/auth/widgets/google_sign_in_button.dart';
 import 'package:phone/features/auth/widgets/privacy_policy_link.dart';
 import 'package:phone/features/auth/widgets/reviewer_login_trigger.dart';

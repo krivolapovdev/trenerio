@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 extension StringExtension on String {
   static const double _defaultSaturation = 0.45;

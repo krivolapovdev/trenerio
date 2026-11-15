@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:phone/core/constants/app_constants.dart';
 import 'package:phone/i18n/strings.g.dart';
 import 'package:url_launcher/url_launcher.dart';

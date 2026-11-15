@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phone/features/students/controllers/assign_student_group_controller.dart';
 import 'package:phone/i18n/strings.g.dart';

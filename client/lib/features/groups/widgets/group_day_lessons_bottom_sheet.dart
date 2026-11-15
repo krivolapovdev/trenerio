@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:phone/features/groups/widgets/group_create_lesson_tile.dart';
 import 'package:phone/features/groups/widgets/group_lesson_tile.dart';
 import 'package:phone/generated/models/lesson_response.dart';

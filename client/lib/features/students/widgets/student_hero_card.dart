@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:phone/features/students/models/student_badge_data.dart';
 import 'package:phone/features/students/widgets/student_card.dart';
 import 'package:phone/generated/models/student_summary_response.dart';

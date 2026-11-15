@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:phone/features/finance/models/payment_student.dart';
 import 'package:phone/features/finance/models/student_payment.dart';
 import 'package:phone/features/finance/widgets/payments/student_payment_tile.dart';

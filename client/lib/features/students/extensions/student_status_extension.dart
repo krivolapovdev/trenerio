@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:phone/core/constants/app_colors.dart';
 import 'package:phone/features/students/models/student_badge_data.dart';
 import 'package:phone/generated/models/student_status.dart';

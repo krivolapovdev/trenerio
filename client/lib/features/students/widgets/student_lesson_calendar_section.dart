@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:phone/core/widgets/create_lesson_button.dart';
 import 'package:phone/core/widgets/lessons_calendar.dart';
 import 'package:phone/generated/models/lesson_response.dart';

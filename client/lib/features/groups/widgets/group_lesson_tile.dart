@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:phone/features/groups/widgets/group_day_lessons_bottom_sheet.dart';
 import 'package:phone/generated/models/lesson_response.dart';
 import 'package:phone/i18n/strings.g.dart';

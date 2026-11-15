@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:phone/core/widgets/transaction_date_group.dart';
 import 'package:phone/features/finance/utils/transaction_date_formatter.dart';
 import 'package:phone/generated/models/transaction_response.dart';
