@@ -85,4 +85,22 @@ void main() {
       expect(badges.any((b) => b.label == '3'), isTrue);
     },
   );
+
+  testWidgets('invokes onLongPress when long pressed', (tester) async {
+    var longPressed = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: GroupCard(
+            group: _group,
+            onTap: () {},
+            onLongPress: () => longPressed = true,
+          ),
+        ),
+      ),
+    );
+
+    await tester.longPress(find.byType(GroupCard));
+    expect(longPressed, isTrue);
+  });
 }

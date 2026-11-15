@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:phone/core/widgets/app_bottom_sheet.dart';
 import 'package:phone/features/groups/pages/group_page.dart';
+import 'package:phone/features/groups/widgets/edit_group_bottom_sheet.dart';
 import 'package:phone/features/groups/widgets/group_card.dart';
 import 'package:phone/generated/models/group_summary_response.dart';
 
@@ -35,6 +37,12 @@ class GroupListView extends StatelessWidget {
                       ),
                     );
                   },
+            onLongPress: isLoading
+                ? null
+                : () => AppBottomSheet.show(
+                    context: context,
+                    child: EditGroupBottomSheet(group: group),
+                  ),
           ),
         ),
       );

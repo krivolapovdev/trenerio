@@ -8,6 +8,7 @@ import 'package:phone/generated/models/group_summary_response.dart';
 class GroupCard extends StatelessWidget {
   final GroupSummaryResponse group;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
 
   final bool noteVisible;
   final BorderRadius? borderRadius;
@@ -16,6 +17,7 @@ class GroupCard extends StatelessWidget {
     super.key,
     required this.group,
     required this.onTap,
+    this.onLongPress,
     this.noteVisible = true,
     this.borderRadius,
   });
@@ -35,6 +37,7 @@ class GroupCard extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: cardRadius),
       child: InkWell(
         onTap: onTap,
+        onLongPress: onLongPress,
         borderRadius: cardRadius,
         child: Padding(
           padding: const EdgeInsets.all(16.0),

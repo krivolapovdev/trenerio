@@ -5,6 +5,7 @@ import 'package:phone/features/groups/controllers/group_lessons_controller.dart'
 import 'package:phone/features/groups/controllers/group_list_controller.dart';
 import 'package:phone/features/groups/controllers/group_students_controller.dart';
 import 'package:phone/features/groups/pages/group_list_page.dart';
+import 'package:phone/features/groups/widgets/edit_group_bottom_sheet.dart';
 import 'package:phone/features/groups/widgets/group_list_view.dart';
 import 'package:phone/generated/models/group_student_summary_response.dart';
 import 'package:phone/generated/models/group_summary_response.dart';
@@ -141,5 +142,18 @@ void main() {
 
     expect(lessonsBuilds, ['group-1', 'group-1']);
     expect(studentsBuilds, ['group-1', 'group-1']);
+  });
+
+  testWidgets('long pressing a group card opens edit group bottom sheet', (
+    tester,
+  ) async {
+    await _pumpGroupListPage(tester, container);
+
+    expect(find.byType(EditGroupBottomSheet), findsNothing);
+
+    await tester.longPress(find.text('Group A'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(EditGroupBottomSheet), findsOneWidget);
   });
 }
