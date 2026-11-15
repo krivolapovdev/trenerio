@@ -58,6 +58,8 @@ class StudentPaymentListPage extends ConsumerWidget {
         ],
       ),
       body: CustomMaterialIndicator(
+        semanticsLabel: MaterialLocalizations.of(context)
+            .refreshIndicatorSemanticLabel,
         color: Colors.black,
         clipBehavior: Clip.antiAlias,
         onRefresh: refreshPayments,

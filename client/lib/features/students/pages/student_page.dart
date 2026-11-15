@@ -237,6 +237,8 @@ class _StudentPageState extends ConsumerState<StudentPage> {
       value: overlayStyle,
       child: Scaffold(
         body: CustomMaterialIndicator(
+          semanticsLabel: MaterialLocalizations.of(context)
+              .refreshIndicatorSemanticLabel,
           edgeOffset: headerMaxHeight,
           displacement: 20,
           color: Colors.black,

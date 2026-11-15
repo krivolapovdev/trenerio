@@ -182,6 +182,8 @@ class _RosterDetailsPageState extends ConsumerState<RosterDetailsPage> {
         ),
       ),
       body: CustomMaterialIndicator(
+        semanticsLabel: MaterialLocalizations.of(context)
+            .refreshIndicatorSemanticLabel,
         color: Colors.black,
         clipBehavior: Clip.antiAlias,
         onRefresh: () async {

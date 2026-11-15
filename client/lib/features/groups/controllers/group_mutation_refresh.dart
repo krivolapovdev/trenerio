@@ -46,7 +46,7 @@ void refreshAfterGroupLessonsMutation(
 
   for (final studentId in studentIds) {
     final provider = studentLessonsProvider(studentId);
-    if (!ref.exists(provider)) continue;
+    if (!ref.read(provider.exists)) continue;
 
     unawaited(
       ref.read(provider.notifier).refresh().catchError((error, _) {

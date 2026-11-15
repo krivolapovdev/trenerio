@@ -33,6 +33,8 @@ class _TransactionListBodyState extends ConsumerState<TransactionListBody> {
     );
 
     return CustomMaterialIndicator(
+      semanticsLabel: MaterialLocalizations.of(context)
+          .refreshIndicatorSemanticLabel,
       color: Colors.black,
       clipBehavior: Clip.antiAlias,
       onRefresh: () async {

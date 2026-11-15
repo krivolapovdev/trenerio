@@ -44,6 +44,8 @@ class GroupListPage extends ShellPage {
   @override
   Widget build(BuildContext context) => Consumer(
     builder: (context, ref, child) => CustomMaterialIndicator(
+      semanticsLabel: MaterialLocalizations.of(context)
+          .refreshIndicatorSemanticLabel,
       color: Colors.black,
       clipBehavior: Clip.antiAlias,
       onRefresh: () async {

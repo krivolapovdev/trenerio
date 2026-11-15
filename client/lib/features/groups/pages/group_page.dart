@@ -120,6 +120,8 @@ class _GroupPageState extends ConsumerState<GroupPage> {
       value: overlayStyle,
       child: Scaffold(
         body: CustomMaterialIndicator(
+          semanticsLabel: MaterialLocalizations.of(context)
+              .refreshIndicatorSemanticLabel,
           edgeOffset: headerMaxHeight,
           displacement: 20,
           color: Colors.black,
