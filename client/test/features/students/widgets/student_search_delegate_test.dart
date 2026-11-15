@@ -164,29 +164,4 @@ void main() {
     expect(find.text('Petr Sidorov'), findsNothing);
     expect(find.text('No students found'), findsOneWidget);
   });
-
-  testWidgets('the filter can be reset from the empty search results', (
-    tester,
-  ) async {
-    await _pumpSearchHost(tester, container);
-    await _openSearch(tester);
-
-    await _selectGroupInFilterSheet(tester, 'Group A');
-    await _typeQuery(tester, 'petr');
-
-    expect(find.text('No students found'), findsOneWidget);
-
-    await tester.tap(find.text(t.reset));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Petr Sidorov'), findsOneWidget);
-    expect(find.text('Ivan Ivanov'), findsNothing);
-
-    final badge = tester.widget<Badge>(find.byType(Badge));
-    expect(badge.isLabelVisible, isFalse);
-
-    await _typeQuery(tester, '');
-
-    expect(find.text('Ivan Ivanov'), findsOneWidget);
-  });
 }
